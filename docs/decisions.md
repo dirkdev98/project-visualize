@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-11-06 stock runtime and viewer state
+
+- Pin Maligator to `0.1.0-alpha.32` and consume the upstream initialization fix, so
+  application startup uses the published runtime without local corrections.
+- Scope canvas interaction state to each saved version, so chart ranges, table filters
+  and scroll positions stay with the data they describe.
+
+Keep track of;
+
+- Finish native viewer interaction verification on an unlocked Mac session.
+
 ## 2026-11-06 declarative artifact versions
 
 - Store each rendered revision as a separate document with its context and copied
@@ -11,11 +22,6 @@
   raster PDF snapshots for each version so agents can export without opening a window.
 - Start with a local macOS library and snapshot data. Viewer interactions explore that
   snapshot without changing the saved version.
-
-Keep track of;
-
-- Resolve the Maligator runtime initialization defect before accepting the compiled
-  CLI workflow and its integration checks.
 
 ## 2026-11-06 native artifact tools
 

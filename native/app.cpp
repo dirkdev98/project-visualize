@@ -93,9 +93,11 @@ int frame() {
     if (ImGui::Button("PDF")) SDL_OpenURL(file_url(selected + "/snapshot.pdf").c_str());
     if (!doc.is_null()) {
       float content_width = ImGui::GetContentRegionAvail().x - (show_context ? 324 : 0);
+      ImGui::PushID(selected.c_str());
       ImGui::BeginChild("canvas", ImVec2(std::max(320.0f, content_width), 0), ImGuiChildFlags_Borders);
       pv::document_body(doc, false);
       ImGui::EndChild();
+      ImGui::PopID();
       if (show_context) {
         ImGui::SameLine();
         ImGui::BeginChild("context", ImVec2(312, 0), ImGuiChildFlags_Borders);
