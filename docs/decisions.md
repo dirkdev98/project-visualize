@@ -9,7 +9,8 @@
 
 Keep track of;
 
-- Finish native viewer interaction verification on an unlocked Mac session.
+- Verify chart pan and zoom with a physical mouse. SDL substitutes the global cursor
+  position for synthetic pointer coordinates on this Mac.
 
 ## 2026-11-06 declarative artifact versions
 
