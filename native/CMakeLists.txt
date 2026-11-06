@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.24)
+project(visualize LANGUAGES C CXX OBJCXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+find_package(SDL3 3.2 CONFIG REQUIRED)
+find_package(ZLIB REQUIRED)
+set(DEPS "${CMAKE_CURRENT_SOURCE_DIR}/../.cache/deps")
+set(IMGUI "${DEPS}/imgui")
+set(IMPLOT "${DEPS}/implot")
+
+add_library(visualize SHARED
+  app.cpp gpu.cpp content.cpp markdown.cpp
+  ${DEPS}/md4c/src/md4c.c ${DEPS}/md4c/src/entity.c
+  ${IMGUI}/imgui.cpp ${IMGUI}/imgui_draw.cpp
+  ${IMGUI}/imgui_tables.cpp ${IMGUI}/imgui_widgets.cpp
+  ${IMGUI}/backends/imgui_impl_sdl3.cpp ${IMGUI}/backends/imgui_impl_wgpu.cpp
+  ${IMPLOT}/implot.cpp ${IMPLOT}/implot_items.cpp)
+set_source_files_properties(${IMGUI}/backends/imgui_impl_wgpu.cpp PROPERTIES LANGUAGE OBJCXX)
+target_include_directories(visualize PRIVATE ${DEPS} ${IMGUI} ${IMGUI}/backends
+  ${IMPLOT} ${DEPS}/md4c/src ${DEPS}/wgpu/include)
+target_compile_definitions(visualize PRIVATE IMGUI_IMPL_WEBGPU_BACKEND_WGPU)
+target_compile_options(visualize PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_libraries(visualize PRIVATE SDL3::SDL3 ZLIB::ZLIB
+  ${DEPS}/wgpu/lib/libwgpu_native.dylib
+  "-framework Cocoa" "-framework QuartzCore" "-framework Metal"
+  "-framework MetalKit" "-framework CoreFoundation")
+set_target_properties(visualize PROPERTIES BUILD_RPATH "${DEPS}/wgpu/lib")

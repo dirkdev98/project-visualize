@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "title": "Making a decision visible",
+  "subtitle": "A rich document with supporting evidence",
+  "category": "RESEARCH NOTE",
+  "context": {
+    "summary": "Demonstrate rich text, code and evidence in one saved artifact.",
+    "source": "Fictional example."
+  },
+  "body": [
+    {
+      "type": "markdown",
+      "content": "# A small decision, with its reasoning\n\nA report needs room for **evidence**, *uncertainty*, and a [source](https://example.com/research). A chart alone leaves too much of that in the conversation.\n\n## The question\n\nCan we increase the number of completed reviews without making each review longer?\n\n> Keep the measurement and the explanation together.\n\n### Working assumptions\n\n- The same reviewers take part in each period.\n- Each review has the same acceptance criteria.\n  - Incomplete reviews do not count.\n  - Reopened reviews are tracked separately.\n\n### Review sequence\n\n1. Collect a matching baseline.\n2. Change one part of the process.\n3. Compare completed reviews and time spent.\n\n~~Raw throughput is enough.~~ Compare accepted outcomes.\n\n---\n\n## A calculation you can inspect\n\n```ts\nfunction acceptedPerHour(accepted: number, hours: number) {\n  return accepted / hours;\n}\n```\n\n| Period | Accepted reviews | Hours |\n| :--- | ---: | ---: |\n| Baseline | 42 | 14 |\n| Revised | 54 | 15 |\n\nThe result is **promising**, with a small sample. An improvement from 3 to 3.6 accepted reviews per hour is an observation, not a forecast.\n\n- [x] Preserve the inputs.\n- [x] Record the assumptions.\n- [ ] Repeat with a matched period.\n\nSpecial characters remain readable: caf\u00e9, co\u00f6peration, &amp;, &lt;sample&gt;."
+    },
+    {
+      "type": "callout",
+      "title": "Decision",
+      "tone": "positive",
+      "content": "Keep the revised process for another matched period. **Revisit the decision** if acceptance quality changes."
+    }
+  ]
+}

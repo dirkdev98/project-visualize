@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "title": "A quieter week in orbit",
+  "subtitle": "Observatory operations | Weekly review | Fictional demonstration data",
+  "category": "OPERATIONS NOTEBOOK",
+  "context": {
+    "summary": "Assess station health and explain the trade-off between capacity and energy use.",
+    "source": "Fictional measurements created for this example.",
+    "assumptions": [
+      "All stations use the same measurement interval.",
+      "Energy values are illustrative."
+    ],
+    "author": "Example research agent"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "OBSERVATIONS",
+          "value": "18,420",
+          "detail": "+12.4% from the previous week",
+          "tone": "positive"
+        },
+        {
+          "type": "metric",
+          "label": "AVAILABILITY",
+          "value": "99.8%",
+          "detail": "Above the 99.5% target",
+          "tone": "positive"
+        },
+        {
+          "type": "metric",
+          "label": "ENERGY / OBSERVATION",
+          "value": "0.42 kWh",
+          "detail": "Down from 0.48 kWh",
+          "tone": "positive"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "title": "The useful change",
+      "content": "**Consolidating the overnight schedule** increased observations while reducing energy per observation. Keep the daytime schedule steady until the next review.",
+      "tone": "positive"
+    },
+    {
+      "type": "row",
+      "weights": [1.4, 1],
+      "children": [
+        {
+          "type": "card",
+          "title": "A steadier observation cadence",
+          "children": [
+            {
+              "type": "chart",
+              "kind": "line",
+              "height": 300,
+              "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+              "yLabel": "Observations",
+              "series": [
+                {
+                  "name": "This week",
+                  "values": [2100, 2440, 2680, 2600, 2810, 2880, 2910]
+                },
+                {
+                  "name": "Previous week",
+                  "values": [1960, 2100, 2380, 2200, 2480, 2630, 2630]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "Capacity by station",
+          "children": [
+            {
+              "type": "chart",
+              "kind": "bar",
+              "height": 300,
+              "labels": ["North", "East", "West"],
+              "yLabel": "Capacity used (%)",
+              "series": [{ "name": "Used", "values": [82, 68, 74] }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "content": "## What the numbers leave out\n\nThe improvement is **indicative**. Station West had a shorter maintenance window, so the schedule change does not explain the entire gain. The next review should compare matched operating hours.\n\n> A useful dashboard preserves the explanation alongside the chart.\n\n### Before the next review\n\n1. Compare stations during matching operating hours.\n2. Keep the overnight schedule unchanged.\n3. Review energy use alongside observation quality.\n\nThe decision log uses `energy / accepted observations`, rather than raw throughput. Read more about [observatory planning](https://example.com/observatory)."
+    },
+    {
+      "type": "card",
+      "title": "Station review",
+      "children": [
+        {
+          "type": "table",
+          "columns": [
+            { "key": "station", "label": "Station" },
+            { "key": "observations", "label": "Observations" },
+            { "key": "availability", "label": "Availability" },
+            { "key": "action", "label": "Next action" }
+          ],
+          "rows": [
+            {
+              "station": "North",
+              "observations": 6840,
+              "availability": "99.9%",
+              "action": "Hold schedule"
+            },
+            {
+              "station": "East",
+              "observations": 5320,
+              "availability": "99.8%",
+              "action": "Review spare capacity"
+            },
+            {
+              "station": "West",
+              "observations": 6260,
+              "availability": "99.7%",
+              "action": "Match operating hours"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "card",
+      "title": "From observation to evidence",
+      "children": [
+        {
+          "type": "diagram",
+          "height": 180,
+          "nodes": [
+            {
+              "id": "observe",
+              "label": "Observe",
+              "detail": "Capture raw observations with station and time metadata."
+            },
+            {
+              "id": "review",
+              "label": "Review",
+              "detail": "Assess signal quality before accepting an observation."
+            },
+            {
+              "id": "publish",
+              "label": "Publish",
+              "detail": "Keep accepted results with their original context."
+            }
+          ],
+          "edges": [
+            { "from": "observe", "to": "review", "label": "raw" },
+            { "from": "review", "to": "publish", "label": "accepted" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "details",
+      "title": "Calculation and review notes",
+      "children": [
+        {
+          "type": "markdown",
+          "content": "### Reproducible calculation\n\n```ts\nconst energyPerObservation = energyKwh / acceptedObservations;\n```\n\n| Measure | Interpretation |\n| --- | --- |\n| Throughput | Accepted observations per operating hour |\n| Efficiency | Energy per accepted observation |\n\n- [x] Keep the original data with this artifact.\n- [ ] Compare a second matched week.\n\n*No live data sources are connected.*"
+        },
+        {
+          "type": "progress",
+          "label": "Review preparation",
+          "value": 0.65,
+          "detail": "Matched operating hours are the remaining input."
+        }
+      ]
+    }
+  ]
+}

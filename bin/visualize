@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ ! -x "$root/dist/bin/visualize" ]; then
+  echo 'Build Project Visualize with npm install and npm run build first.' >&2
+  exit 1
+fi
+exec "$root/dist/bin/visualize" "$@"
