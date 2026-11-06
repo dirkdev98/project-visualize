@@ -20,6 +20,7 @@ void setup_style();
 void text(const std::string &value, float size = 18, ImFont *font = nullptr,
           ImVec4 color = ink, float wrap = 0);
 void markdown(const std::string &value, const Json &assets);
+void clear_markdown_cache();
 void block(const Json &value, const Json &assets, bool exporting);
 float document(const Json &value, float width, float height, bool exporting);
 void document_body(const Json &value, bool exporting);

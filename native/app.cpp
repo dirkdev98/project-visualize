@@ -11,6 +11,16 @@ std::unique_ptr<pv::Gpu> viewer_context;
 Json viewer_state, viewer_event;
 bool show_context = false;
 char search[256]{};
+// Dynamic glyphs and table layout need a second frame after content changes.
+int pending_frames = 2;
+uint64_t animate_until = 0;
+
+bool holding_input() {
+  if (SDL_GetMouseState(nullptr, nullptr)) return true;
+  int count = 0;
+  const bool *keys = SDL_GetKeyboardState(&count);
+  return std::any_of(keys, keys + count, [](bool down) { return down; });
+}
 
 std::string file_url(const std::string &file) {
   std::string url = "file://";
@@ -24,13 +34,30 @@ std::string file_url(const std::string &file) {
 }
 
 int frame() {
+  const bool animating = SDL_GetTicks() < animate_until || holding_input();
+  const bool text_input = ImGui::GetIO().WantTextInput;
+  bool redraw = pending_frames > 0 || animating || text_input;
+  int timeout = 1000;
+  if (pending_frames > 0) timeout = 0;
+  else if (animating) timeout = 16;
+  else if (text_input) timeout = 250;
+  if (!redraw) {
+    wgpuDevicePoll(viewer_context->device, false, nullptr);
+    viewer_context->check();
+  }
   SDL_Event event;
-  if (SDL_WaitEventTimeout(&event, 30)) {
+  if (SDL_WaitEventTimeout(&event, timeout)) {
     do {
+      if (event.type == SDL_EVENT_POLL_SENTINEL) continue;
       ImGui_ImplSDL3_ProcessEvent(&event);
       if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) return 0;
+      redraw = true;
+      pending_frames = 2;
+      animate_until = SDL_GetTicks() + 500;
     } while (SDL_PollEvent(&event));
   }
+  if (!redraw) return 1;
+  if (pending_frames > 0) --pending_frames;
   const auto &entries = viewer_state.at("entries");
   const auto selected = viewer_state.value("selected", "");
   static const Json empty;
@@ -164,6 +191,8 @@ extern "C" int pv_viewer_start(void) {
     viewer_state = Json{{"entries", Json::array()}};
     show_context = false;
     search[0] = '\0';
+    pending_frames = 2;
+    animate_until = 0;
     return 0;
   } catch (const std::exception &error) {
     last_error = error.what();
@@ -175,7 +204,13 @@ extern "C" int pv_viewer_start(void) {
 extern "C" int pv_viewer_update(const char *state_json) {
   try {
     last_error.clear();
-    viewer_state = Json::parse(state_json);
+    auto state = Json::parse(state_json);
+    if (state.value("selected", "") != viewer_state.value("selected", "")) {
+      if (viewer_context) viewer_context->clear_images();
+      pv::clear_markdown_cache();
+    }
+    viewer_state = std::move(state);
+    pending_frames = 2;
     return 0;
   } catch (const std::exception &error) { last_error = error.what(); return -1; }
 }

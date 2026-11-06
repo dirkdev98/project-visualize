@@ -28,6 +28,8 @@ struct Tree {
   }
 };
 
+std::unordered_map<std::string, std::unique_ptr<Tree>> cache;
+
 std::string utf8(unsigned code) {
   if (code == 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) code = 0xfffd;
   std::string out;
@@ -286,9 +288,10 @@ void render(const Node &node, const Json &assets) {
 }
 
 void markdown(const std::string &value, const Json &assets) {
-  static std::unordered_map<std::string, std::unique_ptr<Tree>> cache;
   auto it = cache.find(value);
   if (it == cache.end()) it = cache.emplace(value, parse(value)).first;
   render(it->second->root, assets);
 }
+
+void clear_markdown_cache() { cache.clear(); }
 }

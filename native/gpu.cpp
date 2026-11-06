@@ -24,10 +24,7 @@ static std::string message(WGPUStringView view) {
 
 Gpu::~Gpu() {
   if (device) wgpuDevicePoll(device, true, nullptr);
-  for (auto &[file, image] : images) {
-    wgpuTextureViewRelease(image.view);
-    wgpuTextureRelease(image.texture);
-  }
+  clear_images();
   if (renderer) ImGui_ImplWGPU_Shutdown();
   if (platform) ImGui_ImplSDL3_Shutdown();
   if (imgui) { ImPlot::DestroyContext(); ImGui::DestroyContext(); }
@@ -40,6 +37,14 @@ Gpu::~Gpu() {
   if (window) SDL_DestroyWindow(window);
   if (sdl) SDL_Quit();
   gpu = nullptr;
+}
+
+void Gpu::clear_images() {
+  for (auto &[file, image] : images) {
+    wgpuTextureViewRelease(image.view);
+    wgpuTextureRelease(image.texture);
+  }
+  images.clear();
 }
 
 void Gpu::check() {

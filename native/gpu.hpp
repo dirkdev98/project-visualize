@@ -31,6 +31,7 @@ public:
   ~Gpu();
   void init(bool viewer);
   void check();
+  void clear_images();
   void begin(float width, float height, int scale = 1);
   void draw(WGPUTextureView view);
   std::vector<unsigned char> capture(int width, int height);

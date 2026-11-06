@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-06 idle rendering and document resources
+
+- Redraw for input, content changes and timed UI behavior, so an idle window does not
+  repeatedly submit unchanged GPU work. Keep event waits bounded so the host can refresh
+  the artifact library.
+- Release images and parsed rich text when the selected revision changes, so browsing
+  history does not retain those resources. Saved revisions and their interaction state
+  remain available when revisited.
+
+Keep track of;
+
+- Verify native interactions after idle and resource use while revisiting revisions in
+  an unlocked Mac session.
+
 ## 2026-11-06 stock runtime and viewer state
 
 - Pin Maligator to `0.1.0-alpha.32` and consume the upstream initialization fix, so
