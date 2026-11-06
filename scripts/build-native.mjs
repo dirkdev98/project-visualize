@@ -6,6 +6,7 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -74,6 +75,18 @@ for (const [name, entry] of Object.entries(lock)) {
     rmSync(archive);
   }
   writeFileSync(marker, entry.sha256);
+}
+
+for (const [binding, library] of [
+  ["cimgui", "imgui"],
+  ["cimplot", "implot"],
+]) {
+  const directory = join(deps, binding);
+  const source = join(directory, library);
+  if (!existsSync(join(source, `${library}.h`))) {
+    rmSync(source, { recursive: true, force: true });
+    symlinkSync(join(deps, library), source);
+  }
 }
 
 const prefix = execFileSync("brew", ["--prefix", "sdl3"], {

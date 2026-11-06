@@ -101,7 +101,14 @@ execFileSync("codesign", ["--force", "--sign", "-", dirname(app)], {
 
 const notices = join(release, "licenses");
 mkdirSync(notices, { recursive: true });
-for (const component of ["imgui", "implot", "md4c", "wgpu"]) {
+for (const component of [
+  "imgui",
+  "implot",
+  "cimgui",
+  "cimplot",
+  "md4c",
+  "wgpu",
+]) {
   const directory = join(root, ".cache/deps", component);
   for (const file of readdirSync(directory).filter((file) =>
     /^LICENSE/i.test(file),

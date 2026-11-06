@@ -1,5 +1,33 @@
 # Decisions
 
+## 2026-11-07 native UI bindings
+
+- Use generated C bindings for Dear ImGui and ImPlot so Maligator can compose native
+  widgets directly. Keep document interpretation and application behavior in JS/TS.
+- Pin each binding and its native toolkit to matching source revisions. Regenerating
+  the wrappers locally failed on C++ attributes and header language handling, so consume
+  the upstream-generated bindings with their matching toolkit sources.
+- Keep window creation, UI calls and resource disposal on the main thread. Pass input
+  buffers and chart arrays through typed FFI rather than a document-level JSON bridge.
+
+Keep track of;
+
+- Move the existing viewer and document renderer onto the direct bindings.
+- Recheck upstream wrapper generation before changing the native toolkit revisions.
+
+## 2026-11-07 idle performance evidence
+
+- Retain event-driven redraws. On AC power, the redraw-only comparison used the same
+  saved dashboard and visible Retina window, with three interleaved 15-second samples
+  per production build after 10-second warmups. Median CPU fell from 3.635% to 0.082%
+  of one core, about 44x lower; ranges were 3.272..9.342% and 0.076..0.189%.
+- Median physical memory footprint fell from 238.3 MiB to 81.6 MiB, about 2.9x lower.
+  The ranges were 238.0..238.5 MiB and 81.3..105.9 MiB. This does not establish a 10x
+  total memory reduction. Keep the original source, binary identities and raw samples
+  in `.cache/performance` for comparisons with the JS renderer.
+- Keep final native interaction and revision-cache verification pending while the Mac
+  window is unavailable to automation. Headless CLI and export checks can continue.
+
 ## 2026-11-06 idle rendering and document resources
 
 - Redraw for input, content changes and timed UI behavior, so an idle window does not

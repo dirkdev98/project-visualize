@@ -11,6 +11,8 @@ artifacts include upstream license notices in `licenses/`.
 | [wgpu-native](https://github.com/gfx-rs/wgpu-native)    | Native WebGPU rendering         | MIT or Apache-2.0                    |
 | [Dear ImGui](https://github.com/ocornut/imgui)          | Desktop widgets and layout      | MIT                                  |
 | [ImPlot](https://github.com/epezent/implot)             | Interactive charts              | MIT                                  |
+| [cimgui](https://github.com/cimgui/cimgui)              | Generated widget C bindings     | MIT                                  |
+| [cimplot](https://github.com/cimgui/cimplot)            | Generated chart C bindings      | MIT                                  |
 | [SDL3](https://github.com/libsdl-org/SDL)               | Native windows and input        | zlib                                 |
 | [MD4C](https://github.com/mity/md4c)                    | CommonMark parsing              | MIT                                  |
 | [JSON for Modern C++](https://github.com/nlohmann/json) | Native document decoding        | MIT                                  |

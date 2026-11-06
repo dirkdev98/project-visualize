@@ -1,12 +1,12 @@
 {
   "imgui": {
-    "url": "https://codeload.github.com/ocornut/imgui/tar.gz/refs/tags/v1.93.0",
-    "sha256": "f7bf6bc76e5d79d40d751096663e6c5d18daf08129dd52e7f7b09e4251c8eeee",
+    "url": "https://codeload.github.com/ocornut/imgui/tar.gz/6d32174508fb8c518e7a832cc1d571fadd5cba76",
+    "sha256": "6e5d20682444ab1a88a2eb2f6343113e085384976af2b41861498ab6b7839ab8",
     "kind": "tar"
   },
   "implot": {
-    "url": "https://codeload.github.com/epezent/implot/tar.gz/refs/tags/v1.1",
-    "sha256": "f13e1e111db2df1687e1568644429c2184eb5115867dc76bb0a8bd17a2e72ae8",
+    "url": "https://codeload.github.com/epezent/implot/tar.gz/72de27832d1e6299bcc930ce01073d899d420392",
+    "sha256": "ab006ec1446f02140c271bce9615023aeb2b7b72efe6c83d8f15d774310af26c",
     "kind": "tar"
   },
   "md4c": {
@@ -33,5 +33,15 @@
     "url": "https://raw.githubusercontent.com/nlohmann/json/v3.12.0/LICENSE.MIT",
     "sha256": "46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603",
     "kind": "header"
+  },
+  "cimgui": {
+    "url": "https://codeload.github.com/cimgui/cimgui/tar.gz/2a6a93fccd10f275ee9206167dc9698f6f00fac1",
+    "sha256": "8be8684a2a18203f3636377012743a2debfb96b4d9f4ac89c402b4ea80e7c48b",
+    "kind": "tar"
+  },
+  "cimplot": {
+    "url": "https://codeload.github.com/cimgui/cimplot/tar.gz/c809ff29c84813fe1cdc8a0c069145ef2285f22a",
+    "sha256": "e79c2a823149c29714599c19123423b610ea25ca60765157084b70da745eef78",
+    "kind": "tar"
   }
 }

@@ -229,3 +229,33 @@ extern "C" int pv_viewer_frame(void) {
 extern "C" const char *pv_viewer_event(void) { return event_text.empty() ? nullptr : event_text.c_str(); }
 extern "C" void pv_viewer_close(void) { viewer_context.reset(); }
 extern "C" const char *pv_error(void) { return last_error.empty() ? nullptr : last_error.c_str(); }
+
+extern "C" int pv_surface_open(int viewer) {
+  try {
+    last_error.clear();
+    viewer_context = std::make_unique<pv::Gpu>();
+    viewer_context->init(viewer != 0);
+    return 0;
+  } catch (const std::exception &error) {
+    last_error = error.what();
+    viewer_context.reset();
+    return -1;
+  }
+}
+
+extern "C" int pv_surface_begin(int width, int height, int scale) {
+  try {
+    viewer_context->begin(width, height, scale);
+    return 0;
+  } catch (const std::exception &error) { last_error = error.what(); return -1; }
+}
+
+extern "C" int pv_surface_save(const char *output, int width, int height) {
+  try {
+    auto pixels = viewer_context->capture(width, height);
+    pv::write_image(output, width, height, pixels);
+    return 0;
+  } catch (const std::exception &error) { last_error = error.what(); return -1; }
+}
+
+extern "C" void pv_surface_close(void) { viewer_context.reset(); }

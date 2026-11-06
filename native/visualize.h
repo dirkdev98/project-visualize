@@ -14,6 +14,11 @@ const char *pv_viewer_event(void);
 void pv_viewer_close(void);
 const char *pv_error(void);
 
+int pv_surface_open(int viewer);
+int pv_surface_begin(int width, int height, int scale);
+int pv_surface_save(const char *output, int width, int height);
+void pv_surface_close(void);
+
 #ifdef __cplusplus
 }
 #endif
