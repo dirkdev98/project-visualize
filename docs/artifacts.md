@@ -127,6 +127,7 @@ override this, and use `format` for decimal places, a prefix or a suffix:
 
 Formatting applies to numeric cells. Sorting and calculations use the original
 values; table search matches both the visible formatting and the original values.
+Clear search resets a table's local query while preserving linked controls and sorting.
 
 Metrics accept numeric or text values. Use `decimals`, `prefix` and `suffix` to format
 numeric values without changing the underlying data.

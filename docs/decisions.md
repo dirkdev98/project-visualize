@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-07 empty table recovery
+
+- Explain whether a table's current view has no rows or its local search has no
+  matches. Keep the empty-view message in exports so a header-only table cannot look
+  like missing rendering work.
+- Offer Clear search for a failed local query. Clear its state and native input
+  buffer together, retaining the current sort and linked parameters. Verify typing
+  again after recovery so an old native buffer cannot silently restore the failed query.
+
 ## 2026-11-07 reproducible viewer selections
 
 - Add Copy view for sharing the displayed revision, current theme and typed linked

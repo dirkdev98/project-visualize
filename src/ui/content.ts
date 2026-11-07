@@ -746,6 +746,7 @@ export class DocumentRenderer {
     const textStart = capture?.text.length ?? 0;
     const rowStarts: number[] = [];
     const tableTop = igGetCursorScreenPos().y;
+    let empty: "view" | "search" | undefined;
     if (igBeginTable("data", value.columns.length, flags, { x: 0, y: 0 }, 0)) {
       for (const column of value.columns)
         igTableSetupColumn(column.label, 0, 0, 0);
@@ -799,6 +800,7 @@ export class DocumentRenderer {
         cached = { key: signature, indices };
         this.orders.set(key, cached);
       }
+      if (!cached.indices.length) empty = rows.length ? "search" : "view";
       for (const index of cached.indices) {
         igTableNextRow(0, 0);
         if (capture) rowStarts.push(igGetCursorScreenPos().y);
@@ -837,6 +839,20 @@ export class DocumentRenderer {
           textStart,
           textEnd,
         );
+      }
+    }
+    if (empty) {
+      text(
+        empty === "search"
+          ? "No rows match this search."
+          : "No rows in this view.",
+        16,
+        "regular",
+        palette.muted,
+      );
+      if (!exporting && empty === "search" && igSmallButton("Clear search")) {
+        state.query = "";
+        buffer.fill(0);
       }
     }
   }
