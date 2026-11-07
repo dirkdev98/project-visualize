@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-11-07 pinned font bytes
+
+- Preserve the vendored font license's original line endings in Git. Its upstream
+  checksum covers those bytes, so automatic text normalization would make a fresh
+  checkout fail the build's integrity check.
+
 ## 2026-11-07 paginated and selectable documents
 
 - Keep PNGs continuous and paginate PDF captures onto A4 landscape pages by default,
