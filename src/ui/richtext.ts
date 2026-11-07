@@ -4,7 +4,9 @@ import {
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
   ImGuiMouseCursor_Hand,
+  ImGuiStyleVar_CellPadding,
   ImGuiTableFlags_BordersInnerH,
+  ImGuiTableFlags_PadOuterX,
   ImGuiTableFlags_RowBg,
   ImGuiTableRowFlags_Headers,
   igAlignTextToFramePadding,
@@ -24,8 +26,10 @@ import {
   igIsItemHovered,
   igPopFont,
   igPopID,
+  igPopStyleVar,
   igPushFont,
   igPushID_Int,
+  igPushStyleVar_Vec2,
   igSameLine,
   igSeparator,
   igSetClipboardText,
@@ -524,15 +528,31 @@ export class RichText {
           break;
         }
         case "table": {
+          if (token.header.length > 2 && available() < 480) {
+            for (const row of token.rows) {
+              const top = igGetCursorScreenPos().y;
+              for (let i = 0; i < token.header.length; i++) {
+                this.inline(token.header[i].tokens, 12, true);
+                if (row[i]) this.inline(row[i].tokens, 16);
+              }
+              keepTogether(top, igGetCursorScreenPos().y);
+              igSeparator();
+              igSpacing();
+            }
+            break;
+          }
           const capture = currentCapture();
           const textStart = capture?.text.length ?? 0;
           const rowStarts: number[] = [];
           const tableTop = igGetCursorScreenPos().y;
+          igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 12, y: 10 });
           if (
             igBeginTable(
               "markdown",
               token.header.length,
-              ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg,
+              ImGuiTableFlags_BordersInnerH |
+                ImGuiTableFlags_RowBg |
+                ImGuiTableFlags_PadOuterX,
               { x: 0, y: 0 },
               0,
             )
@@ -566,6 +586,7 @@ export class RichText {
               );
             }
           }
+          igPopStyleVar(1);
           break;
         }
         case "html":

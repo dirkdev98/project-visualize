@@ -1,5 +1,21 @@
 # Decisions
 
+## 2026-11-07 desktop and phone captures
+
+- Default new screenshots to 2x density, retaining explicit single-density rendering.
+  Let agents save a phone PNG alongside the desktop PNG and PDF in one atomic,
+  immutable revision, and return named screenshot paths with logical dimensions.
+- Support phone widths with smaller canvas margins, responsive titles and stacked
+  records for wide data and Markdown tables. Preserve field content, numeric sorting
+  and formatted search across layout changes rather than shrinking columns into
+  unreadable text.
+- Give tables explicit local cell padding and outer horizontal padding so headers
+  do not inherit container-dependent spacing. Use the same bold header face in the
+  viewer and exports, retaining native sorting behavior and repeated PDF headings.
+- Keep captures sequential. Doubling density uses four times as many raster pixels,
+  so retain GPU bounds and the single-density option for very tall documents. This
+  changes capture quality and cost without an accepted memory or speed improvement.
+
 ## 2026-11-07 responsive categorical bars
 
 - Use measured adjacent-label widths to switch crowded categorical bar charts to

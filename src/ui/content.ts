@@ -14,10 +14,12 @@ import {
   ImGuiTableColumnFlags_WidthFixed,
   ImGuiTableColumnFlags_WidthStretch,
   ImGuiTableFlags_BordersInnerH,
+  ImGuiTableFlags_PadOuterX,
   ImGuiTableFlags_RowBg,
   ImGuiTableFlags_SizingStretchSame,
   ImGuiTableFlags_Sortable,
   ImGuiTableFlags_SortMulti,
+  ImGuiTableFlags_SortTristate,
   ImGuiTableRowFlags_Headers,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImPlot_BeginPlot,
@@ -89,10 +91,11 @@ import {
   igSetNextItemWidth,
   igSmallButton,
   igSpacing,
-  igTableHeadersRow,
+  igTableHeader,
   igTableNextColumn,
   igTableNextRow,
   igTableSetBgColor,
+  igTableSetColumnSortDirection,
   igTableSetupColumn,
   igUnindent,
   type PVImage,
@@ -163,7 +166,14 @@ import {
 } from "./theme.ts";
 
 export interface DocumentState {
-  tables: Record<string, { query: string }>;
+  tables: Record<
+    string,
+    {
+      query: string;
+      sort?: { column: number; direction: number }[];
+      narrow?: boolean;
+    }
+  >;
   parameters: Parameters;
   revision: number;
   chartFits: Map<string, string>;
@@ -366,7 +376,7 @@ export class DocumentRenderer {
       "bold",
       palette.accent,
     );
-    text(this.document.title, 38, "bold");
+    text(this.document.title, available() < 480 ? 30 : 38, "bold");
     if (this.document.subtitle)
       text(this.document.subtitle, 19, "regular", palette.muted);
     igSpacing();
@@ -769,77 +779,149 @@ export class DocumentRenderer {
       if (input("##search", "Filter rows…", buffer))
         state.query = inputValue(buffer);
     }
-    let flags =
-      ImGuiTableFlags_BordersInnerH |
-      ImGuiTableFlags_RowBg |
-      ImGuiTableFlags_SizingStretchSame;
-    if (!exporting)
-      flags |= ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti;
+    const narrow = value.columns.length > 2 && available() < 480;
+    let sort = exporting ? [] : (state.sort ?? []);
+    if (narrow && !exporting) {
+      const active = sort[0];
+      const preview = active
+        ? `${value.columns[active.column].label} · ${active.direction === 1 ? "ascending" : "descending"}`
+        : "Source order";
+      text("Sort rows", 12, "bold", palette.muted);
+      igSetNextItemWidth(Math.min(300, available()));
+      if (igBeginCombo("##sort", preview, 0)) {
+        if (igSelectable_Bool("Source order", !sort.length, 0, { x: 0, y: 0 }))
+          sort = [];
+        for (let i = 0; i < value.columns.length; i++)
+          for (const direction of [1, 2])
+            if (
+              igSelectable_Bool(
+                `${value.columns[i].label} · ${direction === 1 ? "ascending" : "descending"}##${i}-${direction}`,
+                active?.column === i && active.direction === direction,
+                0,
+                { x: 0, y: 0 },
+              )
+            )
+              sort = [{ column: i, direction }];
+        igEndCombo();
+      }
+    }
     const capture = currentCapture();
     const textStart = capture?.text.length ?? 0;
+    let textEnd = textStart;
     const rowStarts: number[] = [];
     const tableTop = igGetCursorScreenPos().y;
-    let empty: "view" | "search" | undefined;
-    if (igBeginTable("data", value.columns.length, flags, { x: 0, y: 0 }, 0)) {
-      for (const column of value.columns)
-        igTableSetupColumn(
-          column.label,
-          ImGuiTableColumnFlags_WidthStretch,
-          column.weight ?? 1,
-          0,
-        );
-      if (exporting) {
+    let open = false;
+    if (!narrow) {
+      igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 12, y: 10 });
+      let flags =
+        ImGuiTableFlags_BordersInnerH |
+        ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_SizingStretchSame |
+        ImGuiTableFlags_PadOuterX;
+      if (!exporting)
+        flags |=
+          ImGuiTableFlags_Sortable |
+          ImGuiTableFlags_SortMulti |
+          ImGuiTableFlags_SortTristate;
+      open = igBeginTable(
+        "data",
+        value.columns.length,
+        flags,
+        { x: 0, y: 0 },
+        0,
+      );
+      if (open) {
+        for (const column of value.columns)
+          igTableSetupColumn(
+            column.label,
+            ImGuiTableColumnFlags_WidthStretch,
+            column.weight ?? 1,
+            0,
+          );
+        if (!exporting && state.narrow) {
+          igTableSetColumnSortDirection(0, 0, false);
+          for (let i = 0; i < sort.length; i++)
+            igTableSetColumnSortDirection(
+              sort[i].column,
+              sort[i].direction,
+              i > 0,
+            );
+        }
         igTableNextRow(ImGuiTableRowFlags_Headers, 0);
+        const face = fonts.bold;
+        if (!face) throw new Error("Fonts are not initialized");
+        igPushFont(face, 16);
         for (const column of value.columns) {
           igTableNextColumn();
-          text(column.label, 16, "bold");
+          if (exporting) text(column.label, 16, "bold");
+          else igTableHeader(column.label);
         }
-      } else igTableHeadersRow();
-      const textEnd = capture?.text.length ?? 0;
-      const sort: { column: number; direction: number }[] = [];
-      if (!exporting) {
-        const first = pv_table_sort(0);
-        for (let i = 0; i < first.count; i++) {
-          const spec = i === 0 ? first : pv_table_sort(i);
-          sort.push({ column: spec.column, direction: spec.direction });
+        igPopFont();
+        textEnd = capture?.text.length ?? 0;
+        if (!exporting) {
+          sort = [];
+          const first = pv_table_sort(0);
+          for (let i = 0; i < first.count; i++) {
+            const spec = i === 0 ? first : pv_table_sort(i);
+            sort.push({ column: spec.column, direction: spec.direction });
+          }
         }
       }
-      const query = exporting ? "" : state.query.toLowerCase();
-      const signature = JSON.stringify([query, sort]);
-      let cached = this.orders.get(key);
-      if (!cached || cached.key !== signature) {
-        const formatted = cells.values;
-        const indices = rows
-          .map((_, i) => i)
-          .filter(
-            (i) =>
-              !query ||
-              formatted[i].join(" ").toLowerCase().includes(query) ||
-              value.columns
-                .map((c) => scalar(cell(rows[i], c.key)))
-                .join(" ")
-                .toLowerCase()
-                .includes(query),
-          );
-        if (sort.length)
-          indices.sort((a, b) => {
-            for (const spec of sort) {
-              const field = value.columns[spec.column].key;
-              const x = cell(rows[a], field),
-                y = cell(rows[b], field);
-              const order =
-                typeof x === "number" && typeof y === "number"
-                  ? x - y
-                  : scalar(x).localeCompare(scalar(y));
-              if (order) return spec.direction === 1 ? order : -order;
-            }
-            return 0;
-          });
-        cached = { key: signature, indices };
-        this.orders.set(key, cached);
-      }
-      if (!cached.indices.length) empty = rows.length ? "search" : "view";
-      for (const index of cached.indices) {
+    }
+    if (!exporting) {
+      state.sort = sort;
+      state.narrow = narrow;
+    }
+    const query = exporting ? "" : state.query.toLowerCase();
+    const signature = JSON.stringify([query, sort]);
+    let cached = this.orders.get(key);
+    if (!cached || cached.key !== signature) {
+      const formatted = cells.values;
+      const indices = rows
+        .map((_, i) => i)
+        .filter(
+          (i) =>
+            !query ||
+            formatted[i].join(" ").toLowerCase().includes(query) ||
+            value.columns
+              .map((c) => scalar(cell(rows[i], c.key)))
+              .join(" ")
+              .toLowerCase()
+              .includes(query),
+        );
+      if (sort.length)
+        indices.sort((a, b) => {
+          for (const spec of sort) {
+            const field = value.columns[spec.column].key;
+            const x = cell(rows[a], field),
+              y = cell(rows[b], field);
+            const order =
+              typeof x === "number" && typeof y === "number"
+                ? x - y
+                : scalar(x).localeCompare(scalar(y));
+            if (order) return spec.direction === 1 ? order : -order;
+          }
+          return 0;
+        });
+      cached = { key: signature, indices };
+      this.orders.set(key, cached);
+    }
+    const empty = cached.indices.length
+      ? undefined
+      : rows.length
+        ? "search"
+        : "view";
+    for (const index of cached.indices) {
+      if (narrow) {
+        const top = igGetCursorScreenPos().y;
+        for (let column = 0; column < value.columns.length; column++) {
+          text(value.columns[column].label, 12, "bold", palette.muted);
+          text(cells.values[index][column], 16);
+        }
+        keepTogether(top, igGetCursorScreenPos().y);
+        igSeparator();
+        igSpacing();
+      } else if (open) {
         igTableNextRow(0, 0);
         if (capture) rowStarts.push(igGetCursorScreenPos().y);
         for (let column = 0; column < value.columns.length; column++) {
@@ -864,20 +946,25 @@ export class DocumentRenderer {
           text(display, 16);
         }
       }
-      igEndTable();
-      if (capture) {
-        const min = igGetItemRectMin(),
-          max = igGetItemRectMax();
-        captureTable(
-          min.x,
-          max.x,
-          tableTop,
-          max.y,
-          rowStarts,
-          textStart,
-          textEnd,
-        );
+    }
+    if (!narrow) {
+      if (open) {
+        igEndTable();
+        if (capture) {
+          const min = igGetItemRectMin(),
+            max = igGetItemRectMax();
+          captureTable(
+            min.x,
+            max.x,
+            tableTop,
+            max.y,
+            rowStarts,
+            textStart,
+            textEnd,
+          );
+        }
       }
+      igPopStyleVar(1);
     }
     if (empty) {
       text(

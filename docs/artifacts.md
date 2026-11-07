@@ -315,6 +315,15 @@ by cropping equally from the long axis. Captions remain selectable in PDF export
 
 ## Exports
 
+New revisions default to 2x screenshot density. Use `--scale 1` for a smaller image.
+Add `render --mobile-width 390` to save desktop and phone PNGs together, with paths
+in the returned `screenshots` object. Export an existing revision with `--width 390`
+to inspect its phone layout without changing saved files. Logical widths start at 320.
+
+Phone layouts use narrower margins and stack columns. Wide data and Markdown tables
+become labeled records in reading order, retaining the complete
+content. Data tables keep local sorting and search when changing between layouts.
+
 Documents default to a light theme. Set `"theme": "dark"` for a matching dark canvas,
 controls and syntax colors. `render --theme light|dark` overrides that field and saves
 the chosen appearance. `export --theme light|dark` rerenders an appearance without

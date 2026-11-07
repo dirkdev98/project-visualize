@@ -16,7 +16,8 @@ visualize open [--project ID] [--artifact ID] [--version ID]
 visualize validate --file document.json
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
-render and export accept --width 480..2560 and --scale 1|2.
+render and export accept --width 320..2560 and --scale 1|2. New renders default to 2x.
+render accepts --mobile-width 320..600 to save a second responsive PNG.
 render, export and open accept --theme light|dark.
 render always saves a new immutable version with PNG and PDF snapshots.
 Commands return JSON. open (the default) runs the native desktop viewer.
@@ -36,7 +37,16 @@ async function main() {
   const command =
     args.length && !args[0].startsWith("--") ? args.shift() : "open";
   const permitted: Record<string, string[]> = {
-    render: ["project", "artifact", "file", "width", "scale", "store", "theme"],
+    render: [
+      "project",
+      "artifact",
+      "file",
+      "width",
+      "scale",
+      "store",
+      "theme",
+      "mobile-width",
+    ],
     list: ["project", "artifact", "store"],
     inspect: ["project", "artifact", "version", "store", "params"],
     export: [
@@ -103,8 +113,8 @@ async function main() {
     if (theme !== undefined) document.theme = theme;
     if (command === "validate") result = { valid: true, title: document.title };
     else {
-      const width = dimension("width", 1280, 480, 2560),
-        scale = dimension("scale", 1, 1, 2);
+      const width = dimension("width", 1280, 320, 2560),
+        scale = dimension("scale", 2, 1, 2);
       const entry = await save(
         root,
         required("project"),
@@ -114,12 +124,24 @@ async function main() {
         width,
         scale,
         render,
+        {
+          mobileWidth:
+            options["mobile-width"] === undefined
+              ? undefined
+              : dimension("mobile-width", 390, 320, 600),
+        },
       );
       result = {
         ...entry,
         document: join(entry.directory, "document.json"),
         png: join(entry.directory, "snapshot.png"),
         pdf: join(entry.directory, "snapshot.pdf"),
+        screenshots: {
+          desktop: join(entry.directory, "snapshot.png"),
+          ...(entry.mobile
+            ? { mobile: join(entry.directory, "snapshot-mobile.png") }
+            : {}),
+        },
       };
     }
   } else if (command === "list")
@@ -171,7 +193,7 @@ async function main() {
         "Export outside the saved version store to preserve history",
       );
     mkdirSync(dirname(out), { recursive: true });
-    const width = dimension("width", entry.width, 480, 2560),
+    const width = dimension("width", entry.width, 320, 2560),
       scale = dimension("scale", entry.scale, 1, 2);
     if (
       width === entry.width &&

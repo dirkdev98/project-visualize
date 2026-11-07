@@ -35,7 +35,10 @@ function canvas(
 ): number {
   igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
   igSetNextWindowSize({ x: width, y: height }, 0);
-  igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding, { x: 36, y: 32 });
+  igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding, {
+    x: width < 480 ? 16 : 36,
+    y: 32,
+  });
   igBegin(
     "artifact",
     ImGuiWindowFlags_NoDecoration |

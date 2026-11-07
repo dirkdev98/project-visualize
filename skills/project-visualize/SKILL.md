@@ -32,11 +32,13 @@ each saved revision retains its chosen bytes for offline viewing and export.
 ```sh
 "$visualize_root/bin/visualize" validate --file document.json
 "$visualize_root/bin/visualize" render --project orbital --artifact station-review \
-  --file document.json
+  --file document.json --mobile-width 390
 ```
 
-Parse the JSON result and inspect the returned PNG with the host's image-viewing
-capability. Fix clipping, unclear labels and poor composition by rendering a revision.
+Parse the JSON result and inspect its desktop and mobile `screenshots` with the
+host's image-viewing capability. New screenshots default to 2x density; use `--scale 1`
+when the full canvas is too tall at that density. Fix clipping, unclear labels and
+poor composition by rendering a revision.
 Return the screenshot using the conversation host's supported image mechanism, with
 the artifact's project, ID and version available when useful. A path alone does not
 display an image on every host.

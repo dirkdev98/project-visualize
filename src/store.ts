@@ -25,6 +25,7 @@ export interface Entry {
   width: number;
   height: number;
   scale: number;
+  mobile?: { width: number; height: number };
   directory: string;
 }
 
@@ -109,6 +110,7 @@ export async function save(
     width: number,
     scale: number,
   ) => Promise<number>,
+  options: { mobileWidth?: number } = {},
 ): Promise<Entry> {
   slug(project, "project");
   slug(artifact, "artifact");
@@ -160,6 +162,19 @@ export async function save(
       width,
       height,
       scale,
+      ...(options.mobileWidth === undefined
+        ? {}
+        : {
+            mobile: {
+              width: options.mobileWidth,
+              height: await render(
+                hydrated,
+                [join(pending, "snapshot-mobile.png")],
+                options.mobileWidth,
+                scale,
+              ),
+            },
+          }),
     };
     writeFileSync(
       join(pending, "metadata.json"),

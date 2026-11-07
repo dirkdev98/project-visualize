@@ -40,6 +40,10 @@ bin/visualize export --project observatory --artifact weekly-review \
 Use `--version` with `inspect`, `open` or `export` to select an earlier revision.
 `--file -` reads a document from stdin. `--width` sets the export layout width and
 `--scale` controls pixel density. `--help` describes the CLI.
+New revisions default to 2x screenshots. Add `--mobile-width 390` to `render` to save
+desktop and phone PNGs in the same revision; their paths are in `screenshots`.
+Use `export --width 390` for a phone layout of an existing revision, or `--scale 1`
+when a single-density image is preferable.
 Use `--theme dark` with `render`, `export` or `open` for the matching dark appearance.
 The viewer also has a theme button; Cmd+K focuses its library search.
 

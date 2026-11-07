@@ -68,6 +68,124 @@ test("render returns saved documents and actual PNG/PDF files as JSON", async (t
   assert.equal(pdf.getTitle(), minimal().title);
 });
 
+test("desktop and mobile screenshots share one immutable revision at high resolution", (t) => {
+  const { root, ok } = workspace(t);
+  const document = {
+    ...minimal(),
+    body: [
+      {
+        type: "row",
+        children: [
+          { type: "metric", label: "Accepted", value: 42 },
+          {
+            type: "table",
+            columns: [
+              { key: "station", label: "Station" },
+              { key: "accepted", label: "Accepted" },
+              { key: "note", label: "Observation note" },
+            ],
+            rows: [
+              {
+                station: "Cedar station",
+                accepted: 42,
+                note: "Fictional complete evidence remains readable on a phone.",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "responsive",
+      "--file",
+      "-",
+      "--mobile-width",
+      "390",
+    ],
+    document,
+  );
+  assert.equal(entry.scale, 2);
+  assert.equal(
+    readFileSync(entry.screenshots.desktop).readUInt32BE(16),
+    entry.width * entry.scale,
+  );
+  assert.equal(
+    readFileSync(entry.screenshots.mobile).readUInt32BE(16),
+    entry.mobile.width * entry.scale,
+  );
+  assert.equal(
+    readFileSync(entry.screenshots.mobile).readUInt32BE(20),
+    entry.mobile.height * entry.scale,
+  );
+  assert.deepEqual(JSON.parse(readFileSync(entry.document, "utf8")), document);
+  const before = [
+    entry.document,
+    entry.png,
+    entry.pdf,
+    entry.screenshots.mobile,
+  ].map(digest);
+  const pdf = join(root, "phone.pdf");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "responsive",
+    "--version",
+    entry.version,
+    "--width",
+    "390",
+    "--format",
+    "pdf",
+    "--out",
+    pdf,
+  ]);
+  const content = spawnSync("pdftotext", ["-layout", pdf, "-"], {
+    encoding: "utf8",
+  });
+  assert.equal(content.status, 0, content.stderr);
+  for (const value of [
+    "Cedar station",
+    "42",
+    "Fictional complete evidence remains readable on a phone.",
+  ])
+    assert.ok(content.stdout.replace(/\s+/g, " ").includes(value));
+  assert.deepEqual(
+    [entry.document, entry.png, entry.pdf, entry.screenshots.mobile].map(
+      digest,
+    ),
+    before,
+  );
+});
+
+test("explicit single-density screenshots retain logical dimensions", (t) => {
+  const { ok } = workspace(t);
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "single",
+      "--file",
+      "-",
+      "--width",
+      "320",
+      "--scale",
+      "1",
+    ],
+    minimal(),
+  );
+  assert.equal(readFileSync(entry.png).readUInt32BE(16), entry.width);
+  assert.equal(entry.scale, 1);
+});
+
 test("PDF paper and orientation follow the saved document", async (t) => {
   const { render } = workspace(t);
   for (const [paper, portrait] of [
