@@ -65,8 +65,8 @@ and navigate to the rendered heading without changing the reader's zoom.
 
 Use a `badge` with a short `label` and `tone` for status. A `timeline` contains `events`
 with a `title`, optional `label`, Markdown `content` and `tone`. A `progress` block
-uses a value from zero to one and the same tone colors. The
-[component example](../examples/components.json) combines them with nested cards and
+uses a value from zero to one and shows a rounded percentage with its label, using
+the same tone colors. The [component example](../examples/components.json) combines them with nested cards and
 supporting evidence.
 
 An optional block `id` keeps its interaction key stable when neighboring blocks move.

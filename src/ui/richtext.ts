@@ -286,7 +286,9 @@ export class RichText {
       if (!face) throw new Error("Fonts are not initialized");
       const draw = igGetWindowDrawList();
       if (!draw) throw new Error("Cannot access the code canvas");
-      igPushFont(face, 15);
+      const size = 17,
+        lineHeight = 26;
+      igPushFont(face, size);
       const origin = igGetCursorScreenPos();
       const width = Math.max(20, available());
       let y = 0;
@@ -298,16 +300,16 @@ export class RichText {
             const measured = igCalcTextSize(content, false, -1).x;
             if (x + measured > width && x > 0) {
               x = 0;
-              y += 23;
+              y += lineHeight;
             }
             const part =
               measured > width ? fittingPrefix(content, width - x) : content;
             const partWidth = igCalcTextSize(part, false, -1).x;
-            keepLineTogether(origin.y + y, origin.y + y + 18);
+            keepLineTogether(origin.y + y, origin.y + y + size + 3);
             ImDrawList_AddText_FontPtr(
               draw,
               face,
-              15,
+              size,
               { x: origin.x + x, y: origin.y + y },
               packed(token.color),
               part,
@@ -316,15 +318,15 @@ export class RichText {
             captureText(
               part,
               "mono",
-              15,
+              size,
               { x: origin.x + x, y: origin.y + y },
               partWidth,
             );
             if (token.fontStyle & 4)
               ImDrawList_AddLine(
                 draw,
-                { x: origin.x + x, y: origin.y + y + 17 },
-                { x: origin.x + x + partWidth, y: origin.y + y + 17 },
+                { x: origin.x + x, y: origin.y + y + size + 2 },
+                { x: origin.x + x + partWidth, y: origin.y + y + size + 2 },
                 packed(token.color),
                 1,
                 0,
@@ -333,14 +335,14 @@ export class RichText {
             content = content.slice(part.length);
             if (content.length) {
               x = 0;
-              y += 23;
+              y += lineHeight;
             }
           }
         }
-        y += 23;
+        y += lineHeight;
       }
       igSetCursorScreenPos(origin);
-      igDummy({ x: width, y: Math.max(23, y) });
+      igDummy({ x: width, y: Math.max(lineHeight, y) });
       igPopFont();
     }, palette.code);
   }

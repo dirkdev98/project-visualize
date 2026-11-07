@@ -102,13 +102,13 @@ export const palette = {
   blue: color("#3b82f6"),
   positive: color("#087f8c"),
   negative: color("#c3444d"),
-  warning: color("#b77419"),
+  warning: color("#9a6417"),
   code: color("#eef2f7"),
 };
 export const seriesColors = [
   palette.accent,
   palette.blue,
-  color("#ec9258"),
+  color("#c47243"),
   color("#866bd8"),
   color("#cf658d"),
   color("#77983e"),

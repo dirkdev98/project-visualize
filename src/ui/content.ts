@@ -415,7 +415,7 @@ export class DocumentRenderer {
         this.control(value, exporting);
         break;
       case "progress":
-        text(value.label, 17, "bold");
+        text(`${value.label} · ${Math.round(value.value * 100)}%`, 17, "bold");
         igPushStyleColor_Vec4(
           ImGuiCol_PlotHistogram,
           value.tone ? tone(value.tone) : palette.accent,

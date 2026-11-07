@@ -1,5 +1,20 @@
 # Decisions
 
+## 2026-11-07 readable visual defaults
+
+- Darken the light theme's warning and clay series colors while retaining the slate,
+  teal and blue direction. Their calculated contrast against white rises from 3.80 to
+  4.99 and 2.38 to 3.60 respectively; this is a palette check, not a compliance claim.
+- Show rounded percentages with progress labels so empty, partial and complete values
+  remain clear without estimating bar lengths.
+- Increase code text and line spacing for chat-sized screenshots. Preserve the original
+  source in copy and selectable PDF text. The readability fixture grows from 558 to
+  576 logical units at wide sizes and 619 to 640 at narrow sizes; accept the extra
+  space without a performance claim.
+- Retain Shiki's matching light and dark themes. A suspected theme mismatch was not
+  reproduced: development and production probes switch light, dark and light correctly,
+  and the rendered light glyph colors agree with the light palette after antialiasing.
+
 ## 2026-11-07 compact inspection context
 
 - Give linked-control values the first part of Context, using compact label/value
