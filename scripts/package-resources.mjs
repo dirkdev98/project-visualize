@@ -49,6 +49,10 @@ export function copyResources(root, source, release, sdlLicense) {
     join(root, "assets/fonts/LICENSE.txt"),
     join(notices, "ibm-plex-LICENSE.txt"),
   );
+  copyFileSync(
+    join(root, "assets/icons/LICENSE.txt"),
+    join(notices, "lucide-LICENSE.txt"),
+  );
   const lock = JSON.parse(
     readFileSync(join(root, "package-lock.json"), "utf8"),
   );

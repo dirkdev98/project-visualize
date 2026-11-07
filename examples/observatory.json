@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "type": "dashboard",
   "title": "A quieter week in orbit",
   "subtitle": "Observatory operations | Weekly review | Fictional demonstration data",
   "category": "OPERATIONS NOTEBOOK",

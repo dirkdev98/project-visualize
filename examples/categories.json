@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "type": "dashboard",
   "title": "Comparing observation sites",
   "subtitle": "Fictional observations, with room for every category name.",
   "datasets": {

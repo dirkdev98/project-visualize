@@ -93,18 +93,21 @@ content and layout; arbitrary HTML, scripts and live data connectors are outside
 artifact format.
 
 Drag a graph to pan, pinch over it to zoom, or hold Cmd while scrolling (Ctrl on other
-platforms). Ordinary scrolling moves the document. **Reset view** fits visible series;
-double-clicking a graph also fits it. Mac scrolling defaults to 20 percent of the raw
+platforms). Ordinary scrolling moves the document. Hover a graph for zoom in, zoom out
+and fit buttons; double-clicking a graph also fits it. Mac scrolling defaults to 20 percent of the raw
 wheel input and can be adjusted in Settings.
 
-The sidebar groups artifacts by project and marks presented revisions. Drag its right
-edge to resize it; the width is saved with library settings. The footer identifies
-the current library. Artifact IDs appear beneath their titles. Choose a revision in
-the viewer's
-version menu to keep that snapshot open, or choose **Follow latest** to display new
-revisions as agents save them. Context stacks below the canvas in a narrow window.
-Use **Copy view** to share the exact library, revision, theme and linked-control
-parameters with an agent. Context also shows the current typed control values.
+The sidebar lists projects and artifacts by latest activity. Each row shows the
+artifact's type icon, title and time since its last revision or presentation; a dot
+marks artifacts with a presented revision, and the tooltip names the artifact ID. A
+project shows its five most recent artifacts until you choose **Show more…**. Drag the
+sidebar's right edge to resize it; the width is saved with library settings. The footer
+identifies the current library. Choose a revision in the header's version menu to keep
+that snapshot open, or choose **Follow latest** to display new revisions as agents save
+them. The header's icon actions copy the PNG path, open the saved PDF, toggle context
+and copy the view. Context stacks below the canvas in a narrow window. The copied view
+shares the exact library, revision, theme and linked-control parameters with an agent.
+Context also shows the current typed control values. Escape closes Settings.
 
 ## Development
 

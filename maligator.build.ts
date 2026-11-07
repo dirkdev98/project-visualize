@@ -15,6 +15,11 @@ export default defineBuild({
       path: "assets/fonts",
       include: ["*.ttf", "LICENSE.txt"],
     },
+    icons: {
+      type: "directory",
+      path: "assets/icons",
+      include: ["*.ttf", "LICENSE.txt"],
+    },
     syntax: {
       type: "directory",
       path: ".cache/resources/syntax",

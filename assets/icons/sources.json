@@ -1,0 +1,14 @@
+{
+  "package": "https://www.npmjs.com/package/lucide-static",
+  "version": "1.70.0",
+  "files": {
+    "lucide.ttf": {
+      "source": "font/lucide.ttf",
+      "sha256": "a17478dfd261662eae3f64fd71c1a05465c70018b46a5d852af6a23459921d15"
+    },
+    "LICENSE.txt": {
+      "source": "LICENSE",
+      "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+    }
+  }
+}

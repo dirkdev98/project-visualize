@@ -45,6 +45,7 @@ async function fixture(t, handler) {
     file,
     JSON.stringify({
       schemaVersion: 1,
+      type: "document",
       title: "Fictional image notes",
       assets: {
         station: `http://127.0.0.1:${server.address().port}/image?variant=one`,

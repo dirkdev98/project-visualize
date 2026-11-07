@@ -50,6 +50,7 @@ import {
   ImPlotCol_AxisText,
   ImPlotCol_AxisTick,
   ImPlotCol_FrameBg,
+  ImPlotCol_InlayText,
   ImPlotCol_LegendBg,
   ImPlotCol_LegendBorder,
   ImPlotCol_LegendText,
@@ -67,12 +68,12 @@ import {
   pv_surface_background,
 } from "maligator:ffi/visualize";
 import type { Theme } from "../model.ts";
-import { type Font, fontFile } from "./font-files.ts";
+import { type Font, fontFile, iconFontFile } from "./font-files.ts";
 
 export type { Font } from "./font-files.ts";
 
 export type Color = ImVec4_c;
-export const fonts: Partial<Record<Font, ImFont>> = {};
+export const fonts: Partial<Record<Font | "icons", ImFont>> = {};
 export function color(hex: string, alpha = 1): Color {
   const value = Number.parseInt(hex.replace("#", ""), 16);
   return {
@@ -176,6 +177,7 @@ const plotColors: [number, Color][] = [
   [ImPlotCol_AxisText, palette.muted],
   [ImPlotCol_AxisGrid, palette.border],
   [ImPlotCol_AxisTick, palette.border],
+  [ImPlotCol_InlayText, palette.ink],
 ];
 const lightPalette = Object.fromEntries(
   Object.entries(palette).map(([key, value]) => [key, { ...value }]),
@@ -228,6 +230,9 @@ export function initializeTheme(mode: Theme = "light") {
     if (!font) throw new Error(`Cannot load font: ${file}`);
     fonts[name] = font;
   }
+  const icons = ImFontAtlas_AddFontFromFileTTF(atlas, iconFontFile(), 18);
+  if (!icons) throw new Error("Cannot load the icon font");
+  fonts.icons = icons;
 }
 export function pushTheme() {
   for (const [index, value] of colors) igPushStyleColor_Vec4(index, value);

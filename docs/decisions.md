@@ -1,5 +1,32 @@
 # Decisions
 
+## 2026-11-07 artifact types and viewer chrome
+
+- Require an artifact `type` of dashboard, document or diagram and copy it into
+  revision metadata, so the library shows a type icon without reading every document.
+  Revisions saved before the field existed show a generic icon. The document header
+  label falls back from `category` to the type.
+- Replace the artifact ID line in sidebar rows with the type icon, a relative update
+  time and a presented dot. This replaces the presented indicators beside artifact IDs
+  from the compact artifact sidebar; the ID moves to the row tooltip.
+- Order projects and artifacts by latest activity, counting a presentation as activity.
+  Show five artifacts per project behind Show more…, keep the selected artifact
+  visible, and list every match while searching.
+- Replace the Reset view row above each chart with zoom in, zoom out and fit buttons
+  that appear inside the plot on hover. This replaces the explicit Reset view action
+  from deliberate graph navigation. The buttons draw as an overlay that leaves layout
+  unchanged, so the viewer and exports keep identical geometry.
+- Give the artifact header a breadcrumb, a borderless version menu and icon actions
+  with tooltips and copy feedback. Close Settings with a close button or Escape; an
+  active text field keeps Escape for cancelling its edit.
+- Bundle the Lucide icon font under ISC with a pinned version and checksums, so icons
+  render as crisp glyphs and new ones need no drawing code.
+
+Keep track of;
+
+- Image cache tests occasionally see one extra HTTP request under the full parallel
+  suite. Each passes alone; find whether the runtime retries requests under load.
+
 ## 2026-11-07 native settings access
 
 - Move Mac settings access to the native application menu with Command-comma,

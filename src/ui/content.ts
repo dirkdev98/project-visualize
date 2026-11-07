@@ -26,6 +26,7 @@ import {
   ImPlot_BeginPlot,
   ImPlot_EndPlot,
   ImPlot_GetPlotDrawList,
+  ImPlot_GetPlotLimits,
   ImPlot_GetPlotMousePos,
   ImPlot_GetPlotPos,
   ImPlot_GetPlotSize,
@@ -51,10 +52,10 @@ import {
   ImPlotLocation_East,
   ImPlotLocation_NorthWest,
   ImPlotLocation_South,
+  type ImPlotRect_c,
   igBeginCombo,
   igBeginDisabled,
   igBeginTable,
-  igButton,
   igCalcTextSize,
   igCheckbox,
   igCollapsingHeader_TreeNodeFlags,
@@ -88,7 +89,6 @@ import {
   igPushID_Str,
   igPushStyleColor_Vec4,
   igPushStyleVar_Vec2,
-  igSameLine,
   igSelectable_Bool,
   igSeparator,
   igSetCursorScreenPos,
@@ -136,6 +136,7 @@ import type {
 } from "../model.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import { crowdedCategories } from "./chart-layout.ts";
+import { type Icon, iconButton } from "./icons.ts";
 import { layoutImage } from "./image-layout.ts";
 import {
   captureHeading,
@@ -151,6 +152,7 @@ import {
   input,
   inputBuffer,
   inputValue,
+  overlay,
   panel,
   scalar,
   text,
@@ -246,6 +248,7 @@ export class DocumentRenderer {
   private plots = new Map<ChartBlock, PlotSeries[]>();
   private plotDrawing = new Plots();
   private pinchScale = 1;
+  private fitRequests = new Set<string>();
   private pinchViews = new Map<
     string,
     { xMin: number; xMax: number; yMin: number; yMax: number }
@@ -284,6 +287,7 @@ export class DocumentRenderer {
     this.plots.clear();
     this.plotDrawing.dispose();
     this.pinchViews.clear();
+    this.fitRequests.clear();
     this.categoryLayouts.clear();
     this.orders.clear();
     this.searches.clear();
@@ -380,10 +384,11 @@ export class DocumentRenderer {
       this.cellWidths.clear();
       this.categoryLayouts.clear();
       this.pinchViews.clear();
+      this.fitRequests.clear();
     }
     const headerTop = igGetCursorScreenPos().y;
     text(
-      `PROJECT VISUALIZE  /  ${(this.document.category ?? "ARTIFACT").toUpperCase()}`,
+      `PROJECT VISUALIZE  /  ${(this.document.category ?? this.document.type ?? "artifact").toUpperCase()}`,
       12,
       "bold",
       palette.accent,
@@ -1167,23 +1172,7 @@ export class DocumentRenderer {
     const categories = this.categories(value);
     const horizontalBars = categories?.horizontal ?? false;
     const interactionKey = horizontalBars ? `${key}.horizontal` : key;
-    let reset = false;
-    if (!exporting) {
-      reset = igButton("Reset view", { x: 0, y: 0 });
-      if (igIsItemHovered(0))
-        tooltip(
-          "Fit the visible series. Double-clicking the chart also resets it.",
-        );
-      if (available() > 400) igSameLine(0, -1);
-      text(
-        process.platform === "darwin"
-          ? "Pinch or Cmd+scroll to zoom"
-          : "Pinch or Ctrl+scroll to zoom",
-        13,
-        "regular",
-        palette.muted,
-      );
-    }
+    const reset = this.fitRequests.delete(interactionKey);
     const fitKey = this.view?.chartFitKeys.get(key);
     const refit =
       fitKey !== undefined &&
@@ -1449,7 +1438,15 @@ export class DocumentRenderer {
         if (lines.length) tooltip(lines.join("\n"));
       }
     }
+    const area = exporting
+      ? undefined
+      : {
+          position: ImPlot_GetPlotPos(),
+          size: ImPlot_GetPlotSize(),
+          limits: ImPlot_GetPlotLimits(-1, -1),
+        };
     ImPlot_EndPlot();
+    if (area) overlay(() => this.zoomControls(interactionKey, area));
     keepTogether(plotTop, igGetCursorScreenPos().y);
     if (selection && !isAll(selected))
       text(
@@ -1476,6 +1473,69 @@ export class DocumentRenderer {
         );
         if (control) this.parameter(control, ALL);
       }
+    }
+  }
+
+  private zoomControls(
+    key: string,
+    area: {
+      position: { x: number; y: number };
+      size: { x: number; y: number };
+      limits: ImPlotRect_c;
+    },
+  ) {
+    const { position, size, limits } = area;
+    if (
+      !igIsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) ||
+      !igIsMouseHoveringRect(
+        position,
+        { x: position.x + size.x, y: position.y + size.y },
+        true,
+      )
+    )
+      return;
+    const button = 26,
+      inset = 3,
+      width = button * 3 + inset * 2,
+      origin = {
+        x: position.x + size.x - width - 8,
+        y: position.y + 8,
+      };
+    if (origin.x < position.x || size.y < button + inset * 2 + 16) return;
+    const draw = igGetWindowDrawList();
+    if (!draw) throw new Error("Cannot access the chart canvas");
+    const end = { x: origin.x + width, y: origin.y + button + inset * 2 };
+    ImDrawList_AddRectFilled(draw, origin, end, packed(palette.surface), 9, 0);
+    ImDrawList_AddRect(draw, origin, end, packed(palette.border), 9, 1, 0);
+    const zoom = (factor: number) => {
+      const x = (limits.X.Min + limits.X.Max) / 2,
+        y = (limits.Y.Min + limits.Y.Max) / 2,
+        halfX = ((limits.X.Max - limits.X.Min) * factor) / 2,
+        halfY = ((limits.Y.Max - limits.Y.Min) * factor) / 2;
+      this.pinchViews.set(key, {
+        xMin: x - halfX,
+        xMax: x + halfX,
+        yMin: y - halfY,
+        yMax: y + halfY,
+      });
+      this.barPress = undefined;
+    };
+    const modifier = process.platform === "darwin" ? "Cmd" : "Ctrl";
+    const actions: [Icon, string, () => void][] = [
+      ["plus", `Zoom in · pinch or ${modifier}+scroll`, () => zoom(0.75)],
+      ["minus", "Zoom out", () => zoom(1 / 0.75)],
+      [
+        "fit",
+        "Fit to data · double-click the chart",
+        () => this.fitRequests.add(key),
+      ],
+    ];
+    for (const [index, [icon, hint, action]] of actions.entries()) {
+      igSetCursorScreenPos({
+        x: origin.x + inset + index * button,
+        y: origin.y + inset,
+      });
+      if (iconButton(`##zoom-${icon}`, icon, hint, { size: button })) action();
     }
   }
 

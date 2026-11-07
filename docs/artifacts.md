@@ -1,11 +1,14 @@
 # Artifact authoring
 
-Write a JSON document with a title and a body. Use context for the question, sources,
-assumptions and explanation that should remain available when someone reopens it.
+Write a JSON document with a type, a title and a body. Use context for the question,
+sources, assumptions and explanation that should remain available when someone reopens it.
+The `type` is `dashboard`, `document` or `diagram`. The viewer shows it as an icon in the
+library, and the document header uses it as its label unless you set a `category`.
 
 ```json
 {
   "schemaVersion": 1,
+  "type": "document",
   "title": "Station review",
   "context": {
     "source": "Fictional example",
@@ -95,9 +98,10 @@ Charts use named series with numeric `values`. Supply chart `labels`, a series'
 numeric `x` coordinates, or both. Without `x`, each series has one value per label.
 With labels and `x`, coordinates index the labels and can leave categories absent.
 Axis labels should include units. Drag to pan and pinch to zoom, or use Cmd+scroll
-(Ctrl+scroll on other platforms). Ordinary scrolling moves the document. **Reset view**
-fits visible series, as does double-clicking the graph. Exports
-fit all the supplied data with space around its extrema.
+(Ctrl+scroll on other platforms). Ordinary scrolling moves the document. Hovering a
+chart shows zoom in, zoom out and fit buttons in its corner; double-clicking the graph
+also fits the visible series. Exports fit all the supplied data with space around its
+extrema.
 Short legends sit below the data. Keep series names concise; longer ordinary legends
 use an inset layout so the plot retains its width.
 
@@ -165,6 +169,7 @@ for a complete example.
 ```json
 {
   "schemaVersion": 1,
+  "type": "dashboard",
   "title": "Station selection",
   "datasets": {
     "results": [
@@ -285,6 +290,7 @@ the selected image bytes, so viewing and exporting them work offline.
 ```json
 {
   "schemaVersion": 1,
+  "type": "document",
   "title": "Observation notes",
   "assets": { "station": "./station.png" },
   "body": [
@@ -348,9 +354,12 @@ The viewer follows system appearance independently of a document's creation pale
 Settings can force light or dark mode; Cmd+Shift+L saves a light/dark preference.
 `open --theme light|dark` overrides it for that window. Cmd+K focuses library search.
 Open Settings from the Mac application menu or press Cmd+,. Linux keeps Settings
-in the sidebar and uses Ctrl for these shortcuts. Drag the sidebar's right edge to
-resize it; project groups collapse independently and the footer identifies the library.
-The viewer's Saved PDF button opens the creation-time export.
+in the sidebar and uses Ctrl for these shortcuts. Escape or the close button leaves
+Settings. Drag the sidebar's right edge to resize it; project groups collapse
+independently and the footer identifies the library. Projects and their artifacts are
+ordered by latest activity, a new revision or a presentation. Each project lists its
+five most recent artifacts until **Show more…**; a search lists every match. The
+artifact header's PDF action opens the creation-time export.
 
 Drag across document text to select it, then press Cmd+C to copy. Double-click a word
 to select it. With a document selection active, Cmd+A selects the rendered document

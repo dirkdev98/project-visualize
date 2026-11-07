@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "type": "dashboard",
   "title": "The observatory, connected",
   "subtitle": "A shared snapshot with linked controls, charts and evidence",
   "category": "Operations dashboard",

@@ -32,8 +32,9 @@ For a bundled copy, read the manifest's guide and examples. An installed
 Keep the current project's working directory when invoking `visualize_cli` so
 relative input and output paths resolve there.
 
-Write the artifact as JSON. Choose a project ID that matches the user's workspace and
-keep the same artifact ID when revising it. Preserve the actual data, units, source
+Write the artifact as JSON with a `type` of `dashboard`, `document` or `diagram`; the
+viewer's library shows it as an icon. Choose a project ID that matches the user's
+workspace and keep the same artifact ID when revising it. Preserve the actual data, units, source
 references, assumptions and uncertainty. Put the explanation in rich text and retain
 the task's provenance in `context`. Declare local PNG/JPEG paths or HTTP(S) image
 URLs in `assets`, and refer to them by asset ID. Remote images use a shared cache;

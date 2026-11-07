@@ -13,10 +13,12 @@ import {
   ImGuiTableFlags_SizingStretchSame,
   igBeginTable,
   igBeginTooltip,
+  igDummy,
   igEndTable,
   igEndTooltip,
   igGetContentRegionAvail,
   igGetCursorPosX,
+  igGetCursorScreenPos,
   igGetItemRectMax,
   igGetItemRectMin,
   igGetWindowDrawList,
@@ -29,6 +31,7 @@ import {
   igPushStyleColor_Vec4,
   igPushStyleVar_Vec2,
   igPushTextWrapPos,
+  igSetCursorScreenPos,
   igTableNextColumn,
   igTableNextRow,
   igTextUnformatted,
@@ -43,7 +46,14 @@ import {
   withoutTextSelection,
 } from "./selection.ts";
 import { textLine } from "./text-layout.ts";
-import { type Color, type Font, fonts, packed, palette } from "./theme.ts";
+import {
+  type Color,
+  type Font,
+  fonts,
+  itemSpacing,
+  packed,
+  palette,
+} from "./theme.ts";
 
 export function checked(result: number): number {
   if (result < 0) throw new Error(pv_error() ?? "Native rendering failed");
@@ -216,6 +226,15 @@ export function panel(body: () => void, background: Color = palette.surface) {
     ImDrawListSplitter_Merge(splitter, draw);
     panelDepth--;
   }
+}
+// Draws widgets at absolute positions over the preceding item. Returning the cursor
+// through a zero-size item keeps the surrounding layout identical whether or not the
+// overlay drew anything; a bare cursor reset would extend the parent's bounds.
+export function overlay(body: () => void) {
+  const cursor = igGetCursorScreenPos();
+  body();
+  igSetCursorScreenPos({ x: cursor.x, y: cursor.y - itemSpacing.y });
+  igDummy({ x: 0, y: 0 });
 }
 export function tooltip(value: string) {
   igBeginTooltip();

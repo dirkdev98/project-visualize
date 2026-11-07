@@ -24,6 +24,7 @@ test("a CLI linked onto PATH resolves its checkout and keeps caller-relative inp
     join(caller, "evidence notes.json"),
     JSON.stringify({
       schemaVersion: 1,
+      type: "document",
       title: "Fictional linked evidence",
       body: [{ type: "text", content: "Relative to the caller." }],
     }),

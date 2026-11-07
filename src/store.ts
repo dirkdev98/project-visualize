@@ -13,13 +13,14 @@ import {
 import { homedir } from "node:os";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { ImageCache } from "./images.ts";
-import type { Artifact, Theme } from "./model.ts";
+import type { Artifact, ArtifactType, Theme } from "./model.ts";
 import { slug } from "./model.ts";
 
 export interface Entry {
   project: string;
   artifact: string;
   version: string;
+  type?: ArtifactType;
   title: string;
   createdAt: string;
   width: number;
@@ -213,6 +214,7 @@ export async function save(
       project,
       artifact,
       version,
+      type: document.type,
       title: document.title,
       createdAt,
       width,

@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "type": "dashboard",
   "title": "The shape of a station week",
   "subtitle": "A shared view of accepted observations and operating evidence",
   "category": "Trend notebook",

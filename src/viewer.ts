@@ -1,23 +1,28 @@
 import {
+  ImDrawList_AddCircleFilled,
+  ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
   ImGuiChildFlags_Borders,
   ImGuiChildFlags_ResizeX,
   ImGuiCol_Button,
   ImGuiCol_ButtonActive,
   ImGuiCol_ButtonHovered,
-  ImGuiCol_Header,
-  ImGuiCol_HeaderActive,
-  ImGuiCol_HeaderHovered,
+  ImGuiCol_FrameBg,
+  ImGuiCol_FrameBgActive,
+  ImGuiCol_FrameBgHovered,
+  ImGuiComboFlags_HeightLarge,
+  ImGuiComboFlags_NoArrowButton,
   ImGuiInputFlags_RouteGlobal,
   ImGuiKey_Comma,
+  ImGuiKey_Escape,
   ImGuiKey_K,
   ImGuiKey_L,
   ImGuiMod_Ctrl,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
+  ImGuiStyleVar_FramePadding,
   ImGuiStyleVar_WindowPadding,
   ImGuiTableFlags_SizingStretchSame,
-  ImGuiTreeNodeFlags_DefaultOpen,
   ImGuiWindowFlags_NoDecoration,
   ImGuiWindowFlags_NoMove,
   ImGuiWindowFlags_NoSavedSettings,
@@ -28,7 +33,7 @@ import {
   igBeginTable,
   igButton,
   igCalcTextSize,
-  igCollapsingHeader_TreeNodeFlags,
+  igDummy,
   igEnd,
   igEndChild,
   igEndCombo,
@@ -36,11 +41,13 @@ import {
   igEndTable,
   igGetContentRegionAvail,
   igGetCursorScreenPos,
-  igGetItemRectMax,
   igGetWindowDrawList,
   igGetWindowWidth,
+  igInvisibleButton,
   igIsItemHovered,
   igIsMouseDown_Nil,
+  igIsMouseHoveringRect,
+  igIsWindowHovered,
   igPopFont,
   igPopID,
   igPopStyleColor,
@@ -53,6 +60,7 @@ import {
   igSameLine,
   igSelectable_Bool,
   igSetClipboardText,
+  igSetCursorScreenPos,
   igSetKeyboardFocusHere,
   igSetNextItemWidth,
   igSetNextWindowPos,
@@ -79,6 +87,7 @@ import {
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { controls, isAll, parameterValue } from "./data.ts";
+import { libraryGroups } from "./library.ts";
 import type { Theme } from "./model.ts";
 import { readSettings, type Settings, saveSettings } from "./settings.ts";
 import { type Entry, list, load } from "./store.ts";
@@ -87,6 +96,7 @@ import {
   type DocumentState,
   documentState,
 } from "./ui/content.ts";
+import { artifactIcon, drawIcon, type Icon, iconButton } from "./ui/icons.ts";
 import {
   available,
   checked,
@@ -102,7 +112,6 @@ import {
   currentTheme,
   type Font,
   fonts,
-  framePadding,
   initializeTheme,
   itemSpacing,
   packed,
@@ -140,25 +149,165 @@ function compactLabel(
     igPopFont();
   }
 }
-function revisionDate(entry: Entry, full = false): string {
-  const date = new Date(entry.createdAt);
-  const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+function textWidth(value: string, size: number, font: Font): number {
+  const face = fonts[font];
+  if (!face) throw new Error("Fonts are not initialized");
+  igPushFont(face, size);
+  const width = igCalcTextSize(value, false, -1).x;
+  igPopFont();
+  return width;
+}
+const months = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+function dateLabel(date: Date, full = false): string {
   const time = [date.getHours(), date.getMinutes()];
   if (full) time.push(date.getSeconds());
   return `${date.getDate()} ${months[date.getMonth()]}${full ? ` ${date.getFullYear()}` : ""} · ${time.map((part) => String(part).padStart(2, "0")).join(":")}`;
+}
+function revisionDate(entry: Entry, full = false): string {
+  return dateLabel(new Date(entry.createdAt), full);
+}
+function relativeTime(time: number, now: number): string {
+  const minutes = Math.floor((now - time) / 60_000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}h`;
+  if (minutes < 7 * 24 * 60) return `${Math.floor(minutes / (24 * 60))}d`;
+  const date = new Date(time);
+  return `${date.getDate()} ${months[date.getMonth()]}`;
+}
+const projectPreview = 5;
+function projectHeader(project: string, collapsed: boolean): boolean {
+  const start = igGetCursorScreenPos(),
+    width = available(),
+    height = 26;
+  const clicked = igInvisibleButton("##project", { x: width, y: height }, 0);
+  const hovered = igIsItemHovered(0),
+    draw = igGetWindowDrawList();
+  if (!draw || !fonts.bold) throw new Error("Cannot access the library canvas");
+  if (hovered)
+    ImDrawList_AddRectFilled(
+      draw,
+      start,
+      { x: start.x + width, y: start.y + height },
+      packed({ ...palette.ink, w: 0.05 }),
+      7,
+      0,
+    );
+  drawIcon(
+    draw,
+    collapsed ? "chevronRight" : "chevronDown",
+    { x: start.x + 18, y: start.y + height / 2 },
+    14,
+    palette.muted,
+  );
+  ImDrawList_AddText_FontPtr(
+    draw,
+    fonts.bold,
+    13,
+    { x: start.x + 34, y: start.y + height / 2 - 7 },
+    packed(hovered ? palette.ink : palette.muted),
+    compactLabel(project, width - 44, 13, "bold"),
+    0,
+  );
+  return clicked;
+}
+function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
+  const start = igGetCursorScreenPos(),
+    width = available(),
+    height = 32;
+  igPushStyleColor_Vec4(ImGuiCol_Button, {
+    ...palette.accent,
+    w: active ? 0.14 : 0,
+  });
+  igPushStyleColor_Vec4(ImGuiCol_ButtonHovered, {
+    ...palette.accent,
+    w: active ? 0.2 : 0.08,
+  });
+  igPushStyleColor_Vec4(ImGuiCol_ButtonActive, { ...palette.accent, w: 0.24 });
+  const clicked = igButton(`##${entry.artifact}`, { x: width, y: height });
+  igPopStyleColor(3);
+  const hovered = igIsItemHovered(0),
+    draw = igGetWindowDrawList();
+  if (!draw || !fonts.regular)
+    throw new Error("Cannot access the library canvas");
+  const middle = start.y + height / 2;
+  drawIcon(
+    draw,
+    artifactIcon(entry.type),
+    { x: start.x + 18, y: middle },
+    16,
+    active ? palette.accent : palette.muted,
+  );
+  const age = relativeTime(updated, Date.now());
+  const ageWidth = textWidth(age, 12, "regular");
+  let right = start.x + width - 10 - ageWidth;
+  ImDrawList_AddText_FontPtr(
+    draw,
+    fonts.regular,
+    12,
+    { x: right, y: middle - 6 },
+    packed(palette.muted),
+    age,
+    0,
+  );
+  if (entry.currentPresentation) {
+    right -= 10;
+    ImDrawList_AddCircleFilled(
+      draw,
+      { x: right, y: middle },
+      3,
+      packed(palette.accent),
+      0,
+    );
+    right -= 4;
+  }
+  ImDrawList_AddText_FontPtr(
+    draw,
+    fonts.regular,
+    14,
+    { x: start.x + 34, y: middle - 7 },
+    packed(palette.ink),
+    compactLabel(entry.title, right - start.x - 44, 14, "regular"),
+    0,
+  );
+  if (hovered)
+    tooltip(
+      `${entry.title}\n${entry.project} / ${entry.artifact}\nUpdated ${dateLabel(new Date(updated))}${entry.currentPresentation ? "\nShowing the presented revision" : ""}`,
+    );
+  return clicked;
+}
+function moreRow(label: string): boolean {
+  const start = igGetCursorScreenPos(),
+    width = available(),
+    height = 26;
+  const clicked = igInvisibleButton("##more", { x: width, y: height }, 0);
+  const hovered = igIsItemHovered(0),
+    draw = igGetWindowDrawList();
+  if (!draw || !fonts.regular)
+    throw new Error("Cannot access the library canvas");
+  ImDrawList_AddText_FontPtr(
+    draw,
+    fonts.regular,
+    13,
+    { x: start.x + 34, y: start.y + height / 2 - 7 },
+    packed(hovered ? palette.ink : palette.muted),
+    label,
+    0,
+  );
+  return clicked;
 }
 
 interface Options {
@@ -206,6 +355,9 @@ export function openViewer(root: string, options: Options) {
     showContext = false,
     showSettings = false;
   let unpresented = false;
+  let copied: { what: string; until: number } | undefined;
+  const collapsedProjects = new Set<string>(),
+    expandedProjects = new Set<string>();
   let themeOverride = options.theme;
   let requestedTheme: Theme | undefined;
   const search = inputBuffer();
@@ -228,7 +380,16 @@ export function openViewer(root: string, options: Options) {
     checked(pv_surface_input_policy(preferences.wheelScale, ImGuiMod_Ctrl));
     pending = 2;
   }
-  const settingsPanel = new SettingsPanel(root, preferences, applyPreferences);
+  function closeSettings() {
+    showSettings = false;
+    pending = 2;
+  }
+  const settingsPanel = new SettingsPanel(
+    root,
+    preferences,
+    applyPreferences,
+    closeSettings,
+  );
   function select(
     entry: Entry | undefined,
     follow: boolean,
@@ -330,6 +491,11 @@ export function openViewer(root: string, options: Options) {
       showSettings = true;
       pending = 2;
     }
+    if (
+      showSettings &&
+      igShortcut_Nil(ImGuiKey_Escape, ImGuiInputFlags_RouteGlobal)
+    )
+      closeSettings();
     const maxSidebar = Math.min(420, Math.max(200, size.x * 0.4));
     igSetNextWindowSizeConstraints(
       { x: 200, y: 0 },
@@ -373,117 +539,54 @@ export function openViewer(root: string, options: Options) {
       0,
     );
     const query = inputValue(search).trim().toLowerCase();
-    const groups = new Map<string, Map<string, Entry>>();
-    for (const entry of entries) {
-      let group = groups.get(entry.project);
-      if (!group) {
-        group = new Map();
-        groups.set(entry.project, group);
-      }
-      if (!group.has(entry.artifact) || entry.currentPresentation)
-        group.set(entry.artifact, entry);
-    }
     let matches = 0;
-    for (const project of [...groups.keys()].sort()) {
-      const artifacts = groups.get(project);
-      if (!artifacts) continue;
-      const visible = [...artifacts.keys()].sort().filter((artifact) => {
-        const entry = artifacts.get(artifact);
-        return (
-          entry &&
-          (!query ||
-            `${project} ${artifact} ${entry.title}`
-              .toLowerCase()
-              .includes(query))
-        );
-      });
+    for (const { project, artifacts } of libraryGroups(entries)) {
+      const visible = artifacts.filter(
+        ({ artifact, entry }) =>
+          !query ||
+          `${project} ${artifact} ${entry.title}`.toLowerCase().includes(query),
+      );
       if (!visible.length) continue;
       matches += visible.length;
-      if (!fonts.bold) throw new Error("Fonts are not initialized");
-      igPushFont(fonts.bold, 13);
-      igPushStyleColor_Vec4(ImGuiCol_Header, { ...palette.accent, w: 0 });
-      igPushStyleColor_Vec4(ImGuiCol_HeaderHovered, {
-        ...palette.accent,
-        w: 0.06,
-      });
-      igPushStyleColor_Vec4(ImGuiCol_HeaderActive, {
-        ...palette.accent,
-        w: 0.1,
-      });
-      const expanded = igCollapsingHeader_TreeNodeFlags(
-        project,
-        ImGuiTreeNodeFlags_DefaultOpen,
-      );
-      igPopStyleColor(3);
-      igPopFont();
-      if (!expanded) continue;
-      for (const artifact of visible) {
-        const entry = artifacts.get(artifact);
-        if (!entry) continue;
-        const active =
-          selected?.project === project && selected?.artifact === artifact;
-        const start = igGetCursorScreenPos(),
-          width = available();
-        igPushStyleColor_Vec4(ImGuiCol_Button, {
-          ...palette.accent,
-          w: active ? 0.14 : 0,
-        });
-        igPushStyleColor_Vec4(ImGuiCol_ButtonHovered, {
-          ...palette.accent,
-          w: active ? 0.2 : 0.08,
-        });
-        igPushStyleColor_Vec4(ImGuiCol_ButtonActive, {
-          ...palette.accent,
-          w: 0.24,
-        });
-        const clicked = igButton(`##${project}/${artifact}`, {
-          x: width,
-          y: 50,
-        });
-        igPopStyleColor(3);
-        const hovered = igIsItemHovered(0),
-          draw = igGetWindowDrawList();
-        if (!draw || !fonts.bold || !fonts.regular)
-          throw new Error("Cannot access the library canvas");
-        ImDrawList_AddText_FontPtr(
-          draw,
-          fonts.bold,
-          15,
-          { x: start.x + 10, y: start.y + 7 },
-          packed(palette.ink),
-          compactLabel(entry.title, width - 20, 15, "bold"),
-          0,
-        );
-        ImDrawList_AddText_FontPtr(
-          draw,
-          fonts.regular,
-          12,
-          { x: start.x + 10, y: start.y + 29 },
-          packed(palette.muted),
-          compactLabel(
-            artifact,
-            width - (entry.currentPresentation ? 84 : 20),
-            12,
-            "regular",
-          ),
-          0,
-        );
-        if (entry.currentPresentation)
-          ImDrawList_AddText_FontPtr(
-            draw,
-            fonts.regular,
-            11,
-            { x: start.x + width - 67, y: start.y + 29 },
-            packed(palette.accent),
-            "Presented",
-            0,
-          );
-        if (hovered) tooltip(`${entry.title}\n${project} / ${artifact}`);
-        if (clicked) {
-          showSettings = false;
-          select(entry, true, true);
+      igPushID_Str(project);
+      const collapsed = !query && collapsedProjects.has(project);
+      if (projectHeader(project, collapsed)) {
+        if (collapsed) collapsedProjects.delete(project);
+        else collapsedProjects.add(project);
+        pending = 2;
+      }
+      if (!collapsed) {
+        // Searching lists every match; otherwise the list stays short, but the
+        // selected artifact remains visible below the most recent ones.
+        const expanded = query !== "" || expandedProjects.has(project);
+        const shown = expanded
+          ? visible
+          : visible.filter(
+              ({ artifact }, index) =>
+                index < projectPreview ||
+                (selected?.project === project &&
+                  selected.artifact === artifact),
+            );
+        for (const { artifact, entry, updated } of shown) {
+          const active =
+            selected?.project === project && selected?.artifact === artifact;
+          if (artifactRow(entry, updated, active)) {
+            showSettings = false;
+            select(entry, true, true);
+          }
+        }
+        if (!query && visible.length > projectPreview) {
+          if (
+            moreRow(expandedProjects.has(project) ? "Show less" : "Show more…")
+          ) {
+            if (expandedProjects.has(project)) expandedProjects.delete(project);
+            else expandedProjects.add(project);
+            pending = 2;
+          }
         }
       }
+      igPopID();
+      igDummy({ x: 0, y: 4 });
     }
     if (!entries.length)
       text(
@@ -522,40 +625,215 @@ export function openViewer(root: string, options: Options) {
       settingsPanel.body(preferences);
       igEndChild();
     } else if (selected) {
-      const toolbarStart = igGetCursorScreenPos(),
-        toolbarRight = toolbarStart.x + available();
-      const versionWidth = Math.max(1, Math.min(235, available()));
-      let toolbarEnd = toolbarStart.x + versionWidth;
-      function toolbarButton(label: string): boolean {
-        const width = igCalcTextSize(label, false, -1).x + framePadding.x * 2;
-        if (toolbarEnd + itemSpacing.x + width <= toolbarRight)
-          igSameLine(0, -1);
-        const clicked = igButton(label, { x: 0, y: 0 });
-        toolbarEnd = igGetItemRectMax().x;
-        return clicked;
-      }
+      const current = selected;
       const latest = entries.find(
         (entry) =>
-          entry.project === selected?.project &&
-          entry.artifact === selected?.artifact,
+          entry.project === current.project &&
+          entry.artifact === current.artifact,
       );
-      const shortVersion = selected.version.slice(-8);
       const delivered = entries.find(
         (entry) =>
-          entry.project === selected?.project &&
-          entry.artifact === selected?.artifact &&
+          entry.project === current.project &&
+          entry.artifact === current.artifact &&
           entry.currentPresentation,
       );
       const preview =
-        followPresented && selected.currentPresentation
-          ? `Presented · ${revisionDate(selected)}`
+        followPresented && current.currentPresentation
+          ? `Presented · ${revisionDate(current)}`
           : followLatest
-            ? `Latest · ${revisionDate(selected)}`
-            : `${revisionDate(selected)} · ${shortVersion}`;
-      igSetNextItemWidth(versionWidth);
-      const versionsOpen = igBeginCombo("##version", preview, 0);
+            ? `Latest · ${revisionDate(current)}`
+            : `${revisionDate(current)} · ${current.version.slice(-8)}`;
+      const rowStart = igGetCursorScreenPos(),
+        rowWidth = available(),
+        rowHeight = 32,
+        middle = rowStart.y + rowHeight / 2,
+        draw = igGetWindowDrawList();
+      if (!draw || !fonts.regular || !fonts.bold)
+        throw new Error("Cannot access the toolbar canvas");
+      const now = Date.now();
+      const copy = (what: string, value: string) => {
+        igSetClipboardText(value);
+        copied = { what, until: now + 1500 };
+        animateUntil = Math.max(animateUntil, copied.until);
+      };
+      const copiedNow = (what: string) =>
+        copied?.what === what && now < copied.until;
+      const view = renderer;
+      const actions: {
+        id: string;
+        icon: Icon;
+        hint: string;
+        active?: boolean;
+        run: () => void;
+      }[] = [];
+      if (view?.hasControls())
+        actions.push({
+          id: "reset",
+          icon: "reset",
+          hint: "Reset controls",
+          run: () => view.resetControls(),
+        });
+      if (view)
+        actions.push({
+          id: "view",
+          icon: copiedNow("view") ? "check" : "copy",
+          hint: copiedNow("view")
+            ? "Copied"
+            : "Copy view: revision, theme and linked controls for an agent",
+          run: () =>
+            copy(
+              "view",
+              JSON.stringify(
+                {
+                  store: resolve(root),
+                  project: current.project,
+                  artifact: current.artifact,
+                  version: current.version,
+                  theme: currentTheme(),
+                  params: Object.fromEntries(view.state.parameters),
+                },
+                null,
+                2,
+              ),
+            ),
+        });
+      actions.push(
+        {
+          id: "png",
+          icon: copiedNow("png") ? "check" : "image",
+          hint: copiedNow("png") ? "Copied" : "Copy PNG path",
+          run: () => copy("png", join(current.directory, "snapshot.png")),
+        },
+        {
+          id: "pdf",
+          icon: "pdf",
+          hint: "Open saved PDF",
+          run: () =>
+            SDL_OpenURL(
+              pathToFileURL(join(current.directory, "snapshot.pdf")).href,
+            ),
+        },
+      );
+      if (view)
+        actions.push({
+          id: "context",
+          icon: "context",
+          hint: showContext ? "Hide context" : "Show context",
+          active: showContext,
+          run: () => {
+            showContext = !showContext;
+          },
+        });
+      const button = 28,
+        gap = 4,
+        actionsWidth = actions.length * (button + gap) - gap;
+      for (const [index, action] of actions.entries()) {
+        igSetCursorScreenPos({
+          x: rowStart.x + rowWidth - actionsWidth + index * (button + gap),
+          y: middle - button / 2,
+        });
+        if (
+          iconButton(`##${action.id}`, action.icon, action.hint, {
+            active: action.active,
+            size: button,
+          })
+        )
+          action.run();
+      }
+      const pillWidth = Math.max(
+        1,
+        Math.min(
+          rowWidth - actionsWidth - 16,
+          textWidth(preview, 14, "regular") + 40,
+        ),
+      );
+      const crumbWidth = rowWidth - actionsWidth - pillWidth - 28;
+      let x = rowStart.x;
+      const projectWidth = textWidth(current.project, 14, "regular");
+      if (crumbWidth >= 72) {
+        const withProject =
+          projectWidth +
+            20 +
+            24 +
+            Math.min(120, textWidth(current.title, 14, "bold")) <=
+          crumbWidth;
+        if (withProject) {
+          ImDrawList_AddText_FontPtr(
+            draw,
+            fonts.regular,
+            14,
+            { x, y: middle - 7 },
+            packed(palette.muted),
+            current.project,
+            0,
+          );
+          x += projectWidth + 4;
+          drawIcon(
+            draw,
+            "chevronRight",
+            { x: x + 8, y: middle },
+            14,
+            palette.muted,
+          );
+          x += 20;
+        }
+        drawIcon(
+          draw,
+          artifactIcon(current.type),
+          { x: x + 8, y: middle },
+          16,
+          palette.ink,
+        );
+        x += 24;
+        const title = compactLabel(
+          current.title,
+          rowStart.x + crumbWidth - x,
+          14,
+          "bold",
+        );
+        ImDrawList_AddText_FontPtr(
+          draw,
+          fonts.bold,
+          14,
+          { x, y: middle - 7 },
+          packed(palette.ink),
+          title,
+          0,
+        );
+        if (
+          igIsWindowHovered(0) &&
+          igIsMouseHoveringRect(
+            { x: rowStart.x, y: rowStart.y },
+            { x: x + textWidth(title, 14, "bold"), y: rowStart.y + rowHeight },
+            true,
+          )
+        )
+          tooltip(`${current.title}\n${current.project} / ${current.artifact}`);
+        x += textWidth(title, 14, "bold") + 12;
+      }
+      igSetCursorScreenPos({ x, y: middle - 14 });
+      igSetNextItemWidth(pillWidth);
+      igPushStyleColor_Vec4(ImGuiCol_FrameBg, { ...palette.ink, w: 0 });
+      igPushStyleColor_Vec4(ImGuiCol_FrameBgHovered, {
+        ...palette.ink,
+        w: 0.06,
+      });
+      igPushStyleColor_Vec4(ImGuiCol_FrameBgActive, {
+        ...palette.ink,
+        w: 0.1,
+      });
+      igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding, { x: 10, y: 7 });
+      igPushFont(fonts.regular, 14);
+      const versionsOpen = igBeginCombo(
+        "##version",
+        preview,
+        ImGuiComboFlags_NoArrowButton | ImGuiComboFlags_HeightLarge,
+      );
+      igPopFont();
+      igPopStyleVar(1);
+      igPopStyleColor(3);
       if (!versionsOpen && igIsItemHovered(0))
-        tooltip(`${revisionDate(selected, true)}\n${selected.version}`);
+        tooltip(`${revisionDate(current, true)}\n${current.version}`);
       if (versionsOpen) {
         if (
           delivered &&
@@ -577,14 +855,14 @@ export function openViewer(root: string, options: Options) {
           select(latest, true);
         for (const entry of entries) {
           if (
-            entry.project !== selected.project ||
-            entry.artifact !== selected.artifact
+            entry.project !== current.project ||
+            entry.artifact !== current.artifact
           )
             continue;
           if (
             igSelectable_Bool(
               `${entry.presentedAt ? "Presented · " : ""}${revisionDate(entry, true)} · ${entry.version.slice(-8)}##${entry.version}`,
-              !followLatest && entry.directory === selected.directory,
+              !followLatest && entry.directory === current.directory,
               0,
               { x: 0, y: 0 },
             )
@@ -593,37 +871,16 @@ export function openViewer(root: string, options: Options) {
         }
         igEndCombo();
       }
-      if (toolbarButton("Context")) showContext = !showContext;
-      if (toolbarButton("Copy PNG path"))
-        igSetClipboardText(join(selected.directory, "snapshot.png"));
-      if (igIsItemHovered(0)) tooltip("Copy this revision's saved PNG path.");
-      if (toolbarButton("Saved PDF"))
-        SDL_OpenURL(
-          pathToFileURL(join(selected.directory, "snapshot.pdf")).href,
-        );
-      if (renderer) {
-        if (toolbarButton("Copy view"))
-          igSetClipboardText(
-            JSON.stringify(
-              {
-                store: resolve(root),
-                project: selected.project,
-                artifact: selected.artifact,
-                version: selected.version,
-                theme: currentTheme(),
-                params: Object.fromEntries(renderer.state.parameters),
-              },
-              null,
-              2,
-            ),
-          );
-        if (igIsItemHovered(0))
-          tooltip(
-            "Copy this revision, theme and linked controls for an agent.",
-          );
-        if (renderer.hasControls()) {
-          if (toolbarButton("Reset controls")) renderer.resetControls();
-        }
+      drawIcon(
+        draw,
+        "chevronDown",
+        { x: x + pillWidth - 15, y: middle },
+        14,
+        palette.muted,
+      );
+      igSetCursorScreenPos(rowStart);
+      igDummy({ x: rowWidth, y: rowHeight });
+      if (renderer && selected) {
         const space = igGetContentRegionAvail();
         const sideContext = showContext && space.x >= 760;
         const contextHeight =

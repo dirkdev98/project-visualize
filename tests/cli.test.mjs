@@ -22,6 +22,7 @@ const executable = resolve(
 const exec = promisify(execFile);
 const minimal = (value = 12) => ({
   schemaVersion: 1,
+  type: "dashboard",
   title: "Station review",
   context: { source: "Fictional", inputs: [1, 2] },
   body: [{ type: "metric", label: "Accepted observations", value }],
@@ -90,6 +91,21 @@ test("render returns saved documents and actual PNG/PDF files as JSON", async (t
   const pdf = await PDFDocument.load(readFileSync(entry.pdf));
   assert.ok(pdf.getPageCount() > 0);
   assert.equal(pdf.getTitle(), minimal().title);
+});
+
+test("the artifact type is required and listed with each saved revision", (t) => {
+  const { run, ok, render } = workspace(t);
+  for (const type of [undefined, "spreadsheet"]) {
+    const result = run(["validate", "--file", "-"], { ...minimal(), type });
+    assert.equal(result.status, 1);
+    assert.match(
+      JSON.parse(result.stderr).error,
+      /type: expected dashboard, document or diagram/,
+    );
+  }
+  render({ ...minimal(), type: "document" });
+  const [entry] = ok(["list", "--project", "orbital"]).versions;
+  assert.equal(entry.type, "document");
 });
 
 test("desktop and mobile screenshots share one immutable revision at high resolution", (t) => {
@@ -1643,6 +1659,7 @@ test("block IDs can repeat in separate containers", (t) => {
 function linkedDocument() {
   return {
     schemaVersion: 1,
+    type: "dashboard",
     title: "Linked station evidence",
     datasets: {
       observations: [

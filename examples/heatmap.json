@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
+  "type": "dashboard",
   "title": "Patterns across the field",
   "subtitle": "Completeness by station and day, with missing evidence kept visible",
   "category": "Dataset study",

@@ -1,5 +1,7 @@
 export type Tone = "neutral" | "positive" | "warning" | "negative";
 export type Theme = "light" | "dark";
+export const artifactTypes = ["dashboard", "document", "diagram"] as const;
+export type ArtifactType = (typeof artifactTypes)[number];
 export type ImageFit = "contain" | "cover";
 export type Cell = string | number | boolean | null;
 export type DataRow = Record<string, Cell>;
@@ -148,6 +150,8 @@ export type Block = BlockStyle &
 
 export interface Artifact {
   schemaVersion: 1;
+  // Validation requires a type; revisions saved before the field existed lack it.
+  type?: ArtifactType;
   title: string;
   subtitle?: string;
   category?: string;
@@ -274,6 +278,8 @@ export function validateParameter(
 export function validate(input: unknown): Artifact {
   const doc = object(input, "artifact");
   if (doc.schemaVersion !== 1) fail("schemaVersion", "expected 1");
+  if (!artifactTypes.includes(doc.type as ArtifactType))
+    fail("type", "expected dashboard, document or diagram");
   if (!string(doc.title, "title", 240).trim())
     fail("title", "expected a title");
   for (const field of ["subtitle", "category"]) {

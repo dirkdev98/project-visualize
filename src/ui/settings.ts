@@ -1,5 +1,6 @@
 import {
   igButton,
+  igGetCursorPosX,
   igIsItemDeactivatedAfterEdit,
   igIsItemHovered,
   igRadioButton_Bool,
@@ -21,6 +22,7 @@ import {
   skillResources,
   userPath,
 } from "../workflow.ts";
+import { iconButton } from "./icons.ts";
 import {
   available,
   input,
@@ -40,10 +42,12 @@ export class SettingsPanel {
   private failed = false;
   private resources: ReturnType<typeof skillResources> | undefined;
   private change: (patch: Partial<Settings>, persist?: boolean) => void;
+  private close: () => void;
   constructor(
     root: string,
     settings: Settings,
     change: (patch: Partial<Settings>, persist?: boolean) => void,
+    close: () => void,
   ) {
     this.root = root;
     this.cli = inputBuffer(
@@ -55,6 +59,7 @@ export class SettingsPanel {
       4096,
     );
     this.change = change;
+    this.close = close;
   }
   private action(body: () => string) {
     try {
@@ -66,7 +71,12 @@ export class SettingsPanel {
     }
   }
   body(settings: Settings) {
+    const start = igGetCursorPosX(),
+      width = available();
     text("Settings", 32, "bold");
+    igSameLine(Math.max(start, start + width - 32), -1);
+    if (iconButton("##close-settings", "close", "Close · Esc", { size: 32 }))
+      this.close();
     igSpacing();
     panel(() => {
       text("Appearance", 20, "bold");
