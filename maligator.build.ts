@@ -5,6 +5,11 @@ export default defineBuild({
   outputName: "visualize",
   surface: { node: true },
   assets: {
+    fonts: {
+      type: "directory",
+      path: "assets/fonts",
+      include: ["*.ttf", "LICENSE.txt"],
+    },
     syntax: {
       type: "directory",
       path: ".cache/resources/syntax",

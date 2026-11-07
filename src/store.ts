@@ -94,7 +94,7 @@ export function load(entry: Entry): Artifact {
   return doc;
 }
 
-export function save(
+export async function save(
   root: string,
   project: string,
   artifact: string,
@@ -107,8 +107,8 @@ export function save(
     outputs: string[],
     width: number,
     scale: number,
-  ) => number,
-): Entry {
+  ) => Promise<number>,
+): Promise<Entry> {
   slug(project, "project");
   slug(artifact, "artifact");
   const createdAt = new Date().toISOString();
@@ -141,7 +141,7 @@ export function save(
     for (const [name, file] of Object.entries(hydrated.assets ?? {})) {
       if (hydrated.assets) hydrated.assets[name] = join(pending, file);
     }
-    const height = render(
+    const height = await render(
       hydrated,
       [join(pending, "snapshot.png"), join(pending, "snapshot.pdf")],
       width,

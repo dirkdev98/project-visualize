@@ -201,3 +201,16 @@ zoom and other temporary interactions do not change the saved export.
 
 Exports contain the whole document. An artifact that exceeds the GPU surface limit
 fails with an error; split a long report into separate artifacts or reduce its scale.
+
+PNGs keep a continuous canvas. PDFs use A4 landscape pages by default, with margins
+and page numbers. Set the document's `pdf` options for a different paper or orientation:
+
+```json
+{ "pdf": { "paper": "letter", "orientation": "portrait" } }
+```
+
+PDF page breaks preserve blocks when they fit and split oversized content at recorded
+text-line and table-row boundaries. Document text is searchable and selectable, and
+Markdown links remain clickable. The visible page is the captured rendering; native
+plot labels stay rasterized. The text layer does not provide tagged-PDF accessibility.
+Reduce the layout `--width` when a report needs larger text on paper.

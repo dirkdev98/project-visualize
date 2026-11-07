@@ -21,64 +21,13 @@ import {
   pv_surface_pixels,
 } from "maligator:ffi/visualize";
 import { writeFileSync } from "node:fs";
-import { deflateSync } from "node:zlib";
 import type { Artifact } from "../model.ts";
 import { DocumentRenderer, documentState } from "./content.ts";
+import { captureLayout, type LayoutCapture } from "./layout.ts";
+import { pdfPages, rasterPdf } from "./pdf.ts";
+import { searchablePdf } from "./pdf-text.ts";
 import { checked } from "./primitives.ts";
 import { fonts, initializeTheme, popTheme, pushTheme } from "./theme.ts";
-
-function pdf(file: string, width: number, height: number, pixels: Uint8Array) {
-  const rgb = Buffer.allocUnsafe(width * height * 3);
-  for (let source = 0, dest = 0; source < pixels.length; source += 4) {
-    rgb[dest++] = pixels[source];
-    rgb[dest++] = pixels[source + 1];
-    rgb[dest++] = pixels[source + 2];
-  }
-  const compressed = deflateSync(rgb, { level: 1 });
-  const chunks: Buffer[] = [];
-  let offset = 0;
-  function append(value: string | Uint8Array) {
-    const bytes =
-      typeof value === "string"
-        ? Buffer.from(value, "latin1")
-        : Buffer.from(value);
-    chunks.push(bytes);
-    offset += bytes.length;
-  }
-  append("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
-  const offsets = [0];
-  function object(id: number, body: string) {
-    offsets.push(offset);
-    append(`${id} 0 obj\n${body}\nendobj\n`);
-  }
-  object(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  object(2, "<< /Type /Pages /Count 1 /Kids [3 0 R] >>");
-  const pageWidth = 720,
-    pageHeight = (pageWidth * height) / width;
-  object(
-    3,
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Image 4 0 R >> >> /Contents 5 0 R >>`,
-  );
-  offsets.push(offset);
-  append(
-    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length ${compressed.length} >>\nstream\n`,
-  );
-  append(compressed);
-  append("\nendstream\nendobj\n");
-  const paint = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Image Do\nQ\n`;
-  object(
-    5,
-    `<< /Length ${Buffer.byteLength(paint)} >>\nstream\n${paint}endstream`,
-  );
-  const xref = offset;
-  append(`xref\n0 ${offsets.length}\n0000000000 65535 f \n`);
-  for (const position of offsets.slice(1))
-    append(`${String(position).padStart(10, "0")} 00000 n \n`);
-  append(
-    `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`,
-  );
-  writeFileSync(file, Buffer.concat(chunks));
-}
 
 function canvas(
   renderer: DocumentRenderer,
@@ -102,18 +51,19 @@ function canvas(
   return used;
 }
 
-export function renderArtifact(
+export async function renderArtifact(
   document: Artifact,
   output: string | string[],
   width: number,
   scale: number,
   parameters?: unknown,
-): number {
+): Promise<number> {
   const state = documentState(document, parameters);
   checked(pv_surface_open(0));
   let renderer: DocumentRenderer | undefined;
   let height = 0;
   let pixels: Uint8Array;
+  let layout: LayoutCapture;
   try {
     initializeTheme();
     renderer = new DocumentRenderer(document, state);
@@ -132,7 +82,9 @@ export function renderArtifact(
       );
     checked(pv_surface_begin(width, height, scale));
     pushTheme();
-    canvas(renderer, width, height);
+    layout = captureLayout(() =>
+      canvas(renderer as DocumentRenderer, width, height),
+    );
     popTheme();
     igRender();
     const captured = pv_surface_pixels(width * scale, height * scale);
@@ -146,9 +98,18 @@ export function renderArtifact(
     pv_surface_close();
   }
   for (const file of typeof output === "string" ? [output] : output) {
-    if (file.toLowerCase().endsWith(".pdf"))
-      pdf(file, width * scale, height * scale, pixels);
-    else checked(pv_png_write(file, width * scale, height * scale, pixels));
+    if (file.toLowerCase().endsWith(".pdf")) {
+      const plan = pdfPages(width, height, layout, document.pdf);
+      writeFileSync(
+        file,
+        await searchablePdf(
+          rasterPdf(width * scale, height * scale, pixels, plan),
+          layout,
+          plan,
+          document.title,
+        ),
+      );
+    } else checked(pv_png_write(file, width * scale, height * scale, pixels));
   }
   return height;
 }

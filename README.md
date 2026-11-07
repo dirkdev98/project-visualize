@@ -54,7 +54,8 @@ or link it into your agent's skill directory.
 The viewer supports linked dataset controls, chart zoom, table sorting and filtering,
 expandable sections and links. Use `--params` with `inspect`, `export` or `open` to
 reproduce a linked selection. PNG/PDF exports capture the saved document with details
-expanded. PDF pages contain raster images; text is not selectable. Documents describe
+expanded. PDFs paginate the rendered canvas and add selectable document text and links.
+Native chart labels remain rasterized. Documents describe
 content and layout; arbitrary HTML, scripts and live data connectors are outside the
 artifact format.
 
@@ -69,6 +70,7 @@ npm run check
 `npm run check` exercises the compiled CLI, including real GPU exports and revision
 preservation. Run `npm run build` after source changes. `npm run dev -- --help` uses
 Maligator's development runner after the native bridge has been built.
+PDF extraction checks use Poppler (`brew install poppler`).
 
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings

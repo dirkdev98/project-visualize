@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
+import { PDFDocument } from "pdf-lib";
 
 const executable = resolve(
   process.env.VISUALIZE_TEST_BINARY ?? "dist/bin/visualize",
@@ -55,7 +56,7 @@ function workspace(t) {
   return { root, store, run, ok, render };
 }
 
-test("render returns saved documents and actual PNG/PDF files as JSON", (t) => {
+test("render returns saved documents and actual PNG/PDF files as JSON", async (t) => {
   const { render } = workspace(t);
   const entry = render();
   assert.deepEqual(JSON.parse(readFileSync(entry.document, "utf8")), minimal());
@@ -63,9 +64,69 @@ test("render returns saved documents and actual PNG/PDF files as JSON", (t) => {
     readFileSync(entry.png).subarray(0, 8),
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
   );
-  const pdf = readFileSync(entry.pdf).toString("latin1");
-  assert.ok(pdf.startsWith("%PDF-1.4\n"));
-  assert.ok(pdf.endsWith("%%EOF\n"));
+  const pdf = await PDFDocument.load(readFileSync(entry.pdf));
+  assert.ok(pdf.getPageCount() > 0);
+  assert.equal(pdf.getTitle(), minimal().title);
+});
+
+test("PDF paper and orientation follow the saved document", async (t) => {
+  const { render } = workspace(t);
+  for (const [paper, portrait] of [
+    ["a4", [595.276, 841.89]],
+    ["letter", [612, 792]],
+  ]) {
+    for (const orientation of ["portrait", "landscape"]) {
+      const entry = render({ ...minimal(), pdf: { paper, orientation } });
+      const pdf = await PDFDocument.load(readFileSync(entry.pdf));
+      const { width, height } = pdf.getPage(0).getSize();
+      const expected =
+        orientation === "portrait" ? portrait : [...portrait].reverse();
+      assert.deepEqual([width, height], expected);
+    }
+  }
+});
+
+test("paginated PDF text preserves Unicode prose, code and table content", async (t) => {
+  const { render } = workspace(t);
+  const paragraphs = Array.from(
+    { length: 18 },
+    (_, i) =>
+      `Station finding ${i}: café and Ω remain visible in this evidence.`,
+  );
+  const code = "const accepted = rows.filter(row => row.active);";
+  const entry = render({
+    ...minimal(),
+    title: "Station café Δ",
+    body: [
+      { type: "code", language: "typescript", content: code },
+      ...paragraphs.map((content) => ({
+        type: "markdown",
+        content: `## Evidence\n\n${content}\n\nA **clear** note with *emphasis*.`,
+      })),
+      {
+        type: "table",
+        columns: [{ key: "station", label: "Station name" }],
+        rows: [{ station: "North evidence" }],
+      },
+    ],
+  });
+  const pdf = await PDFDocument.load(readFileSync(entry.pdf));
+  assert.ok(pdf.getPageCount() > 1);
+  const result = spawnSync("pdftotext", ["-layout", entry.pdf, "-"], {
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const extracted = result.stdout.replace(/\s+/g, " ");
+  for (const value of [
+    "Station café Δ",
+    code,
+    "Station name",
+    "North evidence",
+    ...paragraphs,
+  ])
+    assert.ok(extracted.includes(value), `PDF text is missing: ${value}`);
 });
 
 test("a revision keeps earlier source and output intact", (t) => {
@@ -207,7 +268,7 @@ test("exporting a saved snapshot does not create a revision", (t) => {
   );
 });
 
-test("rerendering a PDF accepts an uppercase filename extension", (t) => {
+test("rerendering a PDF accepts an uppercase filename extension", async (t) => {
   const { root, render, ok } = workspace(t);
   render();
   const out = join(root, "report.PDF");
@@ -224,7 +285,8 @@ test("rerendering a PDF accepts an uppercase filename extension", (t) => {
     "--width",
     "960",
   ]);
-  assert.equal(readFileSync(out).subarray(0, 8).toString(), "%PDF-1.4");
+  const pdf = await PDFDocument.load(readFileSync(out));
+  assert.ok(pdf.getPageCount() > 0);
 });
 
 test("export cannot overwrite a saved version", (t) => {

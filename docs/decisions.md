@@ -1,5 +1,35 @@
 # Decisions
 
+## 2026-11-07 paginated and selectable documents
+
+- Keep PNGs continuous and paginate PDF captures onto A4 landscape pages by default,
+  with author controls for paper and orientation. Record final-pass block, line and
+  table-row boundaries so page breaks preserve content that fits and avoid isolated
+  container borders. Reuse one captured image across the pages.
+- Add a selectable text layer and link annotations with pdf-lib and fontkit. Share
+  bundled IBM Plex fonts with the viewer and record actual native wrapping, ascent
+  and measured advances so selection follows the rendered text. Keep native plot
+  labels rasterized and make no tagged-PDF accessibility claim.
+- Await PDF completion before publishing a saved revision. Load the CommonJS PDF
+  dependencies through their dynamic import's default export; a reduced probe showed
+  that Maligator does not expose pdf-lib's discovered named exports on that namespace.
+- Keep the library integration despite its export cost. Three interleaved fresh-process
+  samples per build on AC compared the same frozen inputs with the earlier linked
+  renderer. Median PNG-plus-PDF times changed from 57 to 100 ms for the control, 242 to
+  368 ms for the dashboard, and 192 to 302 ms for the notebook. Peak RSS changed from
+  47.3 to 77.5 MiB, 100.4 to 137.2 MiB, and 90.4 to 114.4 MiB respectively. These
+  indicative comparisons include the intended font and PDF format changes.
+- In five matched no-render startup samples, median `--version` time changed from
+  16.1 to 17.1 ms and peak RSS from 23.0 to 28.3 MiB. This is CLI startup evidence,
+  not a native idle-memory measurement.
+
+Keep track of;
+
+- Repeat table headers across PDF continuation pages.
+- Record native chart labeling if selectable plot text becomes necessary.
+- Profile fontkit's monolithic module and generated-code cost before widening font
+  support; its guarded legacy polyfills also produce compiler diagnostics.
+
 ## 2026-11-07 export resource lifetime
 
 - Dispose the GPU surface, document images and syntax caches after copying captured

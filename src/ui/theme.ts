@@ -55,9 +55,11 @@ import {
   pv_font_atlas,
   pv_surface_background,
 } from "maligator:ffi/visualize";
+import { type Font, fontFile } from "./font-files.ts";
+
+export type { Font } from "./font-files.ts";
 
 export type Color = ImVec4_c;
-export type Font = "regular" | "bold" | "italic" | "mono";
 export const fonts: Partial<Record<Font, ImFont>> = {};
 export function color(hex: string, alpha = 1): Color {
   const value = Number.parseInt(hex.replace("#", ""), 16);
@@ -153,15 +155,10 @@ export function initializeTheme() {
   pv_surface_background(palette.paper);
   const atlas = pv_font_atlas();
   if (!atlas) throw new Error("Cannot access the font atlas");
-  const files: Record<Font, string> = {
-    regular: "/System/Library/Fonts/Supplemental/Arial.ttf",
-    bold: "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    italic: "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
-    mono: "/System/Library/Fonts/Menlo.ttc",
-  };
-  for (const name of Object.keys(files) as Font[]) {
-    const font = ImFontAtlas_AddFontFromFileTTF(atlas, files[name], 18);
-    if (!font) throw new Error(`Cannot load system font: ${files[name]}`);
+  for (const name of ["regular", "bold", "italic", "mono"] as Font[]) {
+    const file = fontFile(name);
+    const font = ImFontAtlas_AddFontFromFileTTF(atlas, file, 18);
+    if (!font) throw new Error(`Cannot load font: ${file}`);
     fonts[name] = font;
   }
 }

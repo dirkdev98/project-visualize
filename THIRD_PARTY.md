@@ -23,5 +23,9 @@ Their notices are included in the runtime artifact.
 - [Shiki](https://github.com/shikijs/shiki) provides syntax highlighting, grammars and themes
   under the MIT license.
 - [entities](https://github.com/fb55/entities) decodes character references under BSD-2-Clause.
+- [pdf-lib](https://github.com/Hopding/pdf-lib) and its fontkit package embed a selectable
+  text layer and fonts under the MIT license.
 
-The viewer uses macOS system fonts. Font files are not distributed with the app.
+The viewer and PDF text layer share bundled [IBM Plex](https://github.com/IBM/plex)
+fonts under the SIL Open Font License. Their source revision and checksums are recorded
+in [assets/fonts/sources.json](assets/fonts/sources.json); the app includes the license.

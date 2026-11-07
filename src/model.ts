@@ -111,6 +111,7 @@ export interface Artifact {
   context?: Record<string, unknown>;
   assets?: Record<string, string>;
   datasets?: Record<string, DataRow[]>;
+  pdf?: { paper?: "a4" | "letter"; orientation?: "portrait" | "landscape" };
   body: Block[];
 }
 
@@ -225,6 +226,17 @@ export function validate(input: unknown): Artifact {
     if (doc[field] !== undefined) string(doc[field], field, 1000);
   }
   if (doc.context !== undefined) object(doc.context, "context");
+  if (doc.pdf !== undefined) {
+    const pdf = object(doc.pdf, "pdf");
+    if (pdf.paper !== undefined && pdf.paper !== "a4" && pdf.paper !== "letter")
+      fail("pdf.paper", "expected a4 or letter");
+    if (
+      pdf.orientation !== undefined &&
+      pdf.orientation !== "portrait" &&
+      pdf.orientation !== "landscape"
+    )
+      fail("pdf.orientation", "expected portrait or landscape");
+  }
   const assets = doc.assets === undefined ? {} : object(doc.assets, "assets");
   for (const [name, source] of Object.entries(assets)) {
     slug(name, "asset name");

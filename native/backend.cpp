@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <cfloat>
 
 struct PVImage { std::unique_ptr<pv::Image> image; };
 
@@ -64,6 +65,34 @@ extern "C" PVSize pv_surface_size(void) {
 
 extern "C" int pv_surface_limit(void) { return surface().max_dimension; }
 extern "C" ImFontAtlas *pv_font_atlas(void) { return ImGui::GetIO().Fonts; }
+extern "C" PVSize pv_font_metrics(ImFont *font, float size) {
+  auto baked = font->GetFontBaked(size);
+  float scale = size / baked->Size;
+  return {baked->Ascent * scale, baked->Descent * scale};
+}
+extern "C" PVTextLine pv_text_line(const char *text, float wrap_width) {
+  auto font = ImGui::GetFont();
+  float size = ImGui::GetFontSize();
+  const char *end = text + std::strlen(text);
+  const char *line = static_cast<const char *>(std::memchr(text, '\n', end - text));
+  if (!line) line = end;
+  if (wrap_width > 0) {
+    auto wrapped = font->CalcWordWrapPosition(size, text, end, wrap_width);
+    if (wrapped < line) line = wrapped;
+  }
+  if (line == text && line < end && *line != '\n') {
+    ++line;
+    while (line < end && (static_cast<unsigned char>(*line) & 0xc0) == 0x80) ++line;
+  }
+  const char *next = line;
+  if (next < end && *next == '\n') ++next;
+  else if (wrap_width > 0) {
+    while (next < end && (*next == ' ' || *next == '\t')) ++next;
+    if (next < end && *next == '\n') ++next;
+  }
+  return {static_cast<int>(line - text), static_cast<int>(next - text),
+          font->CalcTextSizeA(size, FLT_MAX, 0, text, line).x};
+}
 
 extern "C" int pv_surface_begin(int width, int height, int scale) {
   try { surface().begin(width, height, scale); return 0; }

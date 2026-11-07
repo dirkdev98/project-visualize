@@ -11,6 +11,7 @@ import {
   ImGuiTableFlags_SizingStretchSame,
   ImGuiTableFlags_Sortable,
   ImGuiTableFlags_SortMulti,
+  ImGuiTableRowFlags_Headers,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImPlot_BeginPlot,
   ImPlot_EndPlot,
@@ -88,8 +89,10 @@ import type {
   ParameterValue,
   Tone,
 } from "../model.ts";
+import { keepTogether } from "./layout.ts";
 import {
   available,
+  captureWrappedText,
   input,
   inputBuffer,
   inputValue,
@@ -195,6 +198,7 @@ export class DocumentRenderer {
       this.orders.clear();
       this.plots.clear();
     }
+    const headerTop = igGetCursorScreenPos().y;
     text(
       `PROJECT VISUALIZE  /  ${(this.document.category ?? "ARTIFACT").toUpperCase()}`,
       12,
@@ -207,6 +211,7 @@ export class DocumentRenderer {
     igSpacing();
     igSeparator();
     igSpacing();
+    keepTogether(headerTop, igGetCursorScreenPos().y);
     this.blocks(this.view.body, exporting, "body");
     igSpacing();
   }
@@ -220,6 +225,7 @@ export class DocumentRenderer {
     }
   }
   private block(value: Block, exporting: boolean, key: string) {
+    const top = igGetCursorScreenPos().y;
     if (value.title && !["callout", "details", "card"].includes(value.type))
       text(value.title, 22, "bold");
     switch (value.type) {
@@ -344,6 +350,12 @@ export class DocumentRenderer {
         break;
     }
     if (value.caption) text(value.caption, 15, "regular", palette.muted);
+    if (value.type !== "spacer" && value.type !== "divider") {
+      const bottom = igGetCursorScreenPos().y;
+      keepTogether(top, bottom);
+      keepTogether(top, Math.min(top + 48, bottom));
+      keepTogether(Math.max(top, bottom - 48), bottom);
+    }
   }
   private control(control: ControlBlock, exporting: boolean) {
     const current = parameterValue(this.state.parameters, control.id);
@@ -462,7 +474,13 @@ export class DocumentRenderer {
     if (igBeginTable("data", value.columns.length, flags, { x: 0, y: 0 }, 0)) {
       for (const column of value.columns)
         igTableSetupColumn(column.label, 0, 0, 0);
-      igTableHeadersRow();
+      if (exporting) {
+        igTableNextRow(ImGuiTableRowFlags_Headers, 0);
+        for (const column of value.columns) {
+          igTableNextColumn();
+          text(column.label, 16, "bold");
+        }
+      } else igTableHeadersRow();
       const sort: { column: number; direction: number }[] = [];
       if (!exporting) {
         const first = pv_table_sort(0);
@@ -505,10 +523,15 @@ export class DocumentRenderer {
       }
       for (const index of cached.indices) {
         igTableNextRow(0, 0);
+        let top = 0,
+          bottom = 0;
         for (const column of value.columns) {
           igTableNextColumn();
+          if (!top) top = igGetCursorScreenPos().y;
           text(scalar(cell(rows[index], column.key)), 16);
+          bottom = Math.max(bottom, igGetCursorScreenPos().y);
         }
+        keepTogether(top, bottom);
       }
       igEndTable();
     }
@@ -655,6 +678,7 @@ export class DocumentRenderer {
           edge.label,
           0,
         );
+        captureWrappedText(edge.label, "regular", 15, p, 0);
       }
     }
     for (let i = 0; i < value.nodes.length; i++) {
@@ -684,6 +708,13 @@ export class DocumentRenderer {
         { x: center.x - size.x / 2, y: center.y - size.y / 2 },
         packed(palette.ink),
         node.label,
+        boxWidth - 16,
+      );
+      captureWrappedText(
+        node.label,
+        "bold",
+        17,
+        { x: center.x - size.x / 2, y: center.y - size.y / 2 },
         boxWidth - 16,
       );
       if (!exporting) {

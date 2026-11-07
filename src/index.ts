@@ -17,12 +17,12 @@ visualize validate --file document.json
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
 render and export accept --width 480..2560 and --scale 1|2.
-render always saves a new immutable version with PNG and raster PDF snapshots.
+render always saves a new immutable version with PNG and PDF snapshots.
 Commands return JSON. open (the default) runs the native desktop viewer.
 inspect, export and open accept --params JSON to override declared controls.
 `;
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   if (args.includes("--help") || args.includes("-h") || args[0] === "help") {
     process.stdout.write(help);
@@ -99,7 +99,7 @@ function main() {
     else {
       const width = dimension("width", 1280, 480, 2560),
         scale = dimension("scale", 1, 1, 2);
-      const entry = save(
+      const entry = await save(
         root,
         required("project"),
         required("artifact"),
@@ -179,7 +179,7 @@ function main() {
       parameters === undefined
     )
       copyFileSync(join(entry.directory, `snapshot.${format}`), out);
-    else render(load(entry), out, width, scale, parameters);
+    else await render(load(entry), out, width, scale, parameters);
     result = { output: out, format, version: entry.version, width, scale };
   } else if (command === "open") {
     if (options.artifact && !options.project)
@@ -202,11 +202,9 @@ function main() {
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-try {
-  main();
-} catch (error) {
+main().catch((error) => {
   process.stderr.write(
     `${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`,
   );
   process.exitCode = 1;
-}
+});

@@ -8,6 +8,7 @@ extern "C" {
 typedef struct { float x, y; } PVSize;
 typedef struct { float x, y, z, w; } PVColor;
 typedef struct { int count, column, direction; } PVSortSpec;
+typedef struct { int length, consumed; float width; } PVTextLine;
 typedef struct {
   PVColor color;
   float line_weight, marker_size;
@@ -16,6 +17,7 @@ typedef struct {
 } PVPlotStyle;
 typedef struct PVImage PVImage;
 typedef struct ImFontAtlas ImFontAtlas;
+typedef struct ImFont ImFont;
 
 /* Window, UI and disposal calls run on the application main thread. */
 int pv_surface_open(int viewer);
@@ -33,6 +35,8 @@ int pv_png_write(const char *file, int width, int height,
 void pv_surface_close(void);
 const char *pv_error(void);
 ImFontAtlas *pv_font_atlas(void);
+PVSize pv_font_metrics(ImFont *font, float size);
+PVTextLine pv_text_line(const char *text, float wrap_width);
 PVImage *pv_image_load(const char *file);
 PVSize pv_image_size(PVImage *image);
 void pv_image_draw(PVImage *image, PVSize size);

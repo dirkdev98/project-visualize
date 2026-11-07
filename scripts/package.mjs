@@ -118,6 +118,10 @@ for (const file of ["stb_image.h", "stb_image_write.h"]) {
   );
 }
 copyFileSync(join(root, "THIRD_PARTY.md"), join(release, "THIRD_PARTY.md"));
+copyFileSync(
+  join(root, "assets/fonts/LICENSE.txt"),
+  join(notices, "ibm-plex-LICENSE.txt"),
+);
 const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
 for (const [location, entry] of Object.entries(lock.packages)) {
   if (!location.startsWith("node_modules/") || entry.dev) continue;

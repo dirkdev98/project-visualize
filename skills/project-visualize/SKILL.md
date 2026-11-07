@@ -33,8 +33,8 @@ creates a new version. Export with an explicit `--version` when the request refe
 particular evidence. PNG and PDF exports use the saved data; temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
 Use `inspect --params` to check the selected rows and derived values, then export with
-the same parameters to deliver that view without revising the source. PDFs contain
-raster pages.
+the same parameters to deliver that view without revising the source. PDFs paginate
+the canvas and include selectable document text. Native plot labels stay rasterized.
 
 Use the CLI's returned paths; do not reconstruct paths into the internal store or
 edit saved version files. Run `open` only when a desktop window is useful or requested.

@@ -35,7 +35,8 @@ import {
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
-import { available, panel, text } from "./primitives.ts";
+import { keepTogether } from "./layout.ts";
+import { available, captureText, panel, text } from "./primitives.ts";
 import { type Font, fonts, packed, palette } from "./theme.ts";
 
 interface Run {
@@ -192,6 +193,7 @@ export class RichText {
             y: origin.y + y + (line - size) * 0.35,
           };
           const tint = run.link ? palette.accent : palette.ink;
+          keepTogether(point.y, point.y + fontSize + 3);
           if (run.code)
             ImDrawList_AddRectFilled(
               draw,
@@ -210,6 +212,7 @@ export class RichText {
             part,
             0,
           );
+          captureText(part, font, fontSize, point, partWidth, run.link);
           if (run.strike || run.link) {
             const offset = run.strike ? size * 0.55 : size + 1;
             ImDrawList_AddLine(
@@ -286,6 +289,7 @@ export class RichText {
             const part =
               measured > width ? fittingPrefix(content, width - x) : content;
             const partWidth = igCalcTextSize(part, false, -1).x;
+            keepTogether(origin.y + y, origin.y + y + 23);
             ImDrawList_AddText_FontPtr(
               draw,
               face,
@@ -294,6 +298,13 @@ export class RichText {
               packed(token.color),
               part,
               0,
+            );
+            captureText(
+              part,
+              "mono",
+              15,
+              { x: origin.x + x, y: origin.y + y },
+              partWidth,
             );
             if (token.fontStyle & 4)
               ImDrawList_AddLine(

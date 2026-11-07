@@ -1,0 +1,26 @@
+{
+  "repository": "https://github.com/IBM/plex",
+  "revision": "48e8676114c04f29033b4b53da4ec579f8846297",
+  "files": {
+    "IBMPlexSans-Regular.ttf": {
+      "source": "packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Regular.ttf",
+      "sha256": "975dcda37d80f038dcd143c22e33ca2d97a0cc5a929aace1c749153b0fe1afa5"
+    },
+    "IBMPlexSans-SemiBold.ttf": {
+      "source": "packages/plex-sans/fonts/complete/ttf/IBMPlexSans-SemiBold.ttf",
+      "sha256": "a20caf8286023a6a7a85e40b1d2a4ae9fc3e3b1f9eda8f4c542dd4986af67bb1"
+    },
+    "IBMPlexSans-Italic.ttf": {
+      "source": "packages/plex-sans/fonts/complete/ttf/IBMPlexSans-Italic.ttf",
+      "sha256": "a9c6ef9942c49e49d11e11a6dacc0b3a087978757e9b22a06b8ac22a6400fb15"
+    },
+    "IBMPlexMono-Regular.ttf": {
+      "source": "packages/plex-mono/fonts/complete/ttf/IBMPlexMono-Regular.ttf",
+      "sha256": "7c6fbddca4b700be918f5f6183d9bd4464fa427fe435f0b480d77fe2bb8c5a43"
+    },
+    "LICENSE.txt": {
+      "source": "LICENSE.txt",
+      "sha256": "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+    }
+  }
+}
