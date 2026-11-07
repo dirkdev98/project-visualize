@@ -129,6 +129,128 @@ test("paginated PDF text preserves Unicode prose, code and table content", async
     assert.ok(extracted.includes(value), `PDF text is missing: ${value}`);
 });
 
+function pdfTextPages(file) {
+  const result = spawnSync("pdftotext", ["-layout", file, "-"], {
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.split("\f").filter((page) => page.trim());
+}
+function assertTableContinuation(pages, header, markers) {
+  for (const marker of markers)
+    assert.equal(pages.join(" ").split(marker).length - 1, 1, marker);
+  const containing = pages.filter((page) =>
+    markers.some((marker) => page.includes(marker)),
+  );
+  assert.ok(containing.length > 1, "The table must continue on another page");
+  for (const page of containing) assert.ok(page.includes(header), header);
+}
+
+test("sequential tables repeat their own headings on continuation pages", (t) => {
+  const { render } = workspace(t);
+  const groups = ["NORTH", "SOUTH"].map((name) => ({
+    header: `${name} observations`,
+    markers: Array.from(
+      { length: 70 },
+      (_, i) => `${name}_${String(i).padStart(3, "0")}`,
+    ),
+  }));
+  const entry = render({
+    ...minimal(),
+    body: groups.map((group) => ({
+      type: "table",
+      columns: [{ key: "code", label: group.header }],
+      rows: group.markers.map((code) => ({ code })),
+    })),
+  });
+  const pages = pdfTextPages(entry.pdf);
+  for (const group of groups) {
+    assertTableContinuation(pages, group.header, group.markers);
+    for (const page of pages)
+      if (!group.markers.some((marker) => page.includes(marker)))
+        assert.ok(!page.includes(group.header));
+  }
+});
+
+test("parallel tables retain separate headings when their rows have different heights", (t) => {
+  const { render } = workspace(t);
+  const groups = ["LEFT", "RIGHT"].map((name) => ({
+    header: `${name} observations`,
+    markers: Array.from(
+      { length: 70 },
+      (_, i) => `${name}_${String(i).padStart(3, "0")}`,
+    ),
+  }));
+  const entry = render({
+    ...minimal(),
+    body: [
+      {
+        type: "row",
+        children: groups.map((group, i) => ({
+          type: "table",
+          columns: [
+            { key: "code", label: group.header },
+            {
+              key: "note",
+              label: i
+                ? "Observation notes with a deliberately long heading"
+                : "Note",
+            },
+          ],
+          rows: group.markers.map((code) => ({
+            code,
+            note: i
+              ? "A fictional observation with a wrapped note for this station."
+              : "Accepted",
+          })),
+        })),
+      },
+    ],
+  });
+  const pages = pdfTextPages(entry.pdf);
+  for (const group of groups)
+    assertTableContinuation(pages, group.header, group.markers);
+});
+
+test("Markdown table continuation repeats its heading in a dark high-density export", (t) => {
+  const { ok } = workspace(t);
+  const header = "Observation code";
+  const markers = Array.from(
+    { length: 80 },
+    (_, i) => `MARK_${String(i).padStart(3, "0")}`,
+  );
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--scale",
+      "2",
+    ],
+    {
+      ...minimal(),
+      theme: "dark",
+      body: [
+        {
+          type: "markdown",
+          content: [
+            `| ${header} | Finding |`,
+            "| --- | --- |",
+            ...markers.map((code) => `| ${code} | Accepted café Ω |`),
+          ].join("\n"),
+        },
+      ],
+    },
+  );
+  assertTableContinuation(pdfTextPages(entry.pdf), header, markers);
+});
+
 test("timeline events and status badges remain readable in an exported document", (t) => {
   const { render } = workspace(t);
   const events = [

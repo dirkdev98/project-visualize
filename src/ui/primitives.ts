@@ -36,7 +36,7 @@ import {
   pv_font_metrics,
   pv_text_line,
 } from "maligator:ffi/visualize";
-import { currentCapture, keepTogether } from "./layout.ts";
+import { currentCapture, keepLineTogether } from "./layout.ts";
 import { type Color, type Font, fonts, packed, palette } from "./theme.ts";
 
 export function checked(result: number): number {
@@ -92,7 +92,7 @@ export function captureText(
     width,
     link,
   });
-  keepTogether(y, y + size);
+  keepLineTogether(y, y + size);
 }
 export function captureWrappedText(
   value: string,

@@ -38,6 +38,8 @@ import {
   igEndDisabled,
   igEndTable,
   igGetCursorScreenPos,
+  igGetItemRectMax,
+  igGetItemRectMin,
   igGetWindowDrawList,
   igIndent,
   igInvisibleButton,
@@ -95,7 +97,7 @@ import type {
   ParameterValue,
   Tone,
 } from "../model.ts";
-import { keepTogether } from "./layout.ts";
+import { captureTable, currentCapture, keepTogether } from "./layout.ts";
 import {
   available,
   captureWrappedText,
@@ -549,6 +551,10 @@ export class DocumentRenderer {
       ImGuiTableFlags_SizingStretchSame;
     if (!exporting)
       flags |= ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti;
+    const capture = currentCapture();
+    const textStart = capture?.text.length ?? 0;
+    const rowStarts: number[] = [];
+    const tableTop = igGetCursorScreenPos().y;
     if (igBeginTable("data", value.columns.length, flags, { x: 0, y: 0 }, 0)) {
       for (const column of value.columns)
         igTableSetupColumn(column.label, 0, 0, 0);
@@ -559,6 +565,7 @@ export class DocumentRenderer {
           text(column.label, 16, "bold");
         }
       } else igTableHeadersRow();
+      const textEnd = capture?.text.length ?? 0;
       const sort: { column: number; direction: number }[] = [];
       if (!exporting) {
         const first = pv_table_sort(0);
@@ -601,17 +608,26 @@ export class DocumentRenderer {
       }
       for (const index of cached.indices) {
         igTableNextRow(0, 0);
-        let top = 0,
-          bottom = 0;
+        if (capture) rowStarts.push(igGetCursorScreenPos().y);
         for (const column of value.columns) {
           igTableNextColumn();
-          if (!top) top = igGetCursorScreenPos().y;
           text(scalar(cell(rows[index], column.key)), 16);
-          bottom = Math.max(bottom, igGetCursorScreenPos().y);
         }
-        keepTogether(top, bottom);
       }
       igEndTable();
+      if (capture) {
+        const min = igGetItemRectMin(),
+          max = igGetItemRectMax();
+        captureTable(
+          min.x,
+          max.x,
+          tableTop,
+          max.y,
+          rowStarts,
+          textStart,
+          textEnd,
+        );
+      }
     }
   }
   private chart(value: ChartBlock, exporting: boolean, key: string) {

@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-07 table continuation headings
+
+- Repeat data-table and Markdown headings within their captured column bounds on
+  continuation pages. Reuse the shared image and font resources, and repeat the
+  selectable heading text and links with the same placement.
+- Prefer complete rows while preserving actual text lines when parallel columns have
+  conflicting row boundaries. Keep an original heading with its first body line.
+  Omit a repeated heading when it leaves no room for content, and report layouts with
+  no safe text break instead of clipping glyphs.
+- Reserve one shared heading band for disjoint tables. Neighboring content gains that
+  space on continuation pages; separate column reflow would require a different
+  document layout model. Verify wrapped rows, tables beside charts and dark 2x exports
+  without claiming a performance improvement from the document feature.
+
 ## 2026-11-07 standalone application notices
 
 - Bundle third-party notices inside the standalone app as well as the full CLI
@@ -105,7 +119,6 @@ Keep track of;
 
 Keep track of;
 
-- Repeat table headers across PDF continuation pages.
 - Record native chart labeling if selectable plot text becomes necessary.
 - Profile fontkit's monolithic module and generated-code cost before widening font
   support; its guarded legacy polyfills also produce compiler diagnostics.

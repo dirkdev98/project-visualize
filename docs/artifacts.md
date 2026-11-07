@@ -226,7 +226,10 @@ and page numbers. Set the document's `pdf` options for a different paper or orie
 ```
 
 PDF page breaks preserve blocks when they fit and split oversized content at recorded
-text-line and table-row boundaries. Document text is searchable and selectable, and
+text-line and table-row boundaries. Tables, including Markdown tables, repeat their
+headings on continuation pages. Side-by-side tables share a header band; an unusually
+tall heading can be omitted when it leaves no room for body text. If parallel content
+has no safe text boundary, stack it vertically. Document text is searchable and selectable, and
 Markdown links remain clickable. The visible page is the captured rendering; native
 plot labels stay rasterized. The text layer does not provide tagged-PDF accessibility.
 Reduce the layout `--width` when a report needs larger text on paper.

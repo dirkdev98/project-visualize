@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { PDFFont } from "pdf-lib";
 import { type Font, fontFile } from "./font-files.ts";
-import type { LayoutCapture } from "./layout.ts";
+import type { LayoutCapture, TextFragment } from "./layout.ts";
 import type { PdfPages } from "./pdf.ts";
 
 export async function searchablePdf(
@@ -35,21 +35,23 @@ export async function searchablePdf(
       }),
     );
   const pages = pdf.getPages();
-  for (const span of layout.text) {
-    const index = plan.slices.findIndex(
-      (slice) => span.y >= slice.top && span.y < slice.bottom,
-    );
-    if (index < 0) continue;
+  function drawSpan(
+    index: number,
+    span: TextFragment,
+    sourceTop: number,
+    offset: number,
+  ) {
     const page = pages[index],
-      slice = plan.slices[index],
       font = fonts.get(span.font);
     if (!font) throw new Error(`PDF font is unavailable: ${span.font}`);
     const size = font.sizeAtHeight(span.size) * plan.factor;
     const advance = font.widthOfTextAtSize(span.value, size);
-    if (!(advance > 0)) continue;
+    if (!(advance > 0)) return;
     const x = plan.margin + span.x * plan.factor;
     const y =
-      plan.height - plan.margin - (span.baseline - slice.top) * plan.factor;
+      plan.height -
+      plan.margin -
+      (span.baseline - sourceTop + offset) * plan.factor;
     page.pushOperators(
       pushGraphicsState(),
       setTextRenderingMode(TextRenderingMode.Invisible),
@@ -61,7 +63,7 @@ export async function searchablePdf(
       const bottom =
         plan.height -
         plan.margin -
-        (span.y + span.size - slice.top) * plan.factor;
+        (span.y + span.size - sourceTop + offset) * plan.factor;
       const annotation = pdf.context.obj({
         Type: "Annot",
         Subtype: "Link",
@@ -76,6 +78,14 @@ export async function searchablePdf(
       });
       page.node.addAnnot(pdf.context.register(annotation));
     }
+  }
+  for (const [index, slice] of plan.slices.entries()) {
+    for (const table of slice.repeats)
+      for (const span of table.headerText)
+        drawSpan(index, span, table.header.top, 0);
+    for (const span of layout.text)
+      if (span.y >= slice.top && span.y < slice.bottom)
+        drawSpan(index, span, slice.top, slice.headerHeight);
   }
   return pdf.save({ useObjectStreams: false });
 }

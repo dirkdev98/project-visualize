@@ -1,13 +1,22 @@
 import { deflateSync } from "node:zlib";
 import type { Artifact } from "../model.ts";
-import { type LayoutCapture, paginate, type VerticalRange } from "./layout.ts";
+import {
+  type LayoutCapture,
+  pageBottom,
+  type TableCapture,
+  type VerticalRange,
+} from "./layout.ts";
 
+export interface PageSlice extends VerticalRange {
+  headerHeight: number;
+  repeats: TableCapture[];
+}
 export interface PdfPages {
   width: number;
   height: number;
   margin: number;
   factor: number;
-  slices: VerticalRange[];
+  slices: PageSlice[];
 }
 export function pdfPages(
   width: number,
@@ -20,17 +29,54 @@ export function pdfPages(
     options?.orientation === "portrait" ? portrait : [portrait[1], portrait[0]];
   const margin = 24;
   const factor = (pageWidth - 2 * margin) / width;
-  return {
-    width: pageWidth,
-    height: pageHeight,
-    margin,
-    factor,
-    slices: paginate(
-      height,
-      (pageHeight - 2 * margin - 12) / factor,
-      layout.regions,
-    ),
-  };
+  const capacity = (pageHeight - 2 * margin - 12) / factor;
+  const regions = [
+    ...layout.regions,
+    ...layout.tables.flatMap((table) => table.rows),
+  ];
+  const slices: PageSlice[] = [];
+  let top = 0;
+  while (top < height) {
+    let repeats = layout.tables
+      .filter(
+        (table) =>
+          table.header.bottom <= top &&
+          table.rows.some((row) => row.bottom > top),
+      )
+      .sort((a, b) => a.left - b.left);
+    if (repeats.some((table, i) => i > 0 && table.left < repeats[i - 1].right))
+      repeats = [];
+    let headerHeight = repeats.length
+      ? Math.max(
+          ...repeats.map((table) => table.header.bottom - table.header.top),
+        ) + 8
+      : 0;
+    const nextLine = layout.lines
+      .filter((line) => line.top >= top)
+      .reduce((end, line) => Math.min(end, line.bottom), height);
+    if (headerHeight + nextLine - top >= capacity) {
+      repeats = [];
+      headerHeight = 0;
+    }
+    let bottom: number;
+    try {
+      bottom = pageBottom(
+        top,
+        height,
+        capacity - headerHeight,
+        regions,
+        layout.lines,
+      );
+    } catch (error) {
+      if (!headerHeight) throw error;
+      repeats = [];
+      headerHeight = 0;
+      bottom = pageBottom(top, height, capacity, regions, layout.lines);
+    }
+    slices.push({ top, bottom, headerHeight, repeats });
+    top = bottom;
+  }
+  return { width: pageWidth, height: pageHeight, margin, factor, slices };
 }
 export function rasterPdf(
   width: number,
@@ -79,9 +125,39 @@ export function rasterPdf(
       id,
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pages.width} ${pages.height}] /Resources << /XObject << /Image 3 0 R >> /Font << /F1 4 0 R >> >> /Contents ${id + 1} 0 R >>`,
     );
-    const clipHeight = (slice.bottom - slice.top) * pages.factor;
     const top = pages.height - pages.margin;
-    const paint = `q\n${pages.margin} ${top - clipHeight} ${imageWidth} ${clipHeight} re W n\n${imageWidth} 0 0 ${imageHeight} ${pages.margin} ${top - imageHeight + slice.top * pages.factor} cm\n/Image Do\nQ\nBT /F1 9 Tf 0.4 0.45 0.5 rg ${pages.width - 64} 12 Td (${index + 1} / ${pages.slices.length}) Tj ET\n`;
+    function paintRegion(
+      left: number,
+      right: number,
+      sourceTop: number,
+      bottom: number,
+      destinationTop: number,
+    ) {
+      const clipHeight = (bottom - sourceTop) * pages.factor;
+      return `q\n${pages.margin + left * pages.factor} ${destinationTop - clipHeight} ${(right - left) * pages.factor} ${clipHeight} re W n\n${imageWidth} 0 0 ${imageHeight} ${pages.margin} ${destinationTop - imageHeight + sourceTop * pages.factor} cm\n/Image Do\nQ\n`;
+    }
+    const background = [pixels[0], pixels[1], pixels[2]]
+      .map((channel) => channel / 255)
+      .join(" ");
+    let paint = slice.headerHeight
+      ? `q\n${background} rg ${pages.margin} ${top - slice.headerHeight * pages.factor} ${imageWidth} ${slice.headerHeight * pages.factor} re f\nQ\n`
+      : "";
+    paint += paintRegion(
+      0,
+      imageWidth / pages.factor,
+      slice.top,
+      slice.bottom,
+      top - slice.headerHeight * pages.factor,
+    );
+    for (const table of slice.repeats)
+      paint += paintRegion(
+        table.left,
+        table.right,
+        table.header.top,
+        table.header.bottom,
+        top,
+      );
+    paint += `BT /F1 9 Tf 0.4 0.45 0.5 rg ${pages.width - 64} 12 Td (${index + 1} / ${pages.slices.length}) Tj ET\n`;
     object(
       id + 1,
       `<< /Length ${Buffer.byteLength(paint)} >>\nstream\n${paint}endstream`,

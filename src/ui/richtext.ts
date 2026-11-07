@@ -6,6 +6,7 @@ import {
   ImGuiMouseCursor_Hand,
   ImGuiTableFlags_BordersInnerH,
   ImGuiTableFlags_RowBg,
+  ImGuiTableRowFlags_Headers,
   igBeginTable,
   igBeginTooltip,
   igCalcTextSize,
@@ -13,6 +14,8 @@ import {
   igEndTable,
   igEndTooltip,
   igGetCursorScreenPos,
+  igGetItemRectMax,
+  igGetItemRectMin,
   igGetWindowDrawList,
   igIndent,
   igInvisibleButton,
@@ -35,7 +38,7 @@ import {
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
-import { keepTogether } from "./layout.ts";
+import { captureTable, currentCapture, keepLineTogether } from "./layout.ts";
 import { available, captureText, panel, text } from "./primitives.ts";
 import { currentTheme, type Font, fonts, packed, palette } from "./theme.ts";
 
@@ -194,7 +197,7 @@ export class RichText {
             y: origin.y + y + (line - size) * 0.35,
           };
           const tint = run.link ? palette.accent : palette.ink;
-          keepTogether(point.y, point.y + fontSize + 3);
+          keepLineTogether(point.y, point.y + fontSize + 3);
           if (run.code)
             ImDrawList_AddRectFilled(
               draw,
@@ -294,7 +297,7 @@ export class RichText {
             const part =
               measured > width ? fittingPrefix(content, width - x) : content;
             const partWidth = igCalcTextSize(part, false, -1).x;
-            keepTogether(origin.y + y, origin.y + y + 23);
+            keepLineTogether(origin.y + y, origin.y + y + 18);
             ImDrawList_AddText_FontPtr(
               draw,
               face,
@@ -425,7 +428,11 @@ export class RichText {
           }
           break;
         }
-        case "table":
+        case "table": {
+          const capture = currentCapture();
+          const textStart = capture?.text.length ?? 0;
+          const rowStarts: number[] = [];
+          const tableTop = igGetCursorScreenPos().y;
           if (
             igBeginTable(
               "markdown",
@@ -435,21 +442,37 @@ export class RichText {
               0,
             )
           ) {
-            igTableNextRow(0, 0);
+            igTableNextRow(ImGuiTableRowFlags_Headers, 0);
             for (const cell of token.header) {
               igTableNextColumn();
               this.inline(cell.tokens, 16, true);
             }
+            const textEnd = capture?.text.length ?? 0;
             for (const row of token.rows) {
               igTableNextRow(0, 0);
+              if (capture) rowStarts.push(igGetCursorScreenPos().y);
               for (const cell of row) {
                 igTableNextColumn();
                 this.inline(cell.tokens, 16);
               }
             }
             igEndTable();
+            if (capture) {
+              const min = igGetItemRectMin(),
+                max = igGetItemRectMax();
+              captureTable(
+                min.x,
+                max.x,
+                tableTop,
+                max.y,
+                rowStarts,
+                textStart,
+                textEnd,
+              );
+            }
           }
           break;
+        }
         case "html":
           text(token.text);
           break;
