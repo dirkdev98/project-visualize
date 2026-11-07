@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "title": "A decision, with its evidence",
+  "subtitle": "A compact weekly brief for the next operating window",
+  "category": "Decision brief",
+  "pdf": { "paper": "a4", "orientation": "landscape" },
+  "context": {
+    "source": "Fictional demonstration data",
+    "question": "Can we retain the revised window while preserving the remaining caveat?"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Accepted observations",
+          "value": 30480,
+          "decimals": 0,
+          "detail": "Across the reviewed station windows",
+          "tone": "positive"
+        },
+        {
+          "type": "metric",
+          "label": "Mean availability",
+          "value": 99.0,
+          "decimals": 1,
+          "suffix": "%",
+          "detail": "Read alongside the matched evidence"
+        },
+        {
+          "type": "metric",
+          "label": "Open follow-ups",
+          "value": 1,
+          "decimals": 0,
+          "detail": "West needs a matched operating window",
+          "tone": "warning"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "weights": [1.8, 1],
+      "children": [
+        {
+          "type": "card",
+          "title": "How the week developed",
+          "children": [
+            {
+              "type": "chart",
+              "kind": "area",
+              "height": 180,
+              "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+              "yLabel": "Accepted observations",
+              "series": [
+                {
+                  "name": "Accepted",
+                  "values": [2400, 3200, 4200, 4100, 5000, 5500, 6080]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "The decision",
+          "children": [
+            {
+              "type": "badge",
+              "label": "Keep the revised window",
+              "tone": "positive"
+            },
+            {
+              "type": "markdown",
+              "content": "Accepted observations rose through the week. Keep the window while the remaining evidence is reconciled."
+            },
+            {
+              "type": "progress",
+              "label": "Evidence reconciled",
+              "value": 0.94,
+              "tone": "positive"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Evidence and follow-up",
+      "columns": [
+        { "key": "station", "label": "Station", "weight": 1 },
+        {
+          "key": "accepted",
+          "label": "Accepted",
+          "weight": 1,
+          "format": { "decimals": 0 }
+        },
+        {
+          "key": "availability",
+          "label": "Availability",
+          "weight": 1.2,
+          "format": { "decimals": 1, "suffix": "%" }
+        },
+        { "key": "action", "label": "Next step", "weight": 2 }
+      ],
+      "rows": [
+        {
+          "station": "North",
+          "accepted": 12840,
+          "availability": 99.2,
+          "action": "Hold the current window"
+        },
+        {
+          "station": "East",
+          "accepted": 9820,
+          "availability": 98.6,
+          "action": "Hold the current window"
+        },
+        {
+          "station": "West",
+          "accepted": 7820,
+          "availability": 99.1,
+          "action": "Repeat a matched window"
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "content": "*Fictional review data. Keep the source and uncertainty with the decision.*"
+    }
+  ]
+}

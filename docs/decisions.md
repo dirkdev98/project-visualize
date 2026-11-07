@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-07 compact decision brief
+
+- Add a briefing example that keeps the finding, trend, uncertainty and source rows
+  together on a landscape page. Use an asymmetric composition and authored table
+  proportions so the evidence remains readable beside the decision.
+- Keep totals and availability consistent with the fictional source rows. Preserve the
+  matching dark appearance, and use portrait paper when the narrow layout stacks its
+  content across pages.
+
 ## 2026-11-07 desktop document navigation
 
 - Accept PDF bookmarks for desktop document navigation after verifying their Unicode
