@@ -104,7 +104,7 @@ export function save(
   scale: number,
   render: (
     document: Artifact,
-    output: string,
+    outputs: string[],
     width: number,
     scale: number,
   ) => number,
@@ -143,11 +143,10 @@ export function save(
     }
     const height = render(
       hydrated,
-      join(pending, "snapshot.png"),
+      [join(pending, "snapshot.png"), join(pending, "snapshot.pdf")],
       width,
       scale,
     );
-    render(hydrated, join(pending, "snapshot.pdf"), width, scale);
     const entry = {
       project,
       artifact,

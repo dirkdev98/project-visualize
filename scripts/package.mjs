@@ -101,14 +101,7 @@ execFileSync("codesign", ["--force", "--sign", "-", dirname(app)], {
 
 const notices = join(release, "licenses");
 mkdirSync(notices, { recursive: true });
-for (const component of [
-  "imgui",
-  "implot",
-  "cimgui",
-  "cimplot",
-  "md4c",
-  "wgpu",
-]) {
+for (const component of ["imgui", "implot", "cimgui", "cimplot", "wgpu"]) {
   const directory = join(root, ".cache/deps", component);
   for (const file of readdirSync(directory).filter((file) =>
     /^LICENSE/i.test(file),
@@ -116,10 +109,6 @@ for (const component of [
     copyFileSync(join(directory, file), join(notices, `${component}-${file}`));
 }
 copyFileSync(join(sdl, "LICENSE.txt"), join(notices, "sdl3-LICENSE.txt"));
-copyFileSync(
-  join(root, ".cache/deps/json-license"),
-  join(notices, "json-LICENSE.MIT"),
-);
 for (const file of ["stb_image.h", "stb_image_write.h"]) {
   const header = readFileSync(join(root, ".cache/deps", file), "utf8");
   const start = header.lastIndexOf("ALTERNATIVE A - MIT License");
@@ -129,6 +118,23 @@ for (const file of ["stb_image.h", "stb_image_write.h"]) {
   );
 }
 copyFileSync(join(root, "THIRD_PARTY.md"), join(release, "THIRD_PARTY.md"));
+const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
+for (const [location, entry] of Object.entries(lock.packages)) {
+  if (!location.startsWith("node_modules/") || entry.dev) continue;
+  const directory = join(root, location);
+  for (const file of readdirSync(directory, { withFileTypes: true })) {
+    if (
+      !file.isFile() ||
+      !/^(license|copying|notice)([._-]|$)/i.test(file.name)
+    )
+      continue;
+    const name = location.slice("node_modules/".length).replaceAll("/", "_");
+    copyFileSync(
+      join(directory, file.name),
+      join(notices, `${name}-${file.name}`),
+    );
+  }
+}
 // The dylib paths change after Maligator's artifact checksums are written.
 const { createHash } = await import("node:crypto");
 const checksums = [];

@@ -12,10 +12,9 @@ export default defineLibrary({
   ],
   types: {
     ImFont: { handle: {} },
+    ImFontAtlas: { handle: {} },
     ImDrawList: { handle: {} },
-    ImGuiStyle: { handle: {} },
-    ImGuiIO: { handle: {} },
-    ImPlotStyle: { handle: {} },
+    PVImage: { handle: { destroy: "pv_image_destroy" } },
   },
   functions: {
     igBegin: { params: { p_open: { constant: "NULL" } } },
@@ -23,9 +22,15 @@ export default defineLibrary({
     igCalcTextSize: { params: { text_end: { constant: "NULL" } } },
     igGetFont: { returns: { borrowed: true } },
     igGetWindowDrawList: { returns: { borrowed: true } },
-    igGetStyle: { returns: { borrowed: true } },
-    igGetIO_Nil: { returns: { borrowed: true } },
-    ImPlot_GetStyle: { returns: { borrowed: true } },
+    igStyleColorsLight: { params: { dst: { constant: "NULL" } } },
+    ImPlot_StyleColorsLight: { params: { dst: { constant: "NULL" } } },
+    ImFontAtlas_AddFontFromFileTTF: {
+      params: {
+        font_cfg: { constant: "NULL" },
+        glyph_ranges: { constant: "NULL" },
+      },
+      returns: { borrowed: true },
+    },
     ImDrawList_AddText_Vec2: { params: { text_end: { constant: "NULL" } } },
     ImDrawList_AddText_FontPtr: {
       params: {
@@ -38,6 +43,25 @@ export default defineLibrary({
         buf: { array: { length: "buf_size", writable: true } },
         callback: { constant: "NULL" },
         user_data: { constant: "NULL" },
+      },
+    },
+    igInputTextMultiline: {
+      params: {
+        buf: { array: { length: "buf_size", writable: true } },
+        callback: { constant: "NULL" },
+        user_data: { constant: "NULL" },
+      },
+    },
+    pv_font_atlas: { returns: { borrowed: true } },
+    pv_surface_pixels: {
+      params: { byte_count: { out: true } },
+      returns: { bytes: { length: "byte_count" }, free: "pv_bytes_free" },
+    },
+    pv_png_write: { params: { bytes: { bytes: { length: "byte_count" } } } },
+    pv_plot_series: {
+      params: {
+        x: { array: { length: "count" } },
+        y: { array: { length: "count" } },
       },
     },
   },

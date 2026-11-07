@@ -1,5 +1,39 @@
 # Decisions
 
+## 2026-11-07 JS document rendering
+
+- Move viewer composition, document layout, table transforms, chart preparation,
+  diagram geometry, rich text, image caching and redraw scheduling into Maligator
+  JS/TS. The native backend exposes platform and rendering operations without knowing
+  the artifact schema.
+- Use Marked for Markdown and Shiki's JavaScript regex engine for syntax highlighting.
+  Capture grammar data as Maligator assets and load languages on demand. Scope grammar,
+  token and image resources to the current document so revisions can release them.
+- Capture a rendered artifact once for both PNG and PDF. Keep PDF assembly in JS and
+  use the same content renderer for exports and the desktop viewer.
+- Use explicit constructor fields because the compact TS stripper rejects parameter
+  properties. Keep a generic single-tick adapter because the FFI rejects the chart
+  library's array of C-string pointers. These are potential upstream improvements.
+
+Keep track of;
+
+- Profile the remaining syntax grammar conversion and export allocation costs.
+- Recheck C-string pointer arrays and TS parameter properties when updating Maligator.
+
+## 2026-11-07 JS renderer performance cost
+
+- Keep the richer JS renderer as a functional checkpoint. On AC power, three
+  interleaved fresh-process samples per build compared the same frozen JSON inputs and
+  produced PNG and PDF together. Median times were 54..59 ms for a small control,
+  156..238 ms for the dashboard, and 121..191 ms for the notebook, before and after.
+- Peak process RSS changed from 39.8 to 46.4 MiB, 80.7 to 102.2 MiB, and 66.0 to
+  90.2 MiB respectively. These are indicative laptop comparisons of the complete
+  product change, including new highlighting and layout, rather than an isolated FFI
+  speed comparison. Peak RSS is distinct from the earlier idle physical footprint.
+- Retain on-demand grammar assets and the shared PNG/PDF capture to avoid unnecessary
+  startup parsing and duplicate rendering. Keep visible-window CPU and memory
+  acceptance pending until native UI measurements are available.
+
 ## 2026-11-07 native UI bindings
 
 - Use generated C bindings for Dear ImGui and ImPlot so Maligator can compose native
@@ -12,7 +46,6 @@
 
 Keep track of;
 
-- Move the existing viewer and document renderer onto the direct bindings.
 - Recheck upstream wrapper generation before changing the native toolkit revisions.
 
 ## 2026-11-07 idle performance evidence

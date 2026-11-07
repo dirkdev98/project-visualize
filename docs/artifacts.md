@@ -42,11 +42,19 @@ Use a `code` block when code needs its own title or language label, and a `callo
 for a highlighted explanation. The [notebook example](../examples/notebook.json)
 shows rich text in a complete document.
 
+Code blocks and fenced Markdown use Shiki highlighting for bundled languages. Unknown
+language labels render as plain code. Code is never executed, and copying it preserves
+the original source.
+
 ## Composition
 
 Group blocks inside `row`, `column` or `card` children. A row's optional `weights`
 sets relative column widths. Rows stack vertically in a narrow viewport. A `details`
 section is expandable in the viewer and expanded in exports.
+
+An optional block `id` keeps its interaction key stable when neighboring blocks move.
+Use a lowercase letter followed by letters, digits, hyphens or underscores. IDs must be
+unique among siblings.
 
 ```json
 {

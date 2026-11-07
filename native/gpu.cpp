@@ -7,15 +7,10 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include <algorithm>
-#include <cctype>
 #include <cstring>
-#include <fstream>
-#include <sstream>
 #include <stdexcept>
-#include <zlib.h>
 
 namespace pv {
-Gpu *gpu = nullptr;
 
 static std::string message(WGPUStringView view) {
   if (!view.data) return "Unknown GPU error";
@@ -24,7 +19,6 @@ static std::string message(WGPUStringView view) {
 
 Gpu::~Gpu() {
   if (device) wgpuDevicePoll(device, true, nullptr);
-  clear_images();
   if (renderer) ImGui_ImplWGPU_Shutdown();
   if (platform) ImGui_ImplSDL3_Shutdown();
   if (imgui) { ImPlot::DestroyContext(); ImGui::DestroyContext(); }
@@ -36,15 +30,11 @@ Gpu::~Gpu() {
   if (metal_view) SDL_Metal_DestroyView(metal_view);
   if (window) SDL_DestroyWindow(window);
   if (sdl) SDL_Quit();
-  gpu = nullptr;
 }
 
-void Gpu::clear_images() {
-  for (auto &[file, image] : images) {
-    wgpuTextureViewRelease(image.view);
-    wgpuTextureRelease(image.texture);
-  }
-  images.clear();
+Image::~Image() {
+  if (view) wgpuTextureViewRelease(view);
+  if (texture) wgpuTextureRelease(texture);
 }
 
 void Gpu::check() {
@@ -53,7 +43,6 @@ void Gpu::check() {
 }
 
 void Gpu::init(bool viewer) {
-  gpu = this;
   wgpuSetLogLevel(WGPULogLevel_Error);
   if (viewer) {
     if (!SDL_Init(SDL_INIT_VIDEO)) throw std::runtime_error(SDL_GetError());
@@ -144,7 +133,10 @@ void Gpu::init(bool viewer) {
   ImGui::CreateContext();
   ImPlot::CreateContext();
   imgui = true;
-  setup_style();
+  auto &io = ImGui::GetIO();
+  io.IniFilename = nullptr;
+  io.LogFilename = nullptr;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   if (viewer) {
     if (!ImGui_ImplSDL3_InitForOther(window)) throw std::runtime_error("Cannot initialize window input");
     platform = true;
@@ -177,7 +169,7 @@ void Gpu::draw(WGPUTextureView view) {
   attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
   attachment.loadOp = WGPULoadOp_Clear;
   attachment.storeOp = WGPUStoreOp_Store;
-  attachment.clearValue = {paper.x, paper.y, paper.z, 1};
+  attachment.clearValue = background;
   WGPURenderPassDescriptor descriptor{};
   descriptor.colorAttachmentCount = 1;
   descriptor.colorAttachments = &attachment;
@@ -248,34 +240,32 @@ std::vector<unsigned char> Gpu::capture(int width, int height) {
   return pixels;
 }
 
-Image &Gpu::image(const std::string &file) {
-  auto found = images.find(file);
-  if (found != images.end()) return found->second;
+std::unique_ptr<Image> Gpu::load_image(const std::string &file) {
   int width, height, components;
   if (!stbi_info(file.c_str(), &width, &height, &components) || width > max_dimension || height > max_dimension)
     throw std::runtime_error("Image cannot be decoded or exceeds GPU limits: " + file);
   auto bytes = stbi_load(file.c_str(), &width, &height, &components, 4);
   if (!bytes) throw std::runtime_error("Cannot read image: " + file);
-  Image image{};
-  image.width = width;
-  image.height = height;
+  auto image = std::make_unique<Image>();
+  image->width = width;
+  image->height = height;
   WGPUTextureDescriptor desc{};
   desc.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
   desc.mipLevelCount = desc.sampleCount = 1;
   desc.dimension = WGPUTextureDimension_2D;
   desc.format = WGPUTextureFormat_RGBA8Unorm;
   desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-  image.texture = wgpuDeviceCreateTexture(device, &desc);
-  image.view = wgpuTextureCreateView(image.texture, nullptr);
+  image->texture = wgpuDeviceCreateTexture(device, &desc);
+  image->view = wgpuTextureCreateView(image->texture, nullptr);
   WGPUTexelCopyTextureInfo dest{};
-  dest.texture = image.texture;
+  dest.texture = image->texture;
   dest.aspect = WGPUTextureAspect_All;
   WGPUTexelCopyBufferLayout layout{};
   layout.bytesPerRow = width * 4;
   layout.rowsPerImage = height;
   wgpuQueueWriteTexture(queue, &dest, bytes, static_cast<size_t>(width) * height * 4, &layout, &desc.size);
   stbi_image_free(bytes);
-  return images.emplace(file, image).first->second;
+  return image;
 }
 
 void Gpu::present() {
@@ -313,54 +303,8 @@ void Gpu::present() {
   wgpuTextureRelease(texture.texture);
 }
 
-void write_image(const std::string &file, int width, int height,
-                 const std::vector<unsigned char> &pixels) {
-  auto extension = file.size() < 4 ? "" : file.substr(file.size() - 4);
-  std::transform(extension.begin(), extension.end(), extension.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-  if (extension != ".pdf") {
-    if (!stbi_write_png(file.c_str(), width, height, 4, pixels.data(), width * 4))
-      throw std::runtime_error("Cannot write PNG: " + file);
-    return;
-  }
-  std::vector<unsigned char> rgb(static_cast<size_t>(width) * height * 3);
-  for (size_t i = 0; i < rgb.size() / 3; ++i)
-    memcpy(rgb.data() + i * 3, pixels.data() + i * 4, 3);
-  uLongf compressed_size = compressBound(rgb.size());
-  std::vector<unsigned char> compressed(compressed_size);
-  if (compress2(compressed.data(), &compressed_size, rgb.data(), rgb.size(), Z_BEST_SPEED) != Z_OK)
-    throw std::runtime_error("Cannot compress PDF image");
-  std::ofstream out(file, std::ios::binary);
-  out << "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
-  std::vector<std::streamoff> offsets{0};
-  auto object = [&](int id, const std::string &value) {
-    offsets.push_back(out.tellp());
-    out << id << " 0 obj\n" << value << "\nendobj\n";
-  };
-  object(1, "<< /Type /Catalog /Pages 2 0 R >>");
-  object(2, "<< /Type /Pages /Count 1 /Kids [3 0 R] >>");
-  const double page_width = 720, page_height = page_width * height / width;
-  std::ostringstream page, paint;
-  page << "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 " << page_width << ' ' << page_height
-       << "] /Resources << /XObject << /Image 4 0 R >> >> /Contents 5 0 R >>";
-  object(3, page.str());
-  offsets.push_back(out.tellp());
-  out << "4 0 obj\n<< /Type /XObject /Subtype /Image /Width " << width << " /Height " << height
-      << " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length "
-      << compressed_size << " >>\nstream\n";
-  out.write(reinterpret_cast<const char *>(compressed.data()), compressed_size);
-  out << "\nendstream\nendobj\n";
-  paint << "q\n" << page_width << " 0 0 " << page_height << " 0 0 cm\n/Image Do\nQ\n";
-  auto commands = paint.str();
-  object(5, "<< /Length " + std::to_string(commands.size()) + " >>\nstream\n" + commands + "endstream");
-  auto xref = out.tellp();
-  out << "xref\n0 6\n0000000000 65535 f \n";
-  for (size_t i = 1; i < offsets.size(); ++i) {
-    char entry[32];
-    snprintf(entry, sizeof(entry), "%010lld 00000 n \n", static_cast<long long>(offsets[i]));
-    out << entry;
-  }
-  out << "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n" << xref << "\n%%EOF\n";
-  if (!out.good()) throw std::runtime_error("Cannot write PDF: " + file);
+void write_png(const std::string &file, int width, int height, const unsigned char *pixels) {
+  if (!stbi_write_png(file.c_str(), width, height, 4, pixels, width * 4))
+    throw std::runtime_error("Cannot write PNG: " + file);
 }
 }

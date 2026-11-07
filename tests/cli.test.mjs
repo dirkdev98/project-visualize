@@ -373,3 +373,62 @@ test("an artifact larger than the export surface fails without truncating it", (
   assert.match(JSON.parse(result.stderr).error, /too tall/);
   assert.deepEqual(ok(["list"]).versions, []);
 });
+
+test("missing table cells may use names shared with object methods", (t) => {
+  const { render } = workspace(t);
+  const document = {
+    ...minimal(),
+    body: [
+      {
+        type: "table",
+        columns: [
+          { key: "constructor", label: "Constructor" },
+          { key: "toString", label: "Description" },
+          { key: "station", label: "Station" },
+        ],
+        rows: [{ station: "North" }],
+      },
+    ],
+  };
+  const entry = render(document);
+  assert.deepEqual(JSON.parse(readFileSync(entry.document, "utf8")), document);
+  assert.ok(readFileSync(entry.png).length > 0);
+});
+
+test("duplicate sibling block IDs are rejected before publishing", (t) => {
+  const { run, ok } = workspace(t);
+  const document = {
+    ...minimal(),
+    body: [
+      { type: "text", id: "summary", content: "North" },
+      { type: "text", id: "summary", content: "South" },
+    ],
+  };
+  const result = run(
+    ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+    document,
+  );
+  assert.equal(result.status, 1);
+  assert.match(JSON.parse(result.stderr).error, /body\[1\]\.id/);
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
+test("block IDs can repeat in separate containers", (t) => {
+  const { ok } = workspace(t);
+  const document = {
+    ...minimal(),
+    body: [
+      {
+        type: "column",
+        id: "north",
+        children: [{ type: "text", id: "summary", content: "North" }],
+      },
+      {
+        type: "column",
+        id: "south",
+        children: [{ type: "text", id: "summary", content: "South" }],
+      },
+    ],
+  };
+  assert.equal(ok(["validate", "--file", "-"], document).valid, true);
+});

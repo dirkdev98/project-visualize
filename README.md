@@ -69,8 +69,12 @@ npm run check
 preservation. Run `npm run build` after source changes. `npm run dev -- --help` uses
 Maligator's development runner after the native bridge has been built.
 
-The TypeScript application owns validation, storage, library navigation and the viewer
-loop. The C ABI in
-[native/visualize.h](native/visualize.h) connects it to Dear ImGui, ImPlot, CommonMark
-parsing and wgpu-native. The viewer and offscreen exports share the native content
-renderer. [Third-party notices](THIRD_PARTY.md) describe the dependencies.
+The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
+table transforms, chart preparation, redraw policy and exports. Generated C bindings
+connect it to Dear ImGui and ImPlot. The small backend in
+[native/visualize.h](native/visualize.h) supplies window, font, image and GPU operations.
+The viewer and exports share the TS content renderer.
+
+Shiki runs with its JavaScript regex engine. The build captures syntax grammars as
+Maligator assets, loaded when a document needs them. [Third-party notices](THIRD_PARTY.md)
+describe the dependencies.

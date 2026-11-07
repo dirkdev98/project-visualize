@@ -5,18 +5,23 @@ The native build downloads pinned source archives and headers listed in
 platform-specific wgpu-native release and verifies its SHA-256 checksum. Release
 artifacts include upstream license notices in `licenses/`.
 
-| Software                                                | Purpose                         | License                              |
-| ------------------------------------------------------- | ------------------------------- | ------------------------------------ |
-| [Maligator](https://github.com/dirkdev98/maligator)     | Application and CLI runtime     | See the release artifact's `LICENSE` |
-| [wgpu-native](https://github.com/gfx-rs/wgpu-native)    | Native WebGPU rendering         | MIT or Apache-2.0                    |
-| [Dear ImGui](https://github.com/ocornut/imgui)          | Desktop widgets and layout      | MIT                                  |
-| [ImPlot](https://github.com/epezent/implot)             | Interactive charts              | MIT                                  |
-| [cimgui](https://github.com/cimgui/cimgui)              | Generated widget C bindings     | MIT                                  |
-| [cimplot](https://github.com/cimgui/cimplot)            | Generated chart C bindings      | MIT                                  |
-| [SDL3](https://github.com/libsdl-org/SDL)               | Native windows and input        | zlib                                 |
-| [MD4C](https://github.com/mity/md4c)                    | CommonMark parsing              | MIT                                  |
-| [JSON for Modern C++](https://github.com/nlohmann/json) | Native document decoding        | MIT                                  |
-| [stb](https://github.com/nothings/stb)                  | Image decoding and PNG encoding | MIT or public domain                 |
-| [zlib](https://zlib.net/)                               | PDF image compression           | zlib                                 |
+| Software                                             | Purpose                         | License                              |
+| ---------------------------------------------------- | ------------------------------- | ------------------------------------ |
+| [Maligator](https://github.com/dirkdev98/maligator)  | Application and CLI runtime     | See the release artifact's `LICENSE` |
+| [wgpu-native](https://github.com/gfx-rs/wgpu-native) | Native WebGPU rendering         | MIT or Apache-2.0                    |
+| [Dear ImGui](https://github.com/ocornut/imgui)       | Desktop widgets and layout      | MIT                                  |
+| [ImPlot](https://github.com/epezent/implot)          | Interactive charts              | MIT                                  |
+| [cimgui](https://github.com/cimgui/cimgui)           | Generated widget C bindings     | MIT                                  |
+| [cimplot](https://github.com/cimgui/cimplot)         | Generated chart C bindings      | MIT                                  |
+| [SDL3](https://github.com/libsdl-org/SDL)            | Native windows and input        | zlib                                 |
+| [stb](https://github.com/nothings/stb)               | Image decoding and PNG encoding | MIT or public domain                 |
+
+JS dependencies provide Markdown parsing, character references and Shiki syntax highlighting.
+Their notices are included in the runtime artifact.
+
+- [Marked](https://github.com/markedjs/marked) provides Markdown tokens under the MIT license.
+- [Shiki](https://github.com/shikijs/shiki) provides syntax highlighting, grammars and themes
+  under the MIT license.
+- [entities](https://github.com/fb55/entities) decodes character references under BSD-2-Clause.
 
 The viewer uses macOS system fonts. Font files are not distributed with the app.

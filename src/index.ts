@@ -1,8 +1,8 @@
-import { pv_error, pv_render } from "maligator:ffi/visualize";
 import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { type Artifact, slug, validate } from "./model.ts";
+import { slug, validate } from "./model.ts";
 import { find, list, load, save, storeRoot } from "./store.ts";
+import { renderArtifact as render } from "./ui/export.ts";
 import { openViewer } from "./viewer.ts";
 
 const help = `Project Visualize
@@ -19,17 +19,6 @@ render and export accept --width 480..2560 and --scale 1|2.
 render always saves a new immutable version with PNG and raster PDF snapshots.
 Commands return JSON. open (the default) runs the native desktop viewer.
 `;
-
-function render(
-  document: Artifact,
-  output: string,
-  width: number,
-  scale: number,
-) {
-  const height = pv_render(JSON.stringify(document), output, width, scale);
-  if (height < 0) throw new Error(pv_error() ?? "Native rendering failed");
-  return height;
-}
 
 function main() {
   const args = process.argv.slice(2);

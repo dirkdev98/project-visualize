@@ -5,19 +5,43 @@
 extern "C" {
 #endif
 
-int pv_render(const char *document_json, const char *output, int width, int scale);
-// Window calls stay on the application main thread; update copies the supplied state.
-int pv_viewer_start(void);
-int pv_viewer_update(const char *state_json);
-int pv_viewer_frame(void);
-const char *pv_viewer_event(void);
-void pv_viewer_close(void);
-const char *pv_error(void);
+typedef struct { float x, y; } PVSize;
+typedef struct { float x, y, z, w; } PVColor;
+typedef struct { int count, column, direction; } PVSortSpec;
+typedef struct {
+  PVColor color;
+  float line_weight, marker_size;
+  int marker;
+  double bar_width;
+} PVPlotStyle;
+typedef struct PVImage PVImage;
+typedef struct ImFontAtlas ImFontAtlas;
 
+/* Window, UI and disposal calls run on the application main thread. */
 int pv_surface_open(int viewer);
+int pv_surface_wait(int timeout_ms);
+int pv_surface_input(void);
+PVSize pv_surface_size(void);
+int pv_surface_limit(void);
 int pv_surface_begin(int width, int height, int scale);
-int pv_surface_save(const char *output, int width, int height);
+int pv_surface_present(void);
+void pv_surface_background(PVColor color);
+unsigned char *pv_surface_pixels(int width, int height, int *byte_count);
+void pv_bytes_free(void *bytes);
+int pv_png_write(const char *file, int width, int height,
+                 const unsigned char *bytes, int byte_count);
 void pv_surface_close(void);
+const char *pv_error(void);
+ImFontAtlas *pv_font_atlas(void);
+PVImage *pv_image_load(const char *file);
+PVSize pv_image_size(PVImage *image);
+void pv_image_draw(PVImage *image, PVSize size);
+void pv_image_destroy(PVImage *image);
+PVSortSpec pv_table_sort(int index);
+void pv_plot_tick(int axis, double value, const char *label);
+void pv_plot_series(const char *label, const double *x, const double *y,
+                    int count, int kind, PVPlotStyle style);
+void pv_open_url(const char *url);
 
 #ifdef __cplusplus
 }

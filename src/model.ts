@@ -1,4 +1,60 @@
-export type Block = { type: string; [key: string]: unknown };
+export type Tone = "neutral" | "positive" | "warning" | "negative";
+export type Cell = string | number | boolean | null;
+interface BlockStyle {
+  id?: string;
+  title?: string;
+  caption?: string;
+  height?: number;
+  tone?: Tone;
+}
+export interface Series {
+  name: string;
+  values: number[];
+  x?: number[];
+}
+export interface DiagramNode {
+  id: string;
+  label: string;
+  detail?: string;
+  x?: number;
+  y?: number;
+  tone?: Tone;
+}
+export type Block = BlockStyle &
+  (
+    | {
+        type: "markdown" | "callout" | "code" | "text";
+        content: string;
+        language?: string;
+      }
+    | { type: "metric"; label: string; value: string | number; detail?: string }
+    | { type: "progress"; label: string; value: number; detail?: string }
+    | {
+        type: "row" | "column" | "card" | "details";
+        children: Block[];
+        weights?: number[];
+      }
+    | {
+        type: "chart";
+        kind: "line" | "bar" | "scatter";
+        series: Series[];
+        labels?: string[];
+        xLabel?: string;
+        yLabel?: string;
+      }
+    | {
+        type: "table";
+        columns: { key: string; label: string }[];
+        rows: Record<string, Cell>[];
+      }
+    | {
+        type: "diagram";
+        nodes: DiagramNode[];
+        edges?: { from: string; to: string; label?: string }[];
+      }
+    | { type: "image"; asset: string }
+    | { type: "divider" | "spacer" }
+  );
 
 export interface Artifact {
   schemaVersion: 1;
@@ -85,11 +141,25 @@ export function validate(input: unknown): Artifact {
   }
   let blocks = 0;
   let points = 0;
-  function visit(input: unknown, location: string, depth: number) {
+  function visit(
+    input: unknown,
+    location: string,
+    depth: number,
+    siblings: Set<string>,
+  ) {
     if (++blocks > 1000 || depth > 12)
       fail(location, "artifact is too deeply nested or has too many blocks");
     const block = object(input, location);
     const field = (key: string) => `${location}.${key}`;
+    if (block.id !== undefined) {
+      const id = string(block.id, field("id"), 120);
+      if (!/^[a-z][a-z0-9_-]{0,79}$/.test(id) || siblings.has(id))
+        fail(
+          field("id"),
+          "expected a unique sibling ID using a lowercase letter followed by letters, digits, hyphens or underscores",
+        );
+      siblings.add(id);
+    }
     for (const key of ["title", "caption", "detail"]) {
       if (block[key] !== undefined) string(block[key], field(key));
     }
@@ -143,8 +213,9 @@ export function validate(input: unknown): Artifact {
             number(weight, `${field("weights")}[${index}]`, 0.1, 100);
           });
         }
+        const childIds = new Set<string>();
         children.forEach((child, index) => {
-          visit(child, `${field("children")}[${index}]`, depth + 1);
+          visit(child, `${field("children")}[${index}]`, depth + 1, childIds);
         });
         break;
       }
@@ -276,8 +347,9 @@ export function validate(input: unknown): Artifact {
         fail(field("type"), `unsupported block type ${String(block.type)}`);
     }
   }
+  const bodyIds = new Set<string>();
   array(doc.body, "body", 1, 100).forEach((block, index) => {
-    visit(block, `body[${index}]`, 0);
+    visit(block, `body[${index}]`, 0, bodyIds);
   });
   return doc as unknown as Artifact;
 }

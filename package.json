@@ -6,7 +6,7 @@
   "scripts": {
     "build:native": "node scripts/build-native.mjs",
     "build": "node scripts/build.mjs",
-    "dev": "maligator run --",
+    "dev": "node scripts/build-resources.mjs && maligator run --",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
@@ -17,5 +17,13 @@
     "@maligator/cli": "0.1.0-alpha.32",
     "@types/node": "25.0.3",
     "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@shikijs/core": "4.6.0",
+    "@shikijs/engine-javascript": "4.6.0",
+    "@shikijs/langs": "4.6.0",
+    "@shikijs/themes": "4.6.0",
+    "entities": "9.0.0",
+    "marked": "18.1.3"
   }
 }
