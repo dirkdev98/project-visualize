@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "check": "npm run lint && npm run typecheck && npm test",
-    "check:viewer": "node scripts/check-presentation.mjs"
+    "check:viewer": "node scripts/check-presentation.mjs",
+    "check:readback": "node scripts/check-readback.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

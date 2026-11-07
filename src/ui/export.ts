@@ -12,13 +12,12 @@ import {
   igRender,
   igSetNextWindowPos,
   igSetNextWindowSize,
-  pv_error,
   pv_png_write,
   pv_surface_begin,
+  pv_surface_capture,
   pv_surface_close,
   pv_surface_limit,
   pv_surface_open,
-  pv_surface_pixels,
 } from "maligator:ffi/visualize";
 import { writeFileSync } from "node:fs";
 import type { Artifact, Theme } from "../model.ts";
@@ -88,10 +87,8 @@ export async function renderArtifact(
     );
     popTheme();
     igRender();
-    const captured = pv_surface_pixels(width * scale, height * scale);
-    if (!captured)
-      throw new Error(pv_error() ?? "GPU screenshot readback failed");
-    pixels = captured;
+    pixels = new Uint8Array(width * scale * height * scale * 4);
+    checked(pv_surface_capture(width * scale, height * scale, pixels));
   } finally {
     renderer?.dispose();
     releasePanels();

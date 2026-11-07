@@ -73,6 +73,8 @@ npm run check
 preservation. Run `npm run build` after source changes. `npm run dev -- --help` uses
 Maligator's development runner after the native bridge has been built.
 PDF extraction checks use Poppler (`brew install poppler`).
+Run `npm run check:readback` after screenshot or FFI changes. It checks writable
+byte views, buffer bounds and GPU row padding in development and production builds.
 
 Run `npm run check:viewer` in an unlocked Mac session to verify surface recovery.
 It hides a test window, restores it and presents the retained UI frame. Exit code 3

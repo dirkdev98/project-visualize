@@ -3,7 +3,6 @@
 #include "imgui_impl_sdl3.h"
 #include "implot.h"
 #include <algorithm>
-#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <cfloat>
@@ -108,19 +107,16 @@ extern "C" void pv_surface_background(PVColor color) {
   surface().background = {color.x, color.y, color.z, color.w};
 }
 
-extern "C" unsigned char *pv_surface_pixels(int width, int height, int *byte_count) {
-  *byte_count = 0;
+extern "C" int pv_surface_capture(int width, int height, unsigned char *pixels, int byte_count) {
   try {
-    auto pixels = surface().capture(width, height);
-    auto bytes = static_cast<unsigned char *>(std::malloc(pixels.size()));
-    if (!bytes) throw std::bad_alloc();
-    std::memcpy(bytes, pixels.data(), pixels.size());
-    *byte_count = static_cast<int>(pixels.size());
-    return bytes;
-  } catch (const std::exception &error) { last_error = error.what(); return nullptr; }
+    if (!pixels || width < 1 || height < 1 ||
+        static_cast<uint64_t>(width) * height * 4 != static_cast<uint64_t>(byte_count))
+      throw std::runtime_error("Capture dimensions do not match its pixel buffer");
+    surface().capture(width, height, pixels);
+    return 0;
+  } catch (const std::exception &error) { last_error = error.what(); return -1; }
 }
 
-extern "C" void pv_bytes_free(void *bytes) { std::free(bytes); }
 extern "C" void pv_surface_close(void) { context.reset(); }
 extern "C" const char *pv_error(void) { return last_error.empty() ? nullptr : last_error.c_str(); }
 

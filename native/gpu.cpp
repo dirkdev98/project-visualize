@@ -7,6 +7,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <stdexcept>
 
@@ -184,60 +185,58 @@ void Gpu::draw(WGPUTextureView view) {
   check();
 }
 
-std::vector<unsigned char> Gpu::capture(int width, int height) {
+void Gpu::capture(int width, int height, unsigned char *pixels) {
   if (width > max_dimension || height > max_dimension || width < 1 || height < 1)
     throw std::runtime_error("Artifact exceeds the GPU image limit; reduce width/scale or split it into artifacts");
+  std::atomic<WGPUMapAsyncStatus> status{WGPUMapAsyncStatus_Error};
   WGPUTextureDescriptor desc{};
   desc.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
   desc.mipLevelCount = desc.sampleCount = 1;
   desc.dimension = WGPUTextureDimension_2D;
   desc.format = WGPUTextureFormat_RGBA8Unorm;
   desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
-  auto texture = wgpuDeviceCreateTexture(device, &desc);
-  auto view = wgpuTextureCreateView(texture, nullptr);
-  draw(view);
+  std::unique_ptr<WGPUTextureImpl, decltype(&wgpuTextureRelease)>
+    texture(wgpuDeviceCreateTexture(device, &desc), wgpuTextureRelease);
+  std::unique_ptr<WGPUTextureViewImpl, decltype(&wgpuTextureViewRelease)>
+    view(wgpuTextureCreateView(texture.get(), nullptr), wgpuTextureViewRelease);
+  draw(view.get());
   const uint32_t stride = (width * 4 + 255) & ~255;
   const uint64_t size = static_cast<uint64_t>(stride) * height;
   WGPUBufferDescriptor buffer_desc{};
   buffer_desc.size = size;
   buffer_desc.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
-  auto buffer = wgpuDeviceCreateBuffer(device, &buffer_desc);
-  auto encoder = wgpuDeviceCreateCommandEncoder(device, nullptr);
+  std::unique_ptr<WGPUBufferImpl, decltype(&wgpuBufferRelease)>
+    buffer(wgpuDeviceCreateBuffer(device, &buffer_desc), wgpuBufferRelease);
+  std::unique_ptr<WGPUCommandEncoderImpl, decltype(&wgpuCommandEncoderRelease)>
+    encoder(wgpuDeviceCreateCommandEncoder(device, nullptr), wgpuCommandEncoderRelease);
   WGPUTexelCopyTextureInfo source{};
-  source.texture = texture;
+  source.texture = texture.get();
   source.aspect = WGPUTextureAspect_All;
   WGPUTexelCopyBufferInfo dest{};
-  dest.buffer = buffer;
+  dest.buffer = buffer.get();
   dest.layout.bytesPerRow = stride;
   dest.layout.rowsPerImage = height;
-  wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &dest, &desc.size);
-  auto command = wgpuCommandEncoderFinish(encoder, nullptr);
-  wgpuQueueSubmit(queue, 1, &command);
-  WGPUMapAsyncStatus status = WGPUMapAsyncStatus_Error;
+  wgpuCommandEncoderCopyTextureToBuffer(encoder.get(), &source, &dest, &desc.size);
+  std::unique_ptr<WGPUCommandBufferImpl, decltype(&wgpuCommandBufferRelease)>
+    command(wgpuCommandEncoderFinish(encoder.get(), nullptr), wgpuCommandBufferRelease);
+  auto submitted = command.get();
+  wgpuQueueSubmit(queue, 1, &submitted);
   WGPUBufferMapCallbackInfo map{};
   map.mode = WGPUCallbackMode_AllowSpontaneous;
   map.userdata1 = &status;
   map.callback = [](WGPUMapAsyncStatus value, WGPUStringView, void *user, void *) {
-    *static_cast<WGPUMapAsyncStatus *>(user) = value;
+    static_cast<std::atomic<WGPUMapAsyncStatus> *>(user)->store(value, std::memory_order_release);
   };
-  wgpuBufferMapAsync(buffer, WGPUMapMode_Read, 0, size, map);
+  wgpuBufferMapAsync(buffer.get(), WGPUMapMode_Read, 0, size, map);
   wgpuDevicePoll(device, true, nullptr);
-  std::vector<unsigned char> pixels;
-  if (status == WGPUMapAsyncStatus_Success) {
-    auto bytes = static_cast<const unsigned char *>(wgpuBufferGetConstMappedRange(buffer, 0, size));
-    pixels.resize(static_cast<size_t>(width) * height * 4);
-    for (int y = 0; y < height; ++y)
-      memcpy(pixels.data() + static_cast<size_t>(y) * width * 4, bytes + static_cast<size_t>(y) * stride, width * 4);
-    wgpuBufferUnmap(buffer);
-  }
-  wgpuCommandBufferRelease(command);
-  wgpuCommandEncoderRelease(encoder);
-  wgpuBufferRelease(buffer);
-  wgpuTextureViewRelease(view);
-  wgpuTextureRelease(texture);
   check();
-  if (pixels.empty()) throw std::runtime_error("GPU screenshot readback failed");
-  return pixels;
+  if (status.load(std::memory_order_acquire) == WGPUMapAsyncStatus_Success) {
+    auto bytes = static_cast<const unsigned char *>(wgpuBufferGetConstMappedRange(buffer.get(), 0, size));
+    for (int y = 0; y < height; ++y)
+      memcpy(pixels + static_cast<size_t>(y) * width * 4, bytes + static_cast<size_t>(y) * stride, width * 4);
+    wgpuBufferUnmap(buffer.get());
+  } else throw std::runtime_error("GPU screenshot readback failed");
+  check();
 }
 
 std::unique_ptr<Image> Gpu::load_image(const std::string &file) {

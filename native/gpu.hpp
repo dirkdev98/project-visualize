@@ -8,7 +8,6 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 namespace pv {
 struct Image {
@@ -38,7 +37,7 @@ public:
   void check();
   void begin(float width, float height, int scale = 1);
   void draw(WGPUTextureView view);
-  std::vector<unsigned char> capture(int width, int height);
+  void capture(int width, int height, unsigned char *pixels);
   std::unique_ptr<Image> load_image(const std::string &file);
   bool present();
 };

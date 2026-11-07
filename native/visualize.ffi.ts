@@ -58,9 +58,8 @@ export default defineLibrary({
       },
     },
     pv_font_atlas: { returns: { borrowed: true } },
-    pv_surface_pixels: {
-      params: { byte_count: { out: true } },
-      returns: { bytes: { length: "byte_count" }, free: "pv_bytes_free" },
+    pv_surface_capture: {
+      params: { pixels: { bytes: { length: "byte_count" } } },
     },
     pv_png_write: { params: { bytes: { bytes: { length: "byte_count" } } } },
     pv_plot_series: {

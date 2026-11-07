@@ -29,8 +29,8 @@ int pv_surface_begin(int width, int height, int scale);
 /* A retryable result (1) occurs before drawing, so the same frame can be retried. */
 int pv_surface_present(void);
 void pv_surface_background(PVColor color);
-unsigned char *pv_surface_pixels(int width, int height, int *byte_count);
-void pv_bytes_free(void *bytes);
+/* Pixels stay caller-owned; capture completes all writes before returning. */
+int pv_surface_capture(int width, int height, unsigned char *pixels, int byte_count);
 int pv_png_write(const char *file, int width, int height,
                  const unsigned char *bytes, int byte_count);
 void pv_surface_close(void);

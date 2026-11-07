@@ -1,5 +1,22 @@
 # Decisions
 
+## 2026-11-07 caller-owned capture checkpoint
+
+- Fill a JS-owned writable byte view directly from mapped GPU rows. Remove the native
+  RGBA vector, return allocation and FFI return copy. Keep the borrow synchronous and
+  retain ownership in JS so encoding can run after GPU teardown.
+- Validate the exact destination length before writing. Keep mapped resources scoped
+  to capture and callback status alive through their disposal. Use atomic status for
+  the callback mode's permitted cross-thread delivery.
+- Preserve production builds before and after this change for a matched comparison.
+  The self-compilation benchmark running in another session prevents an uncontended
+  timing pass. Treat this as a functional checkpoint without a performance claim.
+
+Keep track of;
+
+- Complete the frozen-build export and startup comparison when the compiler is idle.
+  Keep measured acceptance separate from the source proof that temporary copies were removed.
+
 ## 2026-11-07 chart-driven linked selection
 
 - Let dataset-bound bars target a matching select control with `select`. Shift-click
