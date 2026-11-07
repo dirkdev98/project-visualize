@@ -1,5 +1,38 @@
 # Decisions
 
+## 2026-11-07 desktop document navigation
+
+- Accept PDF bookmarks for desktop document navigation after verifying their Unicode
+  hierarchy and destinations in Preview. Preserve the reader's zoom while navigating
+  between sections, including headings following continued evidence tables.
+- Keep the native viewer outline as a separate improvement. Its collapsed sections
+  and changing canvas layout require their own stable navigation model.
+
+## 2026-11-07 refreshed artifact examples
+
+- Save the current fictional examples into the local example library through the CLI
+  so the desktop app exposes linked dashboards, document widgets and new chart forms.
+  Preserve every existing revision and its saved files when adding these examples.
+- Inspect the complete viewer composition with its current controls and code actions
+  across light, dark, narrow and Retina layouts. Keep offscreen input evidence distinct
+  from physical macOS interaction checks.
+
+## 2026-11-07 final viewer idle evidence
+
+- Refresh the current JS viewer comparison at `f936a7b` against the original production
+  app at `fafe3f4`. Use the same immutable dashboard and focused 2880 x 1898 Retina
+  window, with three fresh processes per build in interleaved order, at least ten-second
+  warmups and fifteen-second samples on AC power. Inspect every before/after screenshot
+  and retain binary identities and raw samples without observed compiler contention.
+- Median CPU is 9.433% versus 0.112% of one core, about 84x lower. Median physical
+  footprint is 239.0 versus 100.8 MiB, about 2.4x lower; current samples span
+  100.7..126.3 MiB. Median RSS is higher, 111.0 versus 142.1 MiB. The 10x RAM target
+  remains unmet.
+- Accept this as indicative laptop evidence for the current whole application. It
+  replaces **JS viewer idle acceptance** for the current source. It does not isolate
+  the migration or establish an incremental gain from later visual changes. Keep export peak
+  memory measurements separate from native idle footprint.
+
 ## 2026-11-07 table column proportions
 
 - Let authors give table columns positive relative weights, using equal shares when
@@ -145,9 +178,6 @@ Keep track of;
 
 Keep track of;
 
-- Inspect bookmark navigation in a desktop PDF reader when its window is available.
-  The exported PDF structure and destinations pass; Mac automation currently returns
-  `cgWindowNotFound` for the viewer and PDF reader.
 - Consider a native document outline with stable heading identities and automatic
   opening of collapsed ancestors. Cached screen coordinates cannot resolve those jumps.
 
