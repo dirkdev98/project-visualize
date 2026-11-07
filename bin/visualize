@@ -1,6 +1,15 @@
 #!/bin/sh
 set -eu
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+launcher=$0
+while [ -L "$launcher" ]; do
+  launcher_dir=$(CDPATH= cd -P -- "$(dirname -- "$launcher")" && pwd)
+  target=$(readlink "$launcher")
+  case "$target" in
+    /*) launcher=$target ;;
+    *) launcher=$launcher_dir/$target ;;
+  esac
+done
+root=$(CDPATH= cd -P -- "$(dirname -- "$launcher")/.." && pwd)
 if [ ! -x "$root/dist/bin/visualize" ]; then
   echo 'Build Project Visualize with npm install and npm run build first.' >&2
   exit 1

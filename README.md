@@ -51,7 +51,9 @@ Artifacts live in `~/Library/Application Support/Project Visualize`. Set
 Read [the artifact guide](docs/artifacts.md) and adapt the runnable examples in
 [examples/](examples/). The [agent skill](skills/project-visualize/SKILL.md) teaches
 creation, revision and screenshot delivery. Keep that folder available to your agent,
-or link it into your agent's skill directory.
+or link it into your agent's skill directory. The skill resolves that link to find
+the CLI, guide and examples in this checkout. The `bin/visualize` wrapper also resolves
+its own links, so it can be linked into a directory on PATH.
 
 The viewer supports linked dataset controls, chart zoom, table sorting and filtering,
 expandable sections and links. Use `--params` with `inspect`, `export` or `open` to

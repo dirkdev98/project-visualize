@@ -7,10 +7,20 @@ description: Create, revise and export saved dashboards, rich documents and diag
 Use the CLI to save a versioned artifact and return its screenshot to the conversation.
 The native viewer adds chart navigation, sortable tables and retained context.
 
-Find `visualize` on PATH, or use `bin/visualize` from the Project Visualize checkout.
-If the project has not been built, follow its README. Use `--help` for command syntax.
-Read [the artifact guide](../../docs/artifacts.md) before authoring a document, and
-adapt [the examples](../../examples/) for the requested content.
+This skill lives at `skills/project-visualize` inside the application checkout. Its
+reported directory may be a symlink. Set `skill_directory` to the directory supplied
+with this skill, then resolve the physical directory before locating the checkout:
+
+```sh
+skill_real=$(CDPATH= cd -P -- "$skill_directory" && pwd)
+visualize_root=$(CDPATH= cd -- "$skill_real/../.." && pwd)
+"$visualize_root/bin/visualize" --help
+```
+
+Read `$visualize_root/docs/artifacts.md` before authoring a document, and adapt the
+examples in `$visualize_root/examples/`. If the application has not been built,
+follow `$visualize_root/README.md`. Keep the current project's working directory
+when running the absolute CLI path so relative input and output paths resolve there.
 
 Write the artifact as JSON. Choose a project ID that matches the user's workspace and
 keep the same artifact ID when revising it. Preserve the actual data, units, source
@@ -20,8 +30,9 @@ URLs in `assets`, and refer to them by asset ID. Remote images use a shared cach
 each saved revision retains its chosen bytes for offline viewing and export.
 
 ```sh
-bin/visualize validate --file document.json
-bin/visualize render --project orbital --artifact station-review --file document.json
+"$visualize_root/bin/visualize" validate --file document.json
+"$visualize_root/bin/visualize" render --project orbital --artifact station-review \
+  --file document.json
 ```
 
 Parse the JSON result and inspect the returned PNG with the host's image-viewing

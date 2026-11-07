@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-07 linked skill discovery
+
+- Resolve the physical shared-skill directory before deriving the application
+  checkout. Use its absolute CLI, guide and example paths while retaining the
+  caller's working directory for artifact inputs and outputs.
+- Make the CLI wrapper follow relative and absolute symlink chains as well. A PATH
+  link should invoke the built application without depending on a launcher alias's
+  parent directory or changing the caller's project.
+
 ## 2026-11-07 direct plot and text bindings
 
 - Move chart dispatch, styling and line-break assembly out of C++. Call the generated
