@@ -100,6 +100,7 @@ import {
   pv_image_load,
   pv_image_size,
   pv_plot_series,
+  pv_plot_shaded,
   pv_plot_tick,
   pv_slider_double,
   pv_table_sort,
@@ -1052,7 +1053,12 @@ export class DocumentRenderer {
       });
       this.plots.set(value, data);
     }
-    for (let i = 0; i < series.length; i++)
+    for (let i = 0; i < series.length; i++) {
+      if (value.kind === "area")
+        pv_plot_shaded(series[i].name, data[i].x, data[i].y, 0, {
+          ...seriesColors[i % seriesColors.length],
+          w: currentTheme() === "dark" ? 0.22 : 0.13,
+        });
       pv_plot_series(
         series[i].name,
         data[i].x,
@@ -1067,6 +1073,7 @@ export class DocumentRenderer {
           bar_width: 0.8 / series.length,
         },
       );
+    }
     if (!exporting) {
       let hovered = ImPlot_IsPlotHovered();
       if (choosing) {

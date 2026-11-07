@@ -3,6 +3,7 @@ import {
   ImPlot_BeginPlot,
   ImPlot_EndPlot,
   ImPlot_GetLastItemColor,
+  ImPlot_GetPlotLimits,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
   ImPlotMarker_Circle,
@@ -14,6 +15,7 @@ import {
   igSetNextWindowSize,
   pv_error,
   pv_plot_series,
+  pv_plot_shaded,
   pv_png_write,
   pv_surface_begin,
   pv_surface_capture,
@@ -33,9 +35,10 @@ const color = { x: 0.2, y: 0.6, z: 0.4, w: 1 };
 const x = new Float64Array([0, 1, 2]),
   y = new Float64Array([3, 6, 12]);
 const pixels = new Uint8Array(width * height * 4);
+const kinds = ["line", "bar", "scatter", "area"];
 checked(pv_surface_open(0));
 try {
-  for (const kind of [0, 1, 2]) {
+  for (const kind of kinds) {
     for (let frame = 0; frame < 3; frame++) {
       checked(pv_surface_begin(width, height, 1));
       igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
@@ -47,13 +50,21 @@ try {
         "Plot did not begin",
       );
       ImPlot_SetupAxes("", "", 0, 0);
-      pv_plot_series("Observed values", x, y, kind, {
-        color,
-        line_weight: 2.5,
-        marker_size: 4,
-        marker: kind === 2 ? ImPlotMarker_Circle : ImPlotMarker_None,
-        bar_width: 0.8,
-      });
+      if (kind === "area")
+        pv_plot_shaded("Observed values", x, y, 0, { ...color, w: 0.13 });
+      pv_plot_series(
+        "Observed values",
+        x,
+        y,
+        kind === "bar" ? 1 : kind === "scatter" ? 2 : 0,
+        {
+          color,
+          line_weight: 2.5,
+          marker_size: 4,
+          marker: kind === "scatter" ? ImPlotMarker_Circle : ImPlotMarker_None,
+          bar_width: 0.8,
+        },
+      );
       const legend = ImPlot_GetLastItemColor();
       expect(
         Object.keys(color).every(
@@ -61,6 +72,11 @@ try {
         ),
         `Plot kind ${kind} did not use its supplied color in the legend`,
       );
+      if (kind === "area" && frame === 2)
+        expect(
+          ImPlot_GetPlotLimits(-1, -1).Y.Min <= 0,
+          "The shaded baseline must participate in axis fitting",
+        );
       ImPlot_EndPlot();
       igEnd();
       igRender();
@@ -78,4 +94,4 @@ checked(
     pixels,
   ),
 );
-console.log(JSON.stringify({ ok: true, kinds: ["line", "bar", "scatter"] }));
+console.log(JSON.stringify({ ok: true, kinds }));

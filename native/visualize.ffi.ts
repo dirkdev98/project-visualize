@@ -68,5 +68,11 @@ export default defineLibrary({
         y: { array: { length: "count" } },
       },
     },
+    pv_plot_shaded: {
+      params: {
+        x: { array: { length: "count" } },
+        y: { array: { length: "count" } },
+      },
+    },
   },
 });

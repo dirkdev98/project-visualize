@@ -1,5 +1,26 @@
 # Decisions
 
+## 2026-11-07 shaded trends
+
+- Compose area charts from a shaded numeric series and its line in JS. Share the
+  series identity so the legend controls both, and vary restrained opacity with the
+  light and dark palettes. Each area extends to zero independently, including signed
+  values; its baseline participates in fitting rather than disappearing below a
+  positive-only axis range.
+- Keep the native addition limited to one synchronous shaded-plot operation over
+  borrowed numeric arrays. Reuse the existing data transforms, typed parameters,
+  legends and navigation. Preserve exact PNG/PDF bytes for existing chart kinds and
+  make no performance-win claim for the extra plotting operation.
+- Keep the trend example's figure and caption compact enough for a narrow landscape
+  page. Oversized fixed-height figures still require author choices about height or
+  paper orientation; shortening the example avoids orphaned titles and captions.
+
+Keep track of;
+
+- Recheck header-comment extraction when updating Maligator. Generated declarations
+  inherit the preceding capture comment on unrelated native functions; the source
+  header carries the actual ownership contracts.
+
 ## 2026-11-07 PDF navigation
 
 - Add Unicode bookmarks for rendered block titles and Markdown headings. Capture

@@ -47,6 +47,8 @@ PVSortSpec pv_table_sort(int index);
 void pv_plot_tick(int axis, double value, const char *label);
 void pv_plot_series(const char *label, const double *x, const double *y,
                     int count, int kind, PVPlotStyle style);
+void pv_plot_shaded(const char *label, const double *x, const double *y,
+                    int count, double reference, PVColor color);
 void pv_open_url(const char *url);
 int pv_slider_double(const char *label, double *value, double min, double max);
 

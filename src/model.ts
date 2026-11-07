@@ -108,7 +108,7 @@ export type Block = BlockStyle &
       }
     | ({
         type: "chart";
-        kind: "line" | "bar" | "scatter";
+        kind: "line" | "area" | "bar" | "scatter";
         labels?: string[];
         xLabel?: string;
         yLabel?: string;
@@ -503,8 +503,8 @@ export function validate(input: unknown): Artifact {
             );
           selections.push({ block, location: field("select") });
         }
-        if (!["line", "bar", "scatter"].includes(String(block.kind)))
-          fail(field("kind"), "expected line, bar or scatter");
+        if (!["line", "area", "bar", "scatter"].includes(String(block.kind)))
+          fail(field("kind"), "expected line, area, bar or scatter");
         if (block.height !== undefined)
           number(block.height, field("height"), 160, 1200);
         for (const key of ["xLabel", "yLabel"])

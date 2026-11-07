@@ -81,8 +81,8 @@ Run `npm run check:readback` after screenshot or FFI changes. It checks writable
 byte views, buffer bounds and GPU row padding in development and production builds.
 Run `npm run check:images` after image drawing changes to check native UV sampling,
 rounded corners and texture disposal in both build modes.
-Run `npm run check:plots` after series adapter changes to verify that line, bar and
-scatter legends honor the supplied colors in both build modes.
+Run `npm run check:plots` after series adapter changes to verify supplied legend
+colors and shaded baseline fitting in both build modes.
 
 Run `npm run check:viewer` in an unlocked Mac session to verify surface recovery.
 It hides a test window, restores it and presents the retained UI frame. Exit code 3

@@ -173,6 +173,13 @@ extern "C" void pv_plot_series(const char *label, const double *x, const double 
   else ImPlot::PlotLine(label, x, y, count, spec);
 }
 
+extern "C" void pv_plot_shaded(const char *label, const double *x, const double *y,
+                               int count, double reference, PVColor color) {
+  ImPlotSpec spec;
+  spec.FillColor = {color.x, color.y, color.z, color.w};
+  ImPlot::PlotShaded(label, x, y, count, reference, spec);
+}
+
 extern "C" void pv_open_url(const char *url) { SDL_OpenURL(url); }
 
 extern "C" int pv_slider_double(const char *label, double *value, double min, double max) {

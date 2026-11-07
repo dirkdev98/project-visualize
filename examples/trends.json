@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "title": "The shape of a station week",
+  "subtitle": "A shared view of accepted observations and operating evidence",
+  "category": "Trend notebook",
+  "context": {
+    "source": "Fictional demonstration data",
+    "question": "How did observations change through the matched operating windows?",
+    "assumption": "Every station used the same review criteria."
+  },
+  "datasets": {
+    "observations": [
+      {
+        "day": "Mon",
+        "station": "North",
+        "accepted": 1240,
+        "availability": 98.1
+      },
+      {
+        "day": "Tue",
+        "station": "North",
+        "accepted": 1480,
+        "availability": 98.7
+      },
+      {
+        "day": "Wed",
+        "station": "North",
+        "accepted": 1630,
+        "availability": 99.0
+      },
+      {
+        "day": "Thu",
+        "station": "North",
+        "accepted": 1510,
+        "availability": 98.5
+      },
+      {
+        "day": "Fri",
+        "station": "North",
+        "accepted": 1870,
+        "availability": 99.2
+      },
+      {
+        "day": "Sat",
+        "station": "North",
+        "accepted": 1980,
+        "availability": 99.1
+      },
+      {
+        "day": "Sun",
+        "station": "North",
+        "accepted": 2040,
+        "availability": 99.3
+      },
+      {
+        "day": "Mon",
+        "station": "West",
+        "accepted": 980,
+        "availability": 97.8
+      },
+      {
+        "day": "Tue",
+        "station": "West",
+        "accepted": 1120,
+        "availability": 98.0
+      },
+      {
+        "day": "Wed",
+        "station": "West",
+        "accepted": 1460,
+        "availability": 98.5
+      },
+      {
+        "day": "Thu",
+        "station": "West",
+        "accepted": 1290,
+        "availability": 98.2
+      },
+      {
+        "day": "Fri",
+        "station": "West",
+        "accepted": 1540,
+        "availability": 98.8
+      },
+      {
+        "day": "Sat",
+        "station": "West",
+        "accepted": 1720,
+        "availability": 99.0
+      },
+      {
+        "day": "Sun",
+        "station": "West",
+        "accepted": 1810,
+        "availability": 99.1
+      }
+    ]
+  },
+  "body": [
+    {
+      "type": "control",
+      "id": "station",
+      "kind": "select",
+      "label": "Station",
+      "dataset": "observations",
+      "field": "station"
+    },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Accepted observations",
+          "decimals": 0,
+          "source": {
+            "dataset": "observations",
+            "field": "accepted",
+            "aggregate": "sum"
+          }
+        },
+        {
+          "type": "metric",
+          "label": "Mean availability",
+          "decimals": 1,
+          "suffix": "%",
+          "source": {
+            "dataset": "observations",
+            "field": "availability",
+            "aggregate": "mean"
+          }
+        }
+      ]
+    },
+    {
+      "type": "card",
+      "title": "A steadier observation cadence",
+      "children": [
+        {
+          "type": "chart",
+          "kind": "area",
+          "height": 210,
+          "yLabel": "Accepted observations",
+          "source": {
+            "dataset": "observations",
+            "x": "day",
+            "y": "accepted",
+            "series": "station",
+            "aggregate": "sum"
+          },
+          "caption": "Each station shares the zero baseline."
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "title": "Read the evidence with the trend",
+      "content": "The later windows show more accepted observations. Compare **matched operating hours** before treating that shape as a durable improvement. Choose a station to inspect its original rows."
+    },
+    {
+      "type": "table",
+      "title": "Operating evidence",
+      "dataset": "observations",
+      "columns": [
+        { "key": "day", "label": "Day" },
+        { "key": "station", "label": "Station" },
+        { "key": "accepted", "label": "Accepted", "format": { "decimals": 0 } },
+        {
+          "key": "availability",
+          "label": "Availability",
+          "format": { "decimals": 1, "suffix": "%" }
+        }
+      ]
+    }
+  ]
+}

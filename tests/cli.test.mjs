@@ -1824,6 +1824,65 @@ test("chart selection rejects an incompatible target before publishing", (t) => 
   assert.deepEqual(ok(["list"]).versions, []);
 });
 
+test("linked area charts preserve signed values and export selected evidence", (t) => {
+  const { root, render, ok } = workspace(t);
+  const observations = [
+    { station: "North", day: 0, delta: 12 },
+    { station: "North", day: 1, delta: -4 },
+    { station: "North", day: 2, delta: 0 },
+    { station: "West", day: 0, delta: 8 },
+  ];
+  const document = {
+    ...minimal(),
+    datasets: { observations },
+    body: [
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "observations",
+        field: "station",
+      },
+      {
+        type: "chart",
+        kind: "area",
+        source: {
+          dataset: "observations",
+          x: "day",
+          y: "delta",
+          series: "station",
+        },
+      },
+    ],
+  };
+  const entry = render(document),
+    before = digest(entry.document);
+  const view = inspectView(ok, { station: "North" });
+  assert.equal(view.body[1].kind, "area");
+  assert.deepEqual(view.body[1].series, [
+    { name: "North", x: [0, 1, 2], values: [12, -4, 0] },
+  ]);
+  const out = join(root, "selected.png");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--format",
+    "png",
+    "--out",
+    out,
+    "--params",
+    JSON.stringify({ station: "North" }),
+  ]);
+  assert.ok(existsSync(out));
+  assert.notEqual(digest(out), digest(entry.png));
+  assert.equal(digest(entry.document), before);
+  assert.equal(ok(["list"]).versions.length, 1);
+});
+
 test("a parameter filters a shared table, metric and chart consistently", (t) => {
   const { render, ok } = workspace(t);
   const document = linkedDocument();

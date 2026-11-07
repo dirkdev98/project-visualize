@@ -95,6 +95,11 @@ With labels and `x`, coordinates index the labels and can leave categories absen
 Axis labels should include units. The viewer supports zooming and panning; exports
 fit all the supplied data with space around its extrema.
 
+Use `kind: "area"` for a line with restrained shading to zero. Each series overlaps
+independently, and the zero baseline participates in fitting. Supply ordered x
+coordinates for trends. The [trend example](../examples/trends.json) combines an
+area chart with linked station selection and numeric evidence.
+
 ```json
 {
   "type": "chart",
