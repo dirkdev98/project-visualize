@@ -1,7 +1,16 @@
 import { defineLibrary } from "@maligator/cli";
 
 export default defineLibrary({
-  headers: ["visualize.h", "cimgui.h", "cimplot.h", "SDL3/SDL_misc.h"],
+  headers: [
+    "visualize.h",
+    "cimgui.h",
+    "cimplot.h",
+    "SDL3/SDL_misc.h",
+    "SDL3/SDL_video.h",
+    "SDL3/SDL_events.h",
+    "SDL3/SDL_init.h",
+    "SDL3/SDL_timer.h",
+  ],
   find: [
     {
       pkgConfig: "sdl3",
@@ -21,6 +30,23 @@ export default defineLibrary({
     PVImage: { handle: { destroy: "pv_image_destroy" } },
   },
   functions: {
+    SDL_PushEvent: {
+      params: {
+        event: {
+          inout: true,
+          shape: {
+            tag: "type",
+            cases: {
+              SDL_EVENT_PINCH_BEGIN: ["pinch"],
+              SDL_EVENT_PINCH_UPDATE: ["pinch"],
+              SDL_EVENT_PINCH_END: ["pinch"],
+              SDL_EVENT_MOUSE_WHEEL: ["wheel"],
+              SDL_EVENT_SYSTEM_THEME_CHANGED: ["common"],
+            },
+          },
+        },
+      },
+    },
     ImPlot_PlotLine_doublePtrdoublePtr: {
       params: {
         xs: { array: { length: "count" } },

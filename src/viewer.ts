@@ -51,16 +51,21 @@ import {
   pv_surface_begin,
   pv_surface_close,
   pv_surface_input,
+  pv_surface_input_policy,
   pv_surface_open,
+  pv_surface_pinch,
   pv_surface_present,
   pv_surface_size,
   pv_surface_wait,
+  SDL_GetSystemTheme,
   SDL_OpenURL,
+  SDL_SYSTEM_THEME_DARK,
 } from "maligator:ffi/visualize";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { controls, isAll, parameterValue } from "./data.ts";
 import type { Theme } from "./model.ts";
+import { readSettings, type Settings, saveSettings } from "./settings.ts";
 import { type Entry, list, load } from "./store.ts";
 import {
   DocumentRenderer,
@@ -77,6 +82,7 @@ import {
   text,
   tooltip,
 } from "./ui/primitives.ts";
+import { SettingsPanel } from "./ui/settings.ts";
 import {
   currentTheme,
   type Font,
@@ -148,6 +154,8 @@ interface Options {
   theme?: Theme;
 }
 export function openViewer(root: string, options: Options) {
+  let preferences = readSettings(root);
+  let diskPreferences = JSON.stringify(preferences);
   let entries = list(root);
   let selected = entries.find(
     (entry) =>
@@ -180,12 +188,32 @@ export function openViewer(root: string, options: Options) {
   let refreshed = Date.now();
   let pending = 2,
     animateUntil = 0,
-    showContext = false;
+    showContext = false,
+    showSettings = false;
   let unpresented = false;
   let themeOverride = options.theme;
   let requestedTheme: Theme | undefined;
   const search = inputBuffer();
   const states = new Map<string, DocumentState>();
+  function preferredTheme(): Theme {
+    return preferences.appearance === "system"
+      ? SDL_GetSystemTheme() === SDL_SYSTEM_THEME_DARK
+        ? "dark"
+        : "light"
+      : preferences.appearance;
+  }
+  function applyPreferences(patch: Partial<Settings>, persist = true) {
+    const next = { ...preferences, ...patch };
+    preferences = persist ? saveSettings(root, next) : next;
+    if (persist) diskPreferences = JSON.stringify(preferences);
+    if (patch.appearance !== undefined) {
+      themeOverride = undefined;
+      requestedTheme = preferredTheme();
+    }
+    checked(pv_surface_input_policy(preferences.wheelScale, ImGuiMod_Ctrl));
+    pending = 2;
+  }
+  const settingsPanel = new SettingsPanel(root, preferences, applyPreferences);
   function select(
     entry: Entry | undefined,
     follow: boolean,
@@ -205,7 +233,7 @@ export function openViewer(root: string, options: Options) {
       }
       try {
         const document = load(entry);
-        requestedTheme = themeOverride ?? document.theme ?? "light";
+        requestedTheme = themeOverride ?? preferredTheme();
         const state =
           states.get(entry.directory) ??
           documentState(
@@ -227,6 +255,14 @@ export function openViewer(root: string, options: Options) {
   function refresh() {
     if (Date.now() - refreshed < 2000) return;
     try {
+      const latestSettings = readSettings(root);
+      if (JSON.stringify(latestSettings) !== diskPreferences) {
+        preferences = latestSettings;
+        diskPreferences = JSON.stringify(preferences);
+        checked(pv_surface_input_policy(preferences.wheelScale, ImGuiMod_Ctrl));
+        requestedTheme = themeOverride ?? preferredTheme();
+        pending = 2;
+      }
       const current = selected;
       entries = list(root);
       const signature = signatureOf(entries);
@@ -253,6 +289,7 @@ export function openViewer(root: string, options: Options) {
     refreshed = Date.now();
   }
   function draw() {
+    const pinchScale = pv_surface_pinch();
     const size = pv_surface_size();
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize(size, 0);
@@ -271,19 +308,19 @@ export function openViewer(root: string, options: Options) {
     text("PROJECT", 11, "bold", palette.accent);
     text("Visualize", 32, "bold");
     text("Your artifact library", 14, "regular", palette.muted);
+    if (igButton("Settings", { x: 0, y: 0 })) {
+      showSettings = !showSettings;
+      pending = 2;
+    }
     if (
-      igButton(currentTheme() === "light" ? "Dark theme" : "Light theme", {
-        x: 0,
-        y: 0,
-      }) ||
       igShortcut_Nil(
         ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_L,
         ImGuiInputFlags_RouteGlobal,
       )
     ) {
-      themeOverride = currentTheme() === "light" ? "dark" : "light";
-      requestedTheme = themeOverride;
-      pending = 2;
+      applyPreferences({
+        appearance: currentTheme() === "light" ? "dark" : "light",
+      });
     }
     igSpacing();
     igSetNextItemWidth(-1);
@@ -360,7 +397,10 @@ export function openViewer(root: string, options: Options) {
           0,
         );
         if (hovered) tooltip(`${entry.title}\n${project} / ${artifact}`);
-        if (clicked) select(entry, true, true);
+        if (clicked) {
+          showSettings = false;
+          select(entry, true, true);
+        }
       }
     }
     if (!entries.length)
@@ -380,7 +420,11 @@ export function openViewer(root: string, options: Options) {
     igEndChild();
     igSameLine(0, -1);
     igBeginGroup();
-    if (selected) {
+    if (showSettings) {
+      igBeginChild_Str("settings", { x: 0, y: 0 }, 0, 0);
+      settingsPanel.body(preferences);
+      igEndChild();
+    } else if (selected) {
       const toolbarStart = igGetCursorScreenPos(),
         toolbarRight = toolbarStart.x + available();
       const versionWidth = Math.max(1, Math.min(235, available()));
@@ -428,7 +472,7 @@ export function openViewer(root: string, options: Options) {
           latest &&
           igSelectable_Bool(
             "Follow latest",
-            followLatest && !followPresented,
+            followLatest && (!followPresented || !delivered),
             0,
             { x: 0, y: 0 },
           )
@@ -501,7 +545,7 @@ export function openViewer(root: string, options: Options) {
           ImGuiChildFlags_Borders,
           0,
         );
-        renderer.body(false);
+        renderer.body(false, pinchScale);
         igEndChild();
         igPopID();
         if (showContext) {
@@ -602,7 +646,8 @@ export function openViewer(root: string, options: Options) {
   }
   checked(pv_surface_open(1));
   try {
-    initializeTheme(options.theme ?? "light");
+    initializeTheme(themeOverride ?? preferredTheme());
+    checked(pv_surface_input_policy(preferences.wheelScale, ImGuiMod_Ctrl));
     select(selected, followLatest, followPresented);
     while (true) {
       const inputState = pv_surface_input();
@@ -619,6 +664,12 @@ export function openViewer(root: string, options: Options) {
         animateUntil = Date.now() + 500;
       }
       refresh();
+      if (
+        preferences.appearance === "system" &&
+        themeOverride === undefined &&
+        preferredTheme() !== currentTheme()
+      )
+        requestedTheme = preferredTheme();
       if (requestedTheme !== undefined) {
         setTheme(requestedTheme);
         requestedTheme = undefined;

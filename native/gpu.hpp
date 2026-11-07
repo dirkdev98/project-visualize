@@ -30,6 +30,7 @@ public:
   SDL_MetalView metal_view = nullptr;
   bool imgui = false, sdl = false, renderer = false, platform = false;
   int max_dimension = 8192;
+  float wheel_scale = 1, pinch_scale = 1;
   std::string error;
   std::mutex error_mutex;
   ~Gpu();

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <cmath>
 
 struct PVImage { std::unique_ptr<pv::Image> image; };
 
@@ -42,7 +43,15 @@ extern "C" int pv_surface_wait(int timeout_ms) {
     if (SDL_WaitEventTimeout(&event, timeout_ms)) {
       do {
         if (event.type == SDL_EVENT_POLL_SENTINEL) continue;
-        ImGui_ImplSDL3_ProcessEvent(&event);
+        if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+          event.wheel.x *= gpu.wheel_scale;
+          event.wheel.y *= gpu.wheel_scale;
+        }
+        if (event.type == SDL_EVENT_PINCH_UPDATE &&
+            (!gpu.window || event.pinch.windowID == SDL_GetWindowID(gpu.window)) &&
+            std::isfinite(event.pinch.scale) && event.pinch.scale > 0)
+          gpu.pinch_scale = std::clamp(gpu.pinch_scale * event.pinch.scale, 0.1f, 10.0f);
+        if (gpu.platform) ImGui_ImplSDL3_ProcessEvent(&event);
         if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) return 0;
         received = true;
       } while (SDL_PollEvent(&event));
@@ -57,6 +66,26 @@ extern "C" int pv_surface_input(void) {
   bool held = SDL_GetMouseState(nullptr, nullptr) != 0 ||
     std::any_of(keys, keys + count, [](bool down) { return down; });
   return (held ? 1 : 0) | (ImGui::GetIO().WantTextInput ? 2 : 0);
+}
+
+extern "C" int pv_surface_input_policy(float wheel_scale, int zoom_modifier) {
+  try {
+    if (!std::isfinite(wheel_scale) || wheel_scale <= 0)
+      throw std::runtime_error("Wheel scale must be positive and finite");
+    surface().wheel_scale = wheel_scale;
+    auto &input = ImPlot::GetInputMap();
+    input.ZoomMod = zoom_modifier;
+    // ImPlot reserves Ctrl for drag sources by default, which would suppress zoom.
+    input.OverrideMod = ImGuiMod_None;
+    return 0;
+  } catch (const std::exception &error) { last_error = error.what(); return -1; }
+}
+
+extern "C" float pv_surface_pinch(void) {
+  if (!context) return 1;
+  float scale = context->pinch_scale;
+  context->pinch_scale = 1;
+  return scale;
 }
 
 extern "C" PVSize pv_surface_size(void) {

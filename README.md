@@ -40,12 +40,17 @@ bin/visualize export --project observatory --artifact weekly-review \
 Use `--version` with `inspect`, `open` or `export` to select an earlier revision.
 `--file -` reads a document from stdin. `--width` sets the export layout width and
 `--scale` controls pixel density. `--help` describes the CLI.
-New revisions default to 2x screenshots. Add `--mobile-width 390` to `render` to save
-desktop and phone PNGs in the same revision; their paths are in `screenshots`.
+Rendering and exporting default to 2x screenshots. Add `--mobile-width 390` to
+`render` to save desktop and phone PNGs in the same revision; their paths are in
+`screenshots`.
 Use `export --width 390` for a phone layout of an existing revision, or `--scale 1`
 when a single-density image is preferable.
-Use `--theme dark` with `render`, `export` or `open` for the matching dark appearance.
-The viewer also has a theme button; Cmd+K focuses its library search.
+Exports render the saved document with the current layout engine, preserving its
+creation theme and leaving the original snapshots unchanged.
+Use `--theme dark` with `render`, `export` or `open` for an explicit dark appearance.
+The viewer follows system appearance by default. **Settings** can force light or dark
+mode and adjust scroll speed. New captures inherit that preference unless the document
+or command supplies a theme. Cmd+K focuses library search; Cmd+Shift+L toggles appearance.
 
 Artifacts live in `~/Library/Application Support/Project Visualize`. Set
 `VISUALIZE_HOME` or pass `--store` for a separate library.
@@ -62,6 +67,11 @@ its own links, so it can be linked into a directory on PATH.
 The binary embeds the skill, artifact guide and examples. `visualize skill` reports
 their paths; `visualize skill --out DIRECTORY` extracts a self-contained bundle.
 Its `bundle.json` identifies the executable and resources for linked installations.
+In **Settings**, **Install CLI** and **Link skill** show editable destinations and offer
+copyable shell commands. Installation preserves existing files and links. Keep a shared
+source skill link if you already use one, or choose a different destination for the bundle.
+The CLI exposes the same actions through `install --cli PATH` and `install --skill PATH`.
+Keep the application at its installed location so its links remain valid.
 
 After inspecting revisions, mark the one selected for delivery with
 `visualize present --project ID --artifact ID --version ID`. The viewer follows the
@@ -75,6 +85,11 @@ expanded. PDFs paginate the rendered canvas and add selectable document text and
 Native chart labels remain rasterized. Documents describe
 content and layout; arbitrary HTML, scripts and live data connectors are outside the
 artifact format.
+
+Drag a graph to pan, pinch over it to zoom, or hold Cmd while scrolling (Ctrl on other
+platforms). Ordinary scrolling moves the document. **Reset view** fits visible series;
+double-clicking a graph also fits it. Mac scrolling defaults to 20 percent of the raw
+wheel input and can be adjusted in Settings.
 
 The library shows artifact IDs beneath their titles. Choose a revision in the viewer's
 version menu to keep that snapshot open, or choose **Follow latest** to display new
@@ -102,6 +117,10 @@ Run `npm run check:plots` after series adapter changes to verify supplied legend
 colors and shaded baseline fitting in both build modes.
 Run `npm run check:selection` after document text or selection changes to verify
 Unicode, formatted text, highlighted code and native clipboard shortcuts in both modes.
+Run `npm run check:navigation` after graph input changes to verify ordinary scrolling,
+modified zoom, fitting and SDL pinch accumulation in both modes. This offscreen check
+does not establish physical trackpad delivery. The native bridge requires SDL 3.4.18
+or newer.
 
 Run `npm run check:viewer` in an unlocked Mac session to verify surface recovery.
 It hides a test window, restores it and presents the retained UI frame. Exit code 3

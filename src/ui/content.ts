@@ -7,6 +7,7 @@ import {
   ImDrawList_AddText_FontPtr,
   ImDrawList_AddTriangleFilled,
   ImGuiCol_PlotHistogram,
+  ImGuiCond_Always,
   ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
@@ -34,6 +35,7 @@ import {
   ImPlot_PlotToPixels_double,
   ImPlot_PopPlotClipRect,
   ImPlot_PushPlotClipRect,
+  ImPlot_SetNextAxesLimits,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
   ImPlot_SetupLegend,
@@ -52,6 +54,7 @@ import {
   igBeginCombo,
   igBeginDisabled,
   igBeginTable,
+  igButton,
   igCalcTextSize,
   igCheckbox,
   igCollapsingHeader_TreeNodeFlags,
@@ -85,6 +88,7 @@ import {
   igPushID_Str,
   igPushStyleColor_Vec4,
   igPushStyleVar_Vec2,
+  igSameLine,
   igSelectable_Bool,
   igSeparator,
   igSetCursorScreenPos,
@@ -241,6 +245,11 @@ export class DocumentRenderer {
   private orders = new Map<string, { key: string; indices: number[] }>();
   private plots = new Map<ChartBlock, PlotSeries[]>();
   private plotDrawing = new Plots();
+  private pinchScale = 1;
+  private pinchViews = new Map<
+    string,
+    { xMin: number; xMax: number; yMin: number; yMax: number }
+  >();
   private categoryLayouts = new Map<
     ChartBlock,
     {
@@ -274,6 +283,7 @@ export class DocumentRenderer {
     this.images.clear();
     this.plots.clear();
     this.plotDrawing.dispose();
+    this.pinchViews.clear();
     this.categoryLayouts.clear();
     this.orders.clear();
     this.searches.clear();
@@ -354,7 +364,8 @@ export class DocumentRenderer {
     this.state.parameters.set(control.id, value);
     this.state.revision++;
   }
-  body(exporting: boolean) {
+  body(exporting: boolean, pinchScale = 1) {
+    this.pinchScale = exporting ? 1 : pinchScale;
     if (exporting) this.renderBody(true);
     else withTextSelection(this.selection, () => this.renderBody(false));
   }
@@ -368,6 +379,7 @@ export class DocumentRenderer {
       this.tableCells.clear();
       this.cellWidths.clear();
       this.categoryLayouts.clear();
+      this.pinchViews.clear();
     }
     const headerTop = igGetCursorScreenPos().y;
     text(
@@ -1155,11 +1167,39 @@ export class DocumentRenderer {
     const categories = this.categories(value);
     const horizontalBars = categories?.horizontal ?? false;
     const interactionKey = horizontalBars ? `${key}.horizontal` : key;
+    let reset = false;
+    if (!exporting) {
+      reset = igButton("Reset view", { x: 0, y: 0 });
+      if (igIsItemHovered(0))
+        tooltip(
+          "Fit the visible series. Double-clicking the chart also resets it.",
+        );
+      if (available() > 400) igSameLine(0, -1);
+      text(
+        process.platform === "darwin"
+          ? "Pinch or Cmd+scroll to zoom"
+          : "Pinch or Ctrl+scroll to zoom",
+        13,
+        "regular",
+        palette.muted,
+      );
+    }
     const fitKey = this.view?.chartFitKeys.get(key);
     const refit =
       fitKey !== undefined &&
       this.state.chartFits.get(interactionKey) !== fitKey;
-    if (exporting || refit) ImPlot_SetNextAxesToFit();
+    const pinch = this.pinchViews.get(interactionKey);
+    this.pinchViews.delete(interactionKey);
+    if (exporting || refit || reset) ImPlot_SetNextAxesToFit();
+    else if (pinch)
+      ImPlot_SetNextAxesLimits(
+        pinch.xMin,
+        pinch.xMax,
+        pinch.yMin,
+        pinch.yMax,
+        ImGuiCond_Always,
+      );
+    if (reset) this.barPress = undefined;
     const selection = this.view?.chartSelections.get(key);
     const choosing =
       !exporting && selection !== undefined && igIsKeyDown_Nil(ImGuiMod_Shift);
@@ -1273,6 +1313,31 @@ export class DocumentRenderer {
     }
     if (!exporting) {
       let hovered = ImPlot_IsPlotHovered();
+      if (hovered && Math.abs(this.pinchScale - 1) > 0.00001) {
+        const position = ImPlot_GetPlotPos(),
+          size = ImPlot_GetPlotSize(),
+          pointer = igGetMousePos();
+        const corner = (x: number, y: number) =>
+          ImPlot_PixelsToPlot_Vec2(
+            {
+              x: pointer.x + (x - pointer.x) / this.pinchScale,
+              y: pointer.y + (y - pointer.y) / this.pinchScale,
+            },
+            -1,
+            -1,
+          );
+        const a = corner(position.x, position.y),
+          b = corner(position.x + size.x, position.y + size.y);
+        const next = {
+          xMin: Math.min(a.x, b.x),
+          xMax: Math.max(a.x, b.x),
+          yMin: Math.min(a.y, b.y),
+          yMax: Math.max(a.y, b.y),
+        };
+        if (Object.values(next).every(Number.isFinite))
+          this.pinchViews.set(interactionKey, next);
+        this.barPress = undefined;
+      }
       if (choosing) {
         const origin = ImPlot_GetPlotPos(),
           size = ImPlot_GetPlotSize();

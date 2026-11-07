@@ -1,5 +1,51 @@
 # Decisions
 
+## 2026-11-07 viewer settings
+
+- Add persistent System, Light and Dark appearance choices and a scroll-speed
+  setting. Follow SDL's current system theme on viewer wakes; resolve the macOS
+  command-line capture default once through system preferences. Keep explicit
+  document and command themes available.
+- Retain the effective creation theme in revision metadata so changing preferences
+  cannot change a saved revision's default export palette. Let the viewer follow
+  current appearance independently of that creation-time choice.
+- Add Install CLI and Link skill actions with editable, visible destinations and
+  copyable shell commands. Reuse non-destructive linking, preserve shared source
+  links and show a PATH command when the selected directory is absent from PATH.
+- Keep native packaging limited to macOS. The embedded workflow is portable data;
+  it does not establish runtime support on another platform.
+
+## 2026-11-07 deliberate graph navigation
+
+- Default Mac wheel input to 20 percent and expose an adjustable speed. Reserve
+  graph wheel zoom for Command on Mac and Ctrl elsewhere, allowing ordinary wheel
+  input to scroll the document. Add an explicit Reset view action alongside native
+  double-click fitting.
+- Accumulate SDL's relative pinch events once per frame. Keep pointer-centered
+  range calculation in Maligator through plot-coordinate bindings, preserving
+  inverted-axis transforms. Keep event delivery and pointer-owned input maps in
+  the native bridge.
+- Clear ImPlot's default Ctrl drag-source override because it suppresses the new
+  zoom modifier. Use ImGui's normalized Ctrl for physical Mac Command.
+- Verify native input and the real viewer controls offscreen in development and
+  production. This establishes application behavior, without a performance claim
+  or acceptance of physical trackpad delivery or Mac scroll feel.
+
+Keep track of;
+
+- Confirm physical pinch delivery and the adjusted scrolling feel in an unlocked
+  Mac session with a trackpad.
+
+## 2026-11-07 current-layout exports
+
+- Render export requests from saved documents and retained image bytes rather
+  than copying creation-time derivatives. This lets existing artifacts receive
+  corrected category layout while preserving every saved revision file.
+- Default exports to 2x density as well as new renders. Retain explicit scale and
+  width overrides, and retain creation-time snapshots for exact historical bytes.
+  Rendering costs more than copying a file; this is a quality decision rather
+  than an accepted performance improvement.
+
 ## 2026-11-07 presented artifact versions
 
 - Mark the exact saved revision selected for delivery rather than every rendering

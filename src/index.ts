@@ -1,7 +1,14 @@
-import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createParameters, resolveView } from "./data.ts";
 import { slug, validate } from "./model.ts";
+import {
+  type Appearance,
+  creationTheme,
+  readSettings,
+  saveSettings,
+  systemTheme,
+} from "./settings.ts";
 import { find, list, load, present, save, storeRoot } from "./store.ts";
 import { renderArtifact as render } from "./ui/export.ts";
 import { openViewer } from "./viewer.ts";
@@ -22,9 +29,10 @@ visualize validate --file document.json
 visualize present --project ID --artifact ID --version ID
 visualize skill [--out DIRECTORY]
 visualize install --cli PATH | --skill PATH
+visualize settings [--appearance system|light|dark] [--scroll-speed 5..100]
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
-render and export accept --width 320..2560 and --scale 1|2. New renders default to 2x.
+render and export accept --width 320..2560 and --scale 1|2, defaulting to 2x.
 render accepts --mobile-width 320..600 to save a second responsive PNG.
 render, export and open accept --theme light|dark.
 render always saves a new immutable version with PNG and PDF snapshots.
@@ -74,6 +82,7 @@ async function main() {
     present: ["project", "artifact", "version", "store"],
     skill: ["out", "store"],
     install: ["cli", "skill", "store"],
+    settings: ["appearance", "scroll-speed", "store"],
   };
   if (!command || !Object.hasOwn(permitted, command))
     throw new Error(`Unknown command ${command}; use --help`);
@@ -140,6 +149,7 @@ async function main() {
             options["mobile-width"] === undefined
               ? undefined
               : dimension("mobile-width", 390, 320, 600),
+          theme: document.theme ?? creationTheme(root),
         },
       );
       result = {
@@ -155,6 +165,26 @@ async function main() {
         },
       };
     }
+  } else if (command === "settings") {
+    let settings = readSettings(root);
+    if (
+      options.appearance !== undefined ||
+      options["scroll-speed"] !== undefined
+    )
+      settings = saveSettings(root, {
+        ...(options.appearance === undefined
+          ? {}
+          : { appearance: options.appearance as Appearance }),
+        ...(options["scroll-speed"] === undefined
+          ? {}
+          : { wheelScale: Number(options["scroll-speed"]) / 100 }),
+      });
+    result = {
+      ...settings,
+      effectiveTheme:
+        settings.appearance === "system" ? systemTheme() : settings.appearance,
+      file: join(root, "settings.json"),
+    };
   } else if (command === "present") {
     result = present(
       root,
@@ -223,15 +253,8 @@ async function main() {
       );
     mkdirSync(dirname(out), { recursive: true });
     const width = dimension("width", entry.width, 320, 2560),
-      scale = dimension("scale", entry.scale, 1, 2);
-    if (
-      width === entry.width &&
-      scale === entry.scale &&
-      parameters === undefined &&
-      theme === undefined
-    )
-      copyFileSync(join(entry.directory, `snapshot.${format}`), out);
-    else await render(load(entry), out, width, scale, parameters, theme);
+      scale = dimension("scale", 2, 1, 2);
+    await render(load(entry), out, width, scale, parameters, theme);
     result = {
       output: out,
       format,

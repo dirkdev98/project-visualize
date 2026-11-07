@@ -61,7 +61,10 @@ versions keep their history.
 
 Use `inspect` to read an existing saved document before revising it. `render` always
 creates a new version. Export with an explicit `--version` when the request refers to
-particular evidence. PNG and PDF exports use the saved data; temporary viewer zoom
+particular evidence. PNG and PDF exports use the saved data and current layout engine,
+leaving creation-time snapshots unchanged. New captures follow the appearance chosen
+in Settings or the system; pass `--theme light|dark` when a specific palette matters.
+Temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
 A dataset-bound bar chart can `select` its matching select control through Shift-click.
 Its comparison bars stay visible while the other linked widgets use the selection.

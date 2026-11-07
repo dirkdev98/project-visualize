@@ -13,7 +13,7 @@ import {
 import { homedir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { ImageCache } from "./images.ts";
-import type { Artifact } from "./model.ts";
+import type { Artifact, Theme } from "./model.ts";
 import { slug } from "./model.ts";
 
 export interface Entry {
@@ -25,6 +25,7 @@ export interface Entry {
   width: number;
   height: number;
   scale: number;
+  theme?: Theme;
   mobile?: { width: number; height: number };
   directory: string;
   presentedAt?: string;
@@ -130,6 +131,7 @@ export function load(entry: Entry): Artifact {
   const doc: Artifact = JSON.parse(
     readFileSync(join(entry.directory, "document.json"), "utf8"),
   );
+  doc.theme ??= entry.theme;
   for (const [name, file] of Object.entries(doc.assets ?? {})) {
     if (doc.assets) doc.assets[name] = resolve(entry.directory, file);
   }
@@ -150,7 +152,7 @@ export async function save(
     width: number,
     scale: number,
   ) => Promise<number>,
-  options: { mobileWidth?: number } = {},
+  options: { mobileWidth?: number; theme?: Theme } = {},
 ): Promise<Entry> {
   slug(project, "project");
   slug(artifact, "artifact");
@@ -184,6 +186,8 @@ export async function save(
       `${JSON.stringify(snapshot, null, 2)}\n`,
     );
     const hydrated: Artifact = JSON.parse(JSON.stringify(snapshot));
+    const theme = snapshot.theme ?? options.theme ?? "light";
+    hydrated.theme = theme;
     for (const [name, file] of Object.entries(hydrated.assets ?? {})) {
       if (hydrated.assets) hydrated.assets[name] = join(pending, file);
     }
@@ -202,6 +206,7 @@ export async function save(
       width,
       height,
       scale,
+      theme,
       ...(options.mobileWidth === undefined
         ? {}
         : {

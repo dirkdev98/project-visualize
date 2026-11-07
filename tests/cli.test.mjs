@@ -317,6 +317,51 @@ test("installation creates working links and preserves occupied destinations", (
   assert.equal(ok(["install", "--skill", destination]).source, linked.source);
 });
 
+test("appearance settings persist while saved captures retain their creation theme", (t) => {
+  const { root, ok, render } = workspace(t);
+  assert.equal(ok(["settings"]).appearance, "system");
+  ok(["settings", "--appearance", "dark", "--scroll-speed", "20"]);
+  const entry = render();
+  assert.equal(entry.theme, "dark");
+  const original = [entry.document, entry.png, entry.pdf].map(digest);
+  ok(["settings", "--appearance", "light"]);
+  assert.equal(ok(["settings"]).appearance, "light");
+  assert.equal(ok(["settings"]).wheelScale, 0.2);
+  const saved = join(root, "saved-dark.png"),
+    explicit = join(root, "explicit-dark.png");
+  const args = [
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--version",
+    entry.version,
+    "--width",
+    "640",
+    "--format",
+    "png",
+  ];
+  ok([...args, "--out", saved]);
+  ok([...args, "--out", explicit, "--theme", "dark"]);
+  assert.equal(digest(saved), digest(explicit));
+  assert.deepEqual(
+    [entry.document, entry.png, entry.pdf].map(digest),
+    original,
+  );
+  assert.equal(render().theme, "light");
+});
+
+test("invalid settings leave existing preferences unchanged", (t) => {
+  const { store, ok, run } = workspace(t);
+  ok(["settings", "--appearance", "dark"]);
+  const file = join(store, "settings.json"),
+    before = digest(file);
+  assert.equal(run(["settings", "--appearance", "purple"]).status, 1);
+  assert.equal(run(["settings", "--scroll-speed", "0"]).status, 1);
+  assert.equal(digest(file), before);
+});
+
 test("PDF paper and orientation follow the saved document", async (t) => {
   const { render } = workspace(t);
   for (const [paper, portrait] of [
@@ -980,6 +1025,7 @@ test("theme exports change appearance while preserving saved evidence", (t) => {
   const code = "const accepted = rows.length;";
   const entry = render({
     ...minimal(),
+    theme: "light",
     body: [{ type: "code", language: "typescript", content: code }],
   });
   const before = [entry.document, entry.png, entry.pdf].map(digest);
@@ -1206,6 +1252,46 @@ test("exporting a saved snapshot does not create a revision", (t) => {
   assert.equal(digest(out), digest(entry.pdf));
   assert.deepEqual(
     ok(["list"]).versions.map((entry) => entry.version),
+    [entry.version],
+  );
+});
+
+test("export regenerates a high-resolution image without a creation snapshot", (t) => {
+  const { root, ok } = workspace(t);
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--scale",
+      "1",
+    ],
+    minimal(),
+  );
+  const document = digest(entry.document);
+  rmSync(entry.png);
+  const out = join(root, "fresh.png");
+  const result = ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--format",
+    "png",
+    "--out",
+    out,
+  ]);
+  assert.equal(result.scale, 2);
+  assert.equal(readFileSync(out).readUInt32BE(16), entry.width * 2);
+  assert.equal(digest(entry.document), document);
+  assert.equal(existsSync(entry.png), false);
+  assert.deepEqual(
+    ok(["list"]).versions.map((version) => version.version),
     [entry.version],
   );
 });

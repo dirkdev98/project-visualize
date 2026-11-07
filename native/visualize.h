@@ -21,6 +21,9 @@ typedef struct ImFont ImFont;
 int pv_surface_open(int viewer);
 int pv_surface_wait(int timeout_ms);
 int pv_surface_input(void);
+int pv_surface_input_policy(float wheel_scale, int zoom_modifier);
+/* Consume accumulated relative pinch scale once per frame. */
+float pv_surface_pinch(void);
 PVSize pv_surface_size(void);
 int pv_surface_limit(void);
 int pv_surface_begin(int width, int height, int scale);

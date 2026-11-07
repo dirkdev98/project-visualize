@@ -94,7 +94,9 @@ unique among siblings.
 Charts use named series with numeric `values`. Supply chart `labels`, a series'
 numeric `x` coordinates, or both. Without `x`, each series has one value per label.
 With labels and `x`, coordinates index the labels and can leave categories absent.
-Axis labels should include units. The viewer supports zooming and panning; exports
+Axis labels should include units. Drag to pan and pinch to zoom, or use Cmd+scroll
+(Ctrl+scroll on other platforms). Ordinary scrolling moves the document. **Reset view**
+fits visible series, as does double-clicking the graph. Exports
 fit all the supplied data with space around its extrema.
 Short legends sit below the data. Keep series names concise; longer ordinary legends
 use an inset layout so the plot retains its width.
@@ -327,7 +329,8 @@ by cropping equally from the long axis. Captions remain selectable in PDF export
 
 ## Exports
 
-New revisions default to 2x screenshot density. Use `--scale 1` for a smaller image.
+Rendering and exporting default to 2x screenshot density. Use `--scale 1` for a
+smaller image.
 Add `render --mobile-width 390` to save desktop and phone PNGs together, with paths
 in the returned `screenshots` object. Export an existing revision with `--width 390`
 to inspect its phone layout without changing saved files. Logical widths start at 320.
@@ -336,24 +339,26 @@ Phone layouts use narrower margins and stack columns. Wide data and Markdown tab
 become labeled records in reading order, retaining the complete
 content. Data tables keep local sorting and search when changing between layouts.
 
-Documents default to a light theme. Set `"theme": "dark"` for a matching dark canvas,
-controls and syntax colors. `render --theme light|dark` overrides that field and saves
-the chosen appearance. `export --theme light|dark` rerenders an appearance without
-changing the saved evidence.
+New captures inherit the system appearance, or the light/dark preference chosen in
+Settings. A document's `theme` field overrides that default; `render --theme light|dark`
+overrides the field. The saved revision retains its creation palette for reproducible
+exports. `export --theme light|dark` changes an export without changing saved evidence.
 
-The viewer's theme button and Cmd+Shift+L change its temporary appearance. Cmd+K
-focuses the artifact-library search. These interactions preserve saved snapshots;
-the viewer's Saved PDF button opens the creation-time export.
+The viewer follows system appearance independently of a document's creation palette.
+Settings can force light or dark mode; Cmd+Shift+L saves a light/dark preference.
+`open --theme light|dark` overrides it for that window. Cmd+K focuses library search.
+The viewer's Saved PDF button opens the creation-time export.
 
 Drag across document text to select it, then press Cmd+C to copy. Double-click a word
 to select it. With a document selection active, Cmd+A selects the rendered document
 text and Escape clears the selection. Formatting, soft wraps and syntax colors do
 not enter the clipboard. Editable controls keep their own keyboard shortcuts.
 
-The saved PNG and PDF use the render command's width and scale. Exporting at the
-same settings copies that snapshot. Changing `--width`, `--scale`, `--theme` or `--params` rerenders the
-saved data and copied images without creating a revision. Viewer filters, chart
-zoom and other temporary interactions do not change the saved export.
+The saved PNG and PDF use the render command's width and scale. `export` renders the
+saved data and copied images with the current layout engine, using the saved width
+and 2x density unless overridden. It leaves creation-time snapshots and revision
+history unchanged. Viewer filters, chart zoom and other temporary interactions do
+not change the saved export; pass `--params` to export a linked selection.
 
 Exports contain the whole document. An artifact that exceeds the GPU surface limit
 fails with an error; split a long report into separate artifacts or reduce its scale.
