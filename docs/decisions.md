@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-11-07 remote image snapshots
+
+- Accept HTTP(S) image sources alongside local PNG/JPEG assets. Resolve them in
+  Maligator JS before publishing a revision, and copy the selected bytes into that
+  revision so viewing and export remain reproducible offline.
+- Reuse fresh cache entries and serve stale bytes while conditional ETag or
+  Last-Modified requests refresh future renders. Publish URL metadata atomically
+  over content-addressed blobs so concurrent agents cannot mix validators and bytes.
+  Respect no-store and required validation, bound request time and response size,
+  and keep a failed stale refresh separate from a failed cold download.
+- Settle refreshes before the CLI exits. Background refresh overlaps artifact work
+  but can extend command completion; this is a freshness feature without a measured
+  performance-win claim. Saved revisions never adopt refreshed bytes silently.
+
+Keep track of;
+
+- Add cache eviction if retained remote images become a material storage cost. The
+  cache is disposable independently of the immutable version store.
+
 ## 2026-11-07 native document text selection
 
 - Let people select rendered text across headings, prose, code and table cells. Keep

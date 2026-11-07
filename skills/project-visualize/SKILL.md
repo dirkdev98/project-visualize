@@ -15,7 +15,9 @@ adapt [the examples](../../examples/) for the requested content.
 Write the artifact as JSON. Choose a project ID that matches the user's workspace and
 keep the same artifact ID when revising it. Preserve the actual data, units, source
 references, assumptions and uncertainty. Put the explanation in rich text and retain
-the task's provenance in `context`. Use local image assets when needed.
+the task's provenance in `context`. Declare local PNG/JPEG paths or HTTP(S) image
+URLs in `assets`, and refer to them by asset ID. Remote images use a shared cache;
+each saved revision retains its chosen bytes for offline viewing and export.
 
 ```sh
 bin/visualize validate --file document.json

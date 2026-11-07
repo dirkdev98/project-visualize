@@ -296,7 +296,24 @@ export function validate(input: unknown): Artifact {
   const assets = doc.assets === undefined ? {} : object(doc.assets, "assets");
   for (const [name, source] of Object.entries(assets)) {
     slug(name, "asset name");
-    string(source, `assets.${name}`, 4096);
+    const value = string(source, `assets.${name}`, 4096);
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+      let url: URL;
+      try {
+        url = new URL(value);
+      } catch {
+        fail(`assets.${name}`, "expected a local path or HTTP(S) image URL");
+      }
+      if (
+        !["http:", "https:"].includes(url.protocol) ||
+        url.username ||
+        url.password
+      )
+        fail(
+          `assets.${name}`,
+          "expected a local path or HTTP(S) image URL without credentials",
+        );
+    }
   }
   const datasets =
     doc.datasets === undefined ? {} : object(doc.datasets, "datasets");

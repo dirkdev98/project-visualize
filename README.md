@@ -85,6 +85,8 @@ Run `npm run check:images` after image drawing changes to check native UV sampli
 rounded corners and texture disposal in both build modes.
 Run `npm run check:plots` after series adapter changes to verify supplied legend
 colors and shaded baseline fitting in both build modes.
+Run `npm run check:selection` after document text or selection changes to verify
+Unicode, formatted text, highlighted code and native clipboard shortcuts in both modes.
 
 Run `npm run check:viewer` in an unlocked Mac session to verify surface recovery.
 It hides a test window, restores it and presents the retained UI frame. Exit code 3

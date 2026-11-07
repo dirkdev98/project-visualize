@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
+import { ImageCache } from "./images.ts";
 import type { Artifact } from "./model.ts";
 import { slug } from "./model.ts";
 
@@ -118,10 +119,13 @@ export async function save(
   const pending = join(parent, `.pending-${version}`);
   const directory = join(parent, version);
   mkdirSync(pending);
+  const images = new ImageCache(root);
   try {
     const snapshot: Artifact = JSON.parse(JSON.stringify(document));
     for (const [name, file] of Object.entries(document.assets ?? {})) {
-      const source = resolve(sourceDirectory, file);
+      const source = /^https?:\/\//i.test(file)
+        ? await images.resolve(file)
+        : resolve(sourceDirectory, file);
       const extension = extname(source).toLowerCase();
       if (![".png", ".jpg", ".jpeg"].includes(extension))
         throw new Error(`Asset ${name}: use PNG or JPEG`);
@@ -166,5 +170,7 @@ export async function save(
   } catch (error) {
     rmSync(pending, { recursive: true, force: true });
     throw error;
+  } finally {
+    await images.settle();
   }
 }

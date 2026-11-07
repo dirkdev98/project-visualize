@@ -270,8 +270,9 @@ combines the grid with linked controls and a selectable bar chart.
 
 ## Images
 
-Declare local PNG/JPEG files in `assets`. Paths resolve relative to the source JSON,
-or the working directory when reading stdin. Saved versions copy the image bytes.
+Declare PNG/JPEG paths or HTTP(S) URLs in `assets`. Local paths resolve relative to
+the source JSON, or the working directory when reading stdin. Saved versions copy
+the selected image bytes, so viewing and exporting them work offline.
 
 ```json
 {
@@ -285,9 +286,21 @@ or the working directory when reading stdin. Saved versions copy the image bytes
 }
 ```
 
-Markdown images use `asset:NAME` references. Network images are not fetched. Use a
-new `render` invocation to revise an artifact; preserve returned version IDs when
-referring to particular evidence.
+Markdown images use `asset:NAME` references. For a remote source, declare its URL
+instead of a local path, for example `"station": "https://example.org/station.png"`.
+The URL does not need a file extension; the response must contain PNG or JPEG data.
+
+Remote sources share a cache under `STORE/cache/images`. A cold source downloads
+before rendering. Fresh entries reuse their bytes. Stale entries supply the current
+revision immediately while a conditional request refreshes the cache for a later
+`render`. The CLI settles that refresh before exiting, with a bounded request timeout;
+a failed stale refresh retains the cached image. HTTP `max-age` sets freshness,
+defaulting to an hour and capped at a day. `no-store` responses are not retained;
+`no-cache` and stale `must-revalidate` responses wait for validation.
+
+Note that revalidation never changes a saved revision. Use a new `render` invocation
+to revise an artifact; preserve returned version IDs when referring to evidence.
+Remove `STORE/cache/images` to force fresh downloads. Each image is limited to 20 MiB.
 
 Images keep their natural proportions and shrink to the available width without
 upscaling. Set an image block's `height` to create a full-width frame. The default
