@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-11-07 geometry-query experiment
+
+- Revert the attempt to guard existing PDF geometry queries out of preliminary and
+  viewer frames. Three interleaved fresh-process samples per build on AC produced
+  byte-identical PNGs and PDFs, but did not establish an end-to-end benefit.
+- Median export times changed from 102 to 100 ms for the control, 357 to 359 ms for
+  the dashboard, 301 to 303 ms for the notebook, and 871 to 885 ms for the dense table.
+  Peak RSS was materially unchanged. Treat these as indicative laptop measurements
+  and keep the simpler rendering path.
+
 ## 2026-11-07 matching light and dark themes
 
 - Keep light as the default and add matching dark canvas, control, chart and syntax
