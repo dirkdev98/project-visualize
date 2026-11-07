@@ -11,6 +11,7 @@ export default defineLibrary({
     },
   ],
   types: {
+    ImGuiIO: { handle: {} },
     ImFont: { handle: {} },
     ImFontAtlas: { handle: {} },
     ImDrawList: { handle: {} },
@@ -23,6 +24,7 @@ export default defineLibrary({
     igBegin: { params: { p_open: { constant: "NULL" } } },
     igTextUnformatted: { params: { text_end: { constant: "NULL" } } },
     igCalcTextSize: { params: { text_end: { constant: "NULL" } } },
+    igGetIO_Nil: { returns: { borrowed: true } },
     igGetFont: { returns: { borrowed: true } },
     igGetWindowDrawList: { returns: { borrowed: true } },
     igStyleColorsLight: { params: { dst: { constant: "NULL" } } },

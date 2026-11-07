@@ -18,6 +18,7 @@ export interface ResolvedView {
   datasets: Record<string, DataRow[]>;
   parameters: Record<string, ParameterValue>;
   boundCharts: Set<string>;
+  chartSelections: Map<string, { control: string; values: Cell[] }>;
 }
 export function dataCell(row: DataRow, key: string): Cell {
   return Object.hasOwn(row, key) ? row[key] : null;
@@ -167,9 +168,9 @@ function aggregate(
 function chart(
   block: Extract<Block, { type: "chart" }>,
   rows: DataRow[],
-): Block {
+): { block: Block; values: Cell[] } {
   const source = block.source;
-  if (!source) return block;
+  if (!source) return { block, values: [] };
   const kind = source.aggregate ?? (block.kind === "bar" ? "sum" : undefined);
   const points =
     kind === "count"
@@ -185,7 +186,8 @@ function chart(
     xs.set(key(x), x);
   }
   const xValues = [...xs.values()];
-  const numeric = xValues.every((value) => typeof value === "number");
+  const numeric =
+    !block.select && xValues.every((value) => typeof value === "number");
   const indices = new Map([...xs.keys()].map((name, i) => [name, i]));
   const groups = new Map<string, { name: Cell; rows: DataRow[] }>();
   for (const row of points) {
@@ -241,11 +243,14 @@ function chart(
   }
   const { source: _, ...rest } = block;
   return {
-    ...rest,
-    series,
-    ...(numeric ? {} : { labels: labels(xValues) }),
-    xLabel: block.xLabel ?? source.x,
-    yLabel: block.yLabel ?? source.y ?? "Rows",
+    values: xValues,
+    block: {
+      ...rest,
+      series,
+      ...(numeric ? {} : { labels: labels(xValues) }),
+      xLabel: block.xLabel ?? source.x,
+      yLabel: block.yLabel ?? source.y ?? "Rows",
+    },
   };
 }
 export function resolveView(
@@ -270,6 +275,7 @@ export function resolveView(
     return datasets[name];
   }
   const boundCharts = new Set<string>();
+  const chartSelections: ResolvedView["chartSelections"] = new Map();
   function blocks(input: Block[], parent: string): Block[] {
     return input.map((block, index) => {
       const path = `${parent}.${block.id ?? index}`;
@@ -290,7 +296,13 @@ export function resolveView(
       }
       if (block.type === "chart" && block.source) {
         boundCharts.add(path);
-        return chart(block, rows(block.source.dataset));
+        const prepared = chart(block, rows(block.source.dataset));
+        if (block.select)
+          chartSelections.set(path, {
+            control: block.select,
+            values: prepared.values,
+          });
+        return prepared.block;
       }
       return block;
     });
@@ -300,5 +312,6 @@ export function resolveView(
     datasets,
     parameters: Object.fromEntries(parameters),
     boundCharts,
+    chartSelections,
   };
 }

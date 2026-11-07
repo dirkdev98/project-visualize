@@ -822,6 +822,136 @@ function inspectView(ok, params) {
   ]).view;
 }
 
+test("bar selection exposes typed categories and resolves the same linked control", (t) => {
+  const { render, ok } = workspace(t);
+  const values = [1, "1", null, 12];
+  const document = {
+    ...minimal(),
+    datasets: {
+      observations: values.map((station, i) => ({ station, accepted: i + 1 })),
+    },
+    body: [
+      {
+        type: "chart",
+        id: "stations",
+        kind: "bar",
+        select: "station",
+        source: {
+          dataset: "observations",
+          x: "station",
+          y: "accepted",
+        },
+      },
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "observations",
+        field: "station",
+      },
+      {
+        type: "metric",
+        label: "Accepted",
+        source: {
+          dataset: "observations",
+          field: "accepted",
+          aggregate: "sum",
+        },
+      },
+    ],
+  };
+  render(document);
+  const all = inspectView(ok);
+  assert.deepEqual(all.chartSelections["body.stations"], {
+    control: "station",
+    values,
+  });
+  assert.deepEqual(
+    all.body[0].series[0].x,
+    values.map((_, i) => i),
+  );
+  assert.notEqual(all.body[0].labels[0], all.body[0].labels[1]);
+  for (const [index, station] of values.entries()) {
+    const view = inspectView(ok, { station });
+    assert.deepEqual(view.chartSelections["body.stations"].values, [station]);
+    assert.equal(view.datasetRows.observations, 1);
+    assert.equal(view.body[2].value, index + 1);
+  }
+  assert.deepEqual(
+    inspectView(ok, { station: { all: true } }).chartSelections,
+    all.chartSelections,
+  );
+});
+
+test("numeric selection categories remain separate even when their coordinates are close", (t) => {
+  const { render, ok } = workspace(t);
+  const values = [1.01, 1.02, 100];
+  render({
+    ...minimal(),
+    datasets: { readings: values.map((x) => ({ x, accepted: 2 })) },
+    body: [
+      {
+        type: "control",
+        id: "reading",
+        kind: "select",
+        label: "Reading",
+        dataset: "readings",
+        field: "x",
+      },
+      {
+        type: "chart",
+        id: "readings",
+        kind: "bar",
+        select: "reading",
+        source: { dataset: "readings", x: "x", y: "accepted" },
+      },
+    ],
+  });
+  const view = inspectView(ok);
+  assert.deepEqual(view.chartSelections["body.readings"].values, values);
+  assert.deepEqual(
+    view.body[1].series[0].x,
+    values.map((_, i) => i),
+  );
+});
+
+test("chart selection rejects an incompatible target before publishing", (t) => {
+  const { run, ok } = workspace(t);
+  const original = linkedDocument();
+  const chart = {
+    ...original.body.find((block) => block.id === "daily"),
+    select: "station",
+  };
+  const variants = [
+    chart,
+    { ...chart, select: "missing" },
+    { ...chart, select: "day" },
+    { ...chart, kind: "line" },
+    {
+      type: "chart",
+      kind: "bar",
+      select: "station",
+      series: [{ name: "North", values: [3] }],
+    },
+  ];
+  for (const candidate of variants) {
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      {
+        ...original,
+        body: [
+          ...original.body.filter((block) => block.type === "control"),
+          candidate,
+        ],
+      },
+    );
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error, /select/);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 test("a parameter filters a shared table, metric and chart consistently", (t) => {
   const { render, ok } = workspace(t);
   const document = linkedDocument();

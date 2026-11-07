@@ -94,6 +94,7 @@ export type Block = BlockStyle &
         labels?: string[];
         xLabel?: string;
         yLabel?: string;
+        select?: string;
       } & (
         | { series: Series[]; source?: never }
         | { source: ChartSource; series?: never }
@@ -296,7 +297,8 @@ export function validate(input: unknown): Artifact {
     if (!["sum", "mean", "count", "min", "max"].includes(String(value)))
       fail(location, "expected sum, mean, count, min or max");
   }
-  const controlIds = new Set<string>();
+  const controlIds = new Map<string, ControlBlock>();
+  const selections: { block: ObjectValue; location: string }[] = [];
   let blocks = 0;
   let points = 0;
   function visit(
@@ -394,7 +396,7 @@ export function validate(input: unknown): Artifact {
       case "control": {
         if (block.id === undefined || controlIds.has(String(block.id)))
           fail(field("id"), "controls require globally unique IDs");
-        controlIds.add(String(block.id));
+        controlIds.set(String(block.id), block as unknown as ControlBlock);
         if (
           !["select", "search", "range", "toggle"].includes(String(block.kind))
         )
@@ -452,6 +454,15 @@ export function validate(input: unknown): Artifact {
         break;
       }
       case "chart": {
+        if (block.select !== undefined) {
+          string(block.select, field("select"), 80);
+          if (block.kind !== "bar" || block.source === undefined)
+            fail(
+              field("select"),
+              "selection requires a dataset-bound bar chart",
+            );
+          selections.push({ block, location: field("select") });
+        }
         if (!["line", "bar", "scatter"].includes(String(block.kind)))
           fail(field("kind"), "expected line, bar or scatter");
         if (block.height !== undefined)
@@ -472,7 +483,10 @@ export function validate(input: unknown): Artifact {
           const coordinates = rows.map((row) =>
             Object.hasOwn(row, xField) ? row[xField] : null,
           );
-          if (coordinates.some((value) => typeof value !== "number")) {
+          if (
+            block.select !== undefined ||
+            coordinates.some((value) => typeof value !== "number")
+          ) {
             if (
               new Set(
                 coordinates.map((value) =>
@@ -648,5 +662,18 @@ export function validate(input: unknown): Artifact {
   array(doc.body, "body", 1, 100).forEach((block, index) => {
     visit(block, `body[${index}]`, 0, bodyIds);
   });
+  for (const { block, location } of selections) {
+    const control = controlIds.get(String(block.select));
+    const source = block.source as ObjectValue;
+    if (
+      control?.kind !== "select" ||
+      control.dataset !== source.dataset ||
+      control.field !== source.x
+    )
+      fail(
+        location,
+        "expected a select control for the chart's dataset and x field",
+      );
+  }
   return doc as unknown as Artifact;
 }

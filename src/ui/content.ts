@@ -6,6 +6,7 @@ import {
   ImDrawList_AddText_FontPtr,
   ImDrawList_AddTriangleFilled,
   ImGuiCol_PlotHistogram,
+  ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
   ImGuiTableColumnFlags_WidthStretch,
   ImGuiTableFlags_BordersInnerH,
@@ -18,13 +19,21 @@ import {
   ImPlot_BeginPlot,
   ImPlot_EndPlot,
   ImPlot_GetPlotMousePos,
+  ImPlot_IsItemHidden,
   ImPlot_IsPlotHovered,
+  ImPlot_PixelsToPlot_Vec2,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
+  ImPlot_SetupLegend,
   ImPlotFlags_Crosshairs,
   ImPlotFlags_NoInputs,
   ImPlotFlags_NoMenus,
   ImPlotFlags_NoTitle,
+  ImPlotLegendFlags_Horizontal,
+  ImPlotLegendFlags_NoMenus,
+  ImPlotLegendFlags_Outside,
+  ImPlotLocation_East,
+  ImPlotLocation_South,
   ImPlotMarker_Circle,
   ImPlotMarker_None,
   igBeginCombo,
@@ -40,10 +49,17 @@ import {
   igGetCursorScreenPos,
   igGetItemRectMax,
   igGetItemRectMin,
+  igGetMouseDragDelta,
+  igGetMousePos,
   igGetWindowDrawList,
   igIndent,
   igInvisibleButton,
   igIsItemHovered,
+  igIsKeyDown_Nil,
+  igIsMouseClicked_Bool,
+  igIsMouseDown_Nil,
+  igIsMouseDragPastThreshold,
+  igIsMouseReleased_Nil,
   igPopFont,
   igPopID,
   igPopStyleColor,
@@ -97,6 +113,7 @@ import type {
   ParameterValue,
   Tone,
 } from "../model.ts";
+import { barAt, type PlotSeries } from "./chart-hit.ts";
 import { captureTable, currentCapture, keepTogether } from "./layout.ts";
 import {
   available,
@@ -142,7 +159,8 @@ export class DocumentRenderer {
   private images = new Map<string, PVImage>();
   private searches = new Map<string, Int8Array>();
   private orders = new Map<string, { key: string; indices: number[] }>();
-  private plots = new Map<ChartBlock, { x: Float64Array; y: Float64Array }[]>();
+  private plots = new Map<ChartBlock, PlotSeries[]>();
+  private barPress: { key: string; revision: number; value: Cell } | undefined;
   private rich: RichText;
   private view: ResolvedView | undefined;
   private viewRevision = -1;
@@ -201,6 +219,7 @@ export class DocumentRenderer {
   }
   body(exporting: boolean) {
     if (!this.view || this.viewRevision !== this.state.revision) {
+      this.barPress = undefined;
       this.view = resolveView(this.document, this.state.parameters);
       this.viewRevision = this.state.revision;
       this.orders.clear();
@@ -221,6 +240,7 @@ export class DocumentRenderer {
     igSpacing();
     keepTogether(headerTop, igGetCursorScreenPos().y);
     this.blocks(this.view.body, exporting, "body");
+    if (!exporting && !igIsMouseDown_Nil(0)) this.barPress = undefined;
     igSpacing();
   }
   private blocks(children: Block[], exporting: boolean, parent: string) {
@@ -649,6 +669,21 @@ export class DocumentRenderer {
       return;
     if (refit) this.state.chartFits.set(key, this.viewRevision);
     ImPlot_SetupAxes(value.xLabel ?? "", value.yLabel ?? "", 0, 0);
+    const selection = this.view?.chartSelections.get(key);
+    if (selection) {
+      const horizontal =
+        series.reduce(
+          (sum, item) => sum + igCalcTextSize(item.name, false, -1).x + 32,
+          0,
+        ) <
+        available() - 40;
+      ImPlot_SetupLegend(
+        horizontal ? ImPlotLocation_South : ImPlotLocation_East,
+        ImPlotLegendFlags_Outside |
+          ImPlotLegendFlags_NoMenus |
+          (horizontal ? ImPlotLegendFlags_Horizontal : 0),
+      );
+    }
     if (value.labels)
       for (let i = 0; i < value.labels.length; i++)
         pv_plot_tick(0, i, value.labels[i]);
@@ -681,21 +716,116 @@ export class DocumentRenderer {
           bar_width: 0.8 / series.length,
         },
       );
-    if (!exporting && ImPlot_IsPlotHovered()) {
-      const mouse = ImPlot_GetPlotMousePos(-1, -1);
-      const lines: string[] = [];
-      for (let i = 0; i < series.length; i++) {
-        let nearest = 0;
-        const { x, y } = data[i];
-        for (let j = 1; j < x.length; j++)
-          if (Math.abs(x[j] - mouse.x) < Math.abs(x[nearest] - mouse.x))
-            nearest = j;
-        lines.push(`${series[i].name}: ${y[nearest]}`);
+    if (!exporting) {
+      const hovered = ImPlot_IsPlotHovered();
+      const hidden = hovered
+        ? series.map((item) => ImPlot_IsItemHidden(item.name))
+        : [];
+      const mouse = hovered ? ImPlot_GetPlotMousePos(-1, -1) : { x: 0, y: 0 };
+      let category: number | undefined;
+      if (selection && hovered) {
+        const pixel = igGetMousePos();
+        const near = ImPlot_PixelsToPlot_Vec2(
+          { x: pixel.x, y: pixel.y + 3 },
+          -1,
+          -1,
+        );
+        category = barAt(
+          data,
+          series,
+          hidden,
+          mouse,
+          0.8 / series.length,
+          Math.abs(near.y - mouse.y),
+        );
       }
-      tooltip(lines.join("\n"));
+      if (selection) {
+        const shift = igIsKeyDown_Nil(ImGuiMod_Shift);
+        if (
+          hovered &&
+          shift &&
+          igIsMouseClicked_Bool(0, false) &&
+          category !== undefined
+        )
+          this.barPress = {
+            key,
+            revision: this.viewRevision,
+            value: selection.values[category],
+          };
+        if (this.barPress?.key === key && igIsMouseReleased_Nil(0)) {
+          const press = this.barPress;
+          const delta = igGetMouseDragDelta(0, 0);
+          // Include release-frame movement; native drag history also catches an out-and-back drag.
+          const dragged =
+            igIsMouseDragPastThreshold(0, -1) ||
+            Math.hypot(delta.x, delta.y) > 6;
+          if (
+            shift &&
+            !dragged &&
+            category !== undefined &&
+            press.revision === this.state.revision &&
+            press.value === selection.values[category]
+          ) {
+            const control = controls(this.document).find(
+              (control) => control.id === selection.control,
+            );
+            if (control)
+              this.parameter(
+                control,
+                parameterValue(this.state.parameters, control.id) ===
+                  press.value
+                  ? ALL
+                  : press.value,
+              );
+          }
+          this.barPress = undefined;
+        }
+      }
+      if (hovered) {
+        const lines: string[] = [];
+        if (selection && category !== undefined) {
+          lines.push(
+            value.labels?.[category] ?? scalar(selection.values[category]),
+          );
+          for (let i = 0; i < series.length; i++) {
+            if (hidden[i]) continue;
+            const j = series[i].x?.indexOf(category) ?? -1;
+            if (j >= 0) lines.push(`${series[i].name}: ${series[i].values[j]}`);
+          }
+          lines.push("Shift-click to select; repeat to clear");
+        } else if (!selection)
+          for (let i = 0; i < series.length; i++) {
+            if (hidden[i]) continue;
+            let nearest = 0;
+            const { x, y } = data[i];
+            for (let j = 1; j < x.length; j++)
+              if (Math.abs(x[j] - mouse.x) < Math.abs(x[nearest] - mouse.x))
+                nearest = j;
+            lines.push(`${series[i].name}: ${y[nearest]}`);
+          }
+        if (lines.length) tooltip(lines.join("\n"));
+      }
     }
     ImPlot_EndPlot();
+    if (!exporting && selection) {
+      text(
+        "Shift-click a bar to filter; repeat to clear.",
+        13,
+        "regular",
+        palette.muted,
+      );
+      if (
+        !isAll(parameterValue(this.state.parameters, selection.control)) &&
+        igSmallButton("Clear chart selection")
+      ) {
+        const control = controls(this.document).find(
+          (control) => control.id === selection.control,
+        );
+        if (control) this.parameter(control, ALL);
+      }
+    }
   }
+
   private diagram(value: DiagramBlock, exporting: boolean) {
     const width = available(),
       narrow = width < 520;

@@ -163,8 +163,16 @@ Metric sources support `sum`, `mean`, `count`, `min` and `max`. Count counts row
 needs no field. An empty sum is zero; an empty mean, minimum or maximum displays
 `N/A`. Chart sources name `x`, optionally `y` and a grouping `series` field. Bars sum
 by category by default; line and scatter charts preserve source points unless an
-`aggregate` is supplied. Numeric x values retain their coordinates. Other x values
-form categories in source order. An absent category/series pair stays absent.
+`aggregate` is supplied. Numeric x values retain their coordinates unless a bar chart
+supports selection. Other x values form categories in source order. An absent
+category/series pair stays absent.
+
+Set a dataset-bound bar chart's `select` to a select-control ID for the same dataset
+and x field. Shift-click a visible bar to select that raw category across the linked
+view; repeat to clear it. Dragging and wheel zoom retain their chart behavior. The
+legend remains outside the plot so toggling a series cannot select a bar underneath.
+Selection bars treat numeric values as separate categories and preserve scalar types.
+The control can appear anywhere in the document.
 
 Inspect, export or open a reproducible selection with `--params`:
 
@@ -175,7 +183,8 @@ bin/visualize export --project orbital --artifact review --format png \
 ```
 
 Inspection returns the saved document plus a resolved `view` with parameters, row
-counts and widget values. Parameter exports rerender the view even at the saved width
+counts, widget values and typed `chartSelections` keyed by block path. Parameter
+exports rerender the view even at the saved width
 and scale. They preserve the source, default snapshots and version history.
 
 ## Images

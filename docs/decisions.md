@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-11-07 chart-driven linked selection
+
+- Let dataset-bound bars target a matching select control with `select`. Shift-click
+  selects the raw category; repeating it clears the filter. Keep numeric categories,
+  text and null distinct, including sparse grouped series and forward control references.
+  Expose the typed categories through CLI inspection for reproducible parameter exports.
+- Commit selection on release and cancel it for a changed view, released modifier or
+  drag. Check both native drag history and release-frame movement so dragging out and
+  back cannot select a bar. Keep legends outside the plot and disable their relocation
+  menu so series toggles cannot hit data underneath.
+- Retain native pan, wheel zoom and double-click fitting. A private probe adds only
+  read-only public ImPlot observations to the JS renderer and drives actual ImGui input
+  through borrowed FFI handles. Development and production checks cover selection,
+  clearing, cancellation and chart navigation without inferring physical SDL input.
+
+Keep track of;
+
+- Verify Shift-click and legend interaction with the physical macOS pointer when the
+  native window is available to automation.
+- Consider keeping other categories visible as context after selection. The shared
+  filter currently applies to its originating chart as well as the linked widgets.
+
 ## 2026-11-07 table continuation headings
 
 - Repeat data-table and Markdown headings within their captured column bounds on

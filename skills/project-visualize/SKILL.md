@@ -32,6 +32,8 @@ Use `inspect` to read an existing saved document before revising it. `render` al
 creates a new version. Export with an explicit `--version` when the request refers to
 particular evidence. PNG and PDF exports use the saved data; temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
+A dataset-bound bar chart can `select` its matching select control through Shift-click.
+Inspection exposes typed categories in `view.chartSelections`.
 Use `inspect --params` to check the selected rows and derived values, then export with
 the same parameters to deliver that view without revising the source. PDFs paginate
 the canvas and include selectable document text. Native plot labels stay rasterized.

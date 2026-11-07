@@ -155,6 +155,7 @@ async function main() {
                 ]),
               ),
               body: view.body,
+              chartSelections: Object.fromEntries(view.chartSelections),
             },
           }
         : {}),
