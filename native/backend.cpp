@@ -7,10 +7,14 @@
 #include "macos.hpp"
 #endif
 #include <algorithm>
+#include <array>
+#include <climits>
 #include <cstring>
 #include <memory>
 #include <cmath>
 #include <cstdlib>
+#include <vector>
+#include <zlib.h>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
@@ -20,6 +24,15 @@ struct PVImage { std::unique_ptr<pv::Image> image; };
 namespace {
 std::unique_ptr<pv::Gpu> context;
 std::string last_error;
+
+struct DeflateStream {
+  z_stream value{};
+  DeflateStream() {
+    if (deflateInit(&value, 1) != Z_OK)
+      throw std::runtime_error("Cannot initialize pixel compression");
+  }
+  ~DeflateStream() { deflateEnd(&value); }
+};
 
 pv::Gpu &surface() {
   if (!context) throw std::runtime_error("The rendering surface is not open");
@@ -269,6 +282,53 @@ extern "C" int pv_surface_capture(int width, int height, unsigned char *pixels) 
 
 extern "C" void pv_surface_close(void) { edit_command = {}; context.reset(); }
 extern "C" const char *pv_error(void) { return last_error.empty() ? nullptr : last_error.c_str(); }
+
+extern "C" unsigned char *pv_pixels_deflate_rgb(int width, int height, const unsigned char *rgba, int *length) {
+  *length = 0;
+  try {
+    if (!rgba || width < 1 || height < 1)
+      throw std::runtime_error("Pixel compression requires positive dimensions and a pixel buffer");
+    DeflateStream compressor;
+    auto &stream = compressor.value;
+    std::array<unsigned char, 48 * 1024> input;
+    std::array<unsigned char, 16 * 1024> output;
+    std::vector<unsigned char> compressed;
+    size_t remaining = static_cast<size_t>(width) * height;
+    while (remaining) {
+      const size_t count = std::min(remaining, input.size() / 3);
+      for (size_t i = 0; i < count; ++i, rgba += 4) {
+        input[i * 3] = rgba[0];
+        input[i * 3 + 1] = rgba[1];
+        input[i * 3 + 2] = rgba[2];
+      }
+      remaining -= count;
+      stream.next_in = input.data();
+      stream.avail_in = static_cast<uInt>(count * 3);
+      const int flush = remaining ? Z_NO_FLUSH : Z_FINISH;
+      int status;
+      do {
+        stream.next_out = output.data();
+        stream.avail_out = output.size();
+        status = deflate(&stream, flush);
+        if (status != Z_OK && status != Z_STREAM_END)
+          throw std::runtime_error("Pixel compression failed");
+        compressed.insert(compressed.end(), output.begin(), output.end() - stream.avail_out);
+        if (compressed.size() > INT_MAX)
+          throw std::runtime_error("Compressed pixels exceed the supported buffer size");
+      } while (stream.avail_in || (flush == Z_FINISH && status != Z_STREAM_END));
+    }
+    auto result = static_cast<unsigned char *>(std::malloc(compressed.size()));
+    if (!result) throw std::bad_alloc();
+    std::memcpy(result, compressed.data(), compressed.size());
+    *length = static_cast<int>(compressed.size());
+    return result;
+  } catch (const std::exception &error) {
+    last_error = error.what();
+    return nullptr;
+  }
+}
+
+extern "C" void pv_pixels_free(unsigned char *pixels) { std::free(pixels); }
 
 extern "C" int pv_png_write(const char *file, int width, int height,
                              const unsigned char *bytes) {

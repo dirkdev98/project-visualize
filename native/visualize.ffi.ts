@@ -151,6 +151,10 @@ export default defineLibrary({
     pv_surface_capture: {
       params: { pixels: { bytes: { length: "width * height * 4" } } },
     },
+    pv_pixels_deflate_rgb: {
+      params: { rgba: { bytes: { length: "width * height * 4" } } },
+      returns: { bytes: { length: "length" }, free: "pv_pixels_free" },
+    },
     pv_png_write: {
       params: { bytes: { bytes: { length: "width * height * 4" } } },
     },

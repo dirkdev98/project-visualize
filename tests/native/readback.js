@@ -8,6 +8,7 @@ import {
   igSetNextWindowPos,
   igSetNextWindowSize,
   pv_error,
+  pv_pixels_deflate_rgb,
   pv_png_write,
   pv_surface_begin,
   pv_surface_capture,
@@ -15,6 +16,7 @@ import {
   pv_surface_limit,
   pv_surface_open,
 } from "maligator:ffi/visualize";
+import { inflateSync } from "node:zlib";
 
 function expect(value, message) {
   if (!value) throw new Error(message);
@@ -28,6 +30,40 @@ const bytes = width * height * 4;
 const guard = 16;
 const storage = new Uint8Array(bytes + 2 * guard).fill(0xa5);
 const pixels = storage.subarray(guard, guard + bytes);
+const colors = Uint8Array.of(
+  12,
+  34,
+  56,
+  0,
+  78,
+  90,
+  123,
+  128,
+  45,
+  67,
+  89,
+  255,
+  210,
+  220,
+  230,
+  17,
+);
+const compressed = pv_pixels_deflate_rgb(2, 2, colors);
+expect(compressed, "Pixel compression did not return data");
+const rgb = inflateSync(compressed);
+expect(
+  rgb.join(",") === "12,34,56,78,90,123,45,67,89,210,220,230",
+  "RGB conversion changed color channels or retained alpha",
+);
+{
+  let rejected = false;
+  try {
+    pv_pixels_deflate_rgb(2, 2, colors.subarray(1));
+  } catch (error) {
+    rejected = error instanceof RangeError;
+  }
+  expect(rejected, "Pixel compression accepted a short input view");
+}
 checked(pv_surface_open(0));
 try {
   const short = new Uint8Array(bytes - 1).fill(0xa5);
@@ -72,6 +108,16 @@ try {
   }
   checked(pv_surface_capture(width, height, pixels));
   checked(pv_surface_capture(width, height, storage.subarray(guard)));
+  const compressedFrame = pv_pixels_deflate_rgb(width, height, pixels);
+  expect(
+    compressedFrame,
+    "Pixel compression did not return the captured frame",
+  );
+  const rgbFrame = inflateSync(compressedFrame);
+  expect(
+    rgbFrame.length === width * height * 3,
+    "Compressed frame lost pixels",
+  );
   expect(
     storage.subarray(0, guard).every((byte) => byte === 0xa5),
     "Capture changed the prefix guard",
@@ -88,6 +134,13 @@ try {
         pixels[offset + 2] === 0x33 &&
         pixels[offset + 3] === 0xff,
       `Capture did not remove row padding at row ${y}`,
+    );
+    const rgbOffset = (y * width + 50) * 3;
+    expect(
+      rgbFrame[rgbOffset] === 0x66 &&
+        rgbFrame[rgbOffset + 1] === 0x99 &&
+        rgbFrame[rgbOffset + 2] === 0x33,
+      `Streaming compression changed colors at row ${y}`,
     );
   }
 } finally {

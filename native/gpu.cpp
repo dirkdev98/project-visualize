@@ -7,6 +7,24 @@
 #endif
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include <climits>
+#include <cstdlib>
+#include <zlib.h>
+
+static unsigned char *compress_png(unsigned char *data, int length, int *output_length, int) {
+  uLongf capacity = compressBound(length);
+  auto output = static_cast<unsigned char *>(std::malloc(capacity));
+  if (!output) return nullptr;
+  // Favor export latency over zlib's higher compression levels; encoding stays lossless.
+  if (compress2(output, &capacity, data, length, 3) != Z_OK || capacity > INT_MAX) {
+    std::free(output);
+    return nullptr;
+  }
+  *output_length = static_cast<int>(capacity);
+  return output;
+}
+
+#define STBIW_ZLIB_COMPRESS compress_png
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include <algorithm>

@@ -1,6 +1,6 @@
 FROM node:24-bookworm AS toolchain
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl gnupg cmake ninja-build pkg-config unzip patchelf dpkg-dev time \
+    ca-certificates curl gnupg cmake ninja-build pkg-config unzip patchelf dpkg-dev time zlib1g-dev \
     libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
     libxss-dev libxtst-dev libwayland-dev libxkbcommon-dev libdecor-0-dev \
     wayland-protocols libegl1-mesa-dev libdrm-dev libgbm-dev \

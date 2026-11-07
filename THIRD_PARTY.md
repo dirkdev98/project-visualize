@@ -16,6 +16,7 @@ carries them in `Contents/Resources/`.
 | [cimplot](https://github.com/cimgui/cimplot)         | Generated chart C bindings      | MIT                                  |
 | [SDL3](https://github.com/libsdl-org/SDL)            | Native windows and input        | zlib                                 |
 | [stb](https://github.com/nothings/stb)               | Image decoding and PNG encoding | MIT or public domain                 |
+| [zlib](https://zlib.net/)                            | System image compression        | zlib                                 |
 
 JS dependencies provide Markdown parsing, character references and Shiki syntax highlighting.
 Their notices are included in the runtime artifact.

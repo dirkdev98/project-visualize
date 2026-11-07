@@ -125,7 +125,7 @@ preservation. Run `npm run build` after source changes. `npm run dev -- --help` 
 Maligator's development runner after the native bridge has been built.
 PDF extraction checks use Poppler (`brew install poppler`).
 Run `npm run check:readback` after screenshot or FFI changes. It checks writable
-byte views, buffer bounds and GPU row padding in development and production builds.
+byte views, RGB conversion, buffer bounds and GPU row padding in both build modes.
 Run `npm run check:bindings` after sort or scalar binding changes to verify counted
 sort records and double slider values in both build modes.
 Run `npm run check:images` after image drawing changes to check native UV sampling,

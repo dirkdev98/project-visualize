@@ -1,4 +1,4 @@
-import { deflateSync } from "node:zlib";
+import { pv_error, pv_pixels_deflate_rgb } from "maligator:ffi/visualize";
 import type { Artifact } from "../model.ts";
 import {
   type LayoutCapture,
@@ -101,13 +101,8 @@ export function rasterPdf(
   pixels: Uint8Array,
   pages: PdfPages,
 ): Buffer {
-  const rgb = Buffer.allocUnsafe(width * height * 3);
-  for (let source = 0, dest = 0; source < pixels.length; source += 4) {
-    rgb[dest++] = pixels[source];
-    rgb[dest++] = pixels[source + 1];
-    rgb[dest++] = pixels[source + 2];
-  }
-  const compressed = deflateSync(rgb, { level: 1 });
+  const compressed = pv_pixels_deflate_rgb(width, height, pixels);
+  if (!compressed) throw new Error(pv_error() ?? "Pixel compression failed");
   const chunks: Buffer[] = [];
   let offset = 0;
   function append(value: string | Uint8Array) {

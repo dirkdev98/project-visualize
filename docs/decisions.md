@@ -1,5 +1,31 @@
 # Decisions
 
+## 2026-11-07 streamed image encoding
+
+- Use zlib through stb's compression hook at level 3. Keep PNG pixels lossless while
+  reducing compression work and file sizes for the measured artifact workloads.
+- Convert RGBA to RGB in bounded native chunks and feed them directly into deflate.
+  Return owned compressed bytes through the binding, avoiding a full RGB temporary
+  and its JS byte loop. Keep layout, PDF text, links and outlines in Maligator JS.
+- Accept the export change from seven interleaved comparisons on AC power. The 2x
+  dashboard falls from 885 to 345 ms with 62 percent less CPU time; the dense table
+  falls from 704 to 373 ms. Large-export peak RSS stays near baseline. Retain the
+  1x notebook's roughly 5 MiB RSS increase for its 23 percent lower export latency.
+- Keep idle and live-update resource measurements separate from export peaks. The
+  native viewer uses about 0.1 percent of one CPU core at idle and about 3 percent
+  while agents publish revisions. Physical memory ranges overlap between builds;
+  this slice establishes no separate viewer CPU or memory improvement.
+- Save the protocol, source and binary identities, raw samples and content checks in
+  `.cache/performance-2026-11-07`. Publish the measured CPU and RAM comparisons through
+  the saved performance artifacts, including the memory tradeoff and input-driver limits.
+
+Keep track of;
+
+- Profile PDF glyph shaping and highlighter setup after removing the raster cost.
+- Measure physical scrolling and zooming when the Mac input driver can target the
+  viewer reliably, and revisit memory after longer revision histories.
+- Complete Linux native validation; the emulated build exceeded the bounded check.
+
 ## 2026-11-07 alpha.33 library facts
 
 - Pin Maligator to `0.1.0-alpha.33` and describe native pointer contracts in the FFI

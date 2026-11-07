@@ -28,6 +28,8 @@ int pv_surface_present(void);
 void pv_surface_background(PVColor color);
 /* Pixels stay caller-owned; capture completes all writes before returning. */
 int pv_surface_capture(int width, int height, unsigned char *pixels);
+unsigned char *pv_pixels_deflate_rgb(int width, int height, const unsigned char *rgba, int *length);
+void pv_pixels_free(unsigned char *pixels);
 int pv_png_write(const char *file, int width, int height,
                  const unsigned char *bytes);
 void pv_surface_close(void);
