@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-07 standalone application notices
+
+- Bundle third-party notices inside the standalone app as well as the full CLI
+  distribution. Sign the app after assembling those resources so copying the app
+  alone preserves both its runtime dependencies and their notices.
+- Verify the copied app outside the checkout with a fresh temporary asset cache.
+  Bundled fonts and syntax assets materialize there, and a saved artifact exports
+  after its original input file is removed.
+
 ## 2026-11-07 geometry-query experiment
 
 - Revert the attempt to guard existing PDF geometry queries out of preliminary and

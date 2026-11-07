@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -95,10 +96,6 @@ writeFileSync(
 <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>\n`,
 );
-execFileSync("codesign", ["--force", "--sign", "-", dirname(app)], {
-  stdio: "pipe",
-});
-
 const notices = join(release, "licenses");
 mkdirSync(notices, { recursive: true });
 for (const component of ["imgui", "implot", "cimgui", "cimplot", "wgpu"]) {
@@ -139,6 +136,14 @@ for (const [location, entry] of Object.entries(lock.packages)) {
     );
   }
 }
+const resources = join(app, "Resources");
+mkdirSync(resources, { recursive: true });
+for (const file of ["LICENSE", "THIRD_PARTY_NOTICES.md", "THIRD_PARTY.md"])
+  copyFileSync(join(release, file), join(resources, file));
+cpSync(notices, join(resources, "licenses"), { recursive: true });
+execFileSync("codesign", ["--force", "--sign", "-", dirname(app)], {
+  stdio: "pipe",
+});
 // The dylib paths change after Maligator's artifact checksums are written.
 const { createHash } = await import("node:crypto");
 const checksums = [];

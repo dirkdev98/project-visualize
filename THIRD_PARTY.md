@@ -3,7 +3,8 @@
 The native build downloads pinned source archives and headers listed in
 [native/dependencies.json](native/dependencies.json). The build script also pins the
 platform-specific wgpu-native release and verifies its SHA-256 checksum. Release
-artifacts include upstream license notices in `licenses/`.
+artifacts include upstream license notices in `licenses/`. The standalone app also
+carries them in `Contents/Resources/`.
 
 | Software                                             | Purpose                         | License                              |
 | ---------------------------------------------------- | ------------------------------- | ------------------------------------ |
