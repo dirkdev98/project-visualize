@@ -172,6 +172,65 @@ test("timeline events and status badges remain readable in an exported document"
     assert.ok(extracted.includes(value), `PDF text is missing: ${value}`);
 });
 
+test("a theme override becomes part of the saved appearance", (t) => {
+  const { ok } = workspace(t);
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--theme",
+      "light",
+    ],
+    { ...minimal(), theme: "dark" },
+  );
+  assert.equal(JSON.parse(readFileSync(entry.document, "utf8")).theme, "light");
+});
+
+test("theme exports change appearance while preserving saved evidence", (t) => {
+  const { root, render, ok } = workspace(t);
+  const code = "const accepted = rows.length;";
+  const entry = render({
+    ...minimal(),
+    body: [{ type: "code", language: "typescript", content: code }],
+  });
+  const before = [entry.document, entry.png, entry.pdf].map(digest);
+  const versions = ok(["list"]).versions;
+  const png = join(root, "dark.png"),
+    pdf = join(root, "dark.pdf");
+  for (const [format, out] of [
+    ["png", png],
+    ["pdf", pdf],
+  ])
+    ok([
+      "export",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--format",
+      format,
+      "--out",
+      out,
+      "--theme",
+      "dark",
+    ]);
+  assert.notEqual(digest(png), digest(entry.png));
+  assert.deepEqual([entry.document, entry.png, entry.pdf].map(digest), before);
+  assert.deepEqual(ok(["list"]).versions, versions);
+  const extracted = spawnSync("pdftotext", ["-layout", pdf, "-"], {
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+  assert.ifError(extracted.error);
+  assert.equal(extracted.status, 0, extracted.stderr);
+  assert.ok(extracted.stdout.replace(/\s+/g, " ").includes(code));
+});
+
 test("a revision keeps earlier source and output intact", (t) => {
   const { render, ok } = workspace(t);
   const first = render();

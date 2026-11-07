@@ -1,5 +1,10 @@
 import {
   ImGuiChildFlags_Borders,
+  ImGuiInputFlags_RouteGlobal,
+  ImGuiKey_K,
+  ImGuiKey_L,
+  ImGuiMod_Shift,
+  ImGuiMod_Super,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImGuiWindowFlags_NoDecoration,
   ImGuiWindowFlags_NoSavedSettings,
@@ -19,9 +24,11 @@ import {
   igSameLine,
   igSelectable_Bool,
   igSetClipboardText,
+  igSetKeyboardFocusHere,
   igSetNextItemWidth,
   igSetNextWindowPos,
   igSetNextWindowSize,
+  igShortcut_Nil,
   igSpacing,
   pv_open_url,
   pv_surface_begin,
@@ -34,6 +41,7 @@ import {
 } from "maligator:ffi/visualize";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { Theme } from "./model.ts";
 import { type Entry, list, load } from "./store.ts";
 import {
   DocumentRenderer,
@@ -50,11 +58,13 @@ import {
   text,
 } from "./ui/primitives.ts";
 import {
+  currentTheme,
   fonts,
   initializeTheme,
   palette,
   popTheme,
   pushTheme,
+  setTheme,
 } from "./ui/theme.ts";
 
 interface Options {
@@ -62,6 +72,7 @@ interface Options {
   artifact?: string;
   version?: string;
   parameters?: unknown;
+  theme?: Theme;
 }
 export function openViewer(root: string, options: Options) {
   let entries = list(root);
@@ -82,6 +93,8 @@ export function openViewer(root: string, options: Options) {
     animateUntil = 0,
     showContext = false;
   let unpresented = false;
+  let themeOverride = options.theme;
+  let requestedTheme: Theme | undefined;
   const search = inputBuffer();
   const states = new Map<string, DocumentState>();
   function select(entry: Entry | undefined, follow: boolean) {
@@ -98,6 +111,7 @@ export function openViewer(root: string, options: Options) {
       }
       try {
         const document = load(entry);
+        requestedTheme = themeOverride ?? document.theme ?? "light";
         const state =
           states.get(entry.directory) ??
           documentState(
@@ -149,12 +163,31 @@ export function openViewer(root: string, options: Options) {
       "Visualize",
       ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings,
     );
+    const focusSearch = igShortcut_Nil(
+      ImGuiMod_Super | ImGuiKey_K,
+      ImGuiInputFlags_RouteGlobal,
+    );
     igBeginChild_Str("library", { x: 244, y: 0 }, ImGuiChildFlags_Borders, 0);
     text("PROJECT", 11, "bold", palette.accent);
     text("Visualize", 32, "bold");
     text("Your artifact library", 14, "regular", palette.muted);
+    if (
+      igButton(currentTheme() === "light" ? "Dark theme" : "Light theme", {
+        x: 0,
+        y: 0,
+      }) ||
+      igShortcut_Nil(
+        ImGuiMod_Super | ImGuiMod_Shift | ImGuiKey_L,
+        ImGuiInputFlags_RouteGlobal,
+      )
+    ) {
+      themeOverride = currentTheme() === "light" ? "dark" : "light";
+      requestedTheme = themeOverride;
+      pending = 2;
+    }
     igSpacing();
     igSetNextItemWidth(-1);
+    if (focusSearch) igSetKeyboardFocusHere(0);
     input("##find", "Find an artifact…", search);
     igSpacing();
     const query = inputValue(search).toLowerCase();
@@ -237,7 +270,7 @@ export function openViewer(root: string, options: Options) {
       if (igButton("Copy PNG path", { x: 0, y: 0 }))
         igSetClipboardText(join(selected.directory, "snapshot.png"));
       igSameLine(0, -1);
-      if (igButton("PDF", { x: 0, y: 0 }))
+      if (igButton("Saved PDF", { x: 0, y: 0 }))
         pv_open_url(
           pathToFileURL(join(selected.directory, "snapshot.pdf")).href,
         );
@@ -310,7 +343,7 @@ export function openViewer(root: string, options: Options) {
   }
   checked(pv_surface_open(1));
   try {
-    initializeTheme();
+    initializeTheme(options.theme ?? "light");
     select(selected, followLatest);
     while (true) {
       const inputState = pv_surface_input();
@@ -327,6 +360,11 @@ export function openViewer(root: string, options: Options) {
         animateUntil = Date.now() + 500;
       }
       refresh();
+      if (requestedTheme !== undefined) {
+        setTheme(requestedTheme);
+        requestedTheme = undefined;
+        pending = 2;
+      }
       if (pending === 0 && !animating && !editing) {
         if (unpresented) unpresented = checked(pv_surface_present()) === 1;
         continue;

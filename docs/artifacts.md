@@ -201,8 +201,17 @@ referring to particular evidence.
 
 ## Exports
 
+Documents default to a light theme. Set `"theme": "dark"` for a matching dark canvas,
+controls and syntax colors. `render --theme light|dark` overrides that field and saves
+the chosen appearance. `export --theme light|dark` rerenders an appearance without
+changing the saved evidence.
+
+The viewer's theme button and Cmd+Shift+L change its temporary appearance. Cmd+K
+focuses the artifact-library search. These interactions preserve saved snapshots;
+the viewer's Saved PDF button opens the creation-time export.
+
 The saved PNG and PDF use the render command's width and scale. Exporting at the
-same settings copies that snapshot. Changing `--width`, `--scale` or `--params` rerenders the
+same settings copies that snapshot. Changing `--width`, `--scale`, `--theme` or `--params` rerenders the
 saved data and copied images without creating a revision. Viewer filters, chart
 zoom and other temporary interactions do not change the saved export.
 

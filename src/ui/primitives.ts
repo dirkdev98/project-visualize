@@ -159,7 +159,7 @@ export function releasePanels() {
   for (const splitter of splitters) ImDrawListSplitter_destroy(splitter);
   splitters.length = 0;
 }
-export function panel(body: () => void, background: Color = palette.white) {
+export function panel(body: () => void, background: Color = palette.surface) {
   const draw = igGetWindowDrawList();
   if (!draw) throw new Error("Cannot access the panel canvas");
   let splitter = splitters[panelDepth];

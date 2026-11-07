@@ -771,7 +771,7 @@ export class DocumentRenderer {
         center = positions[i],
         a = { x: center.x - boxWidth / 2, y: center.y - boxHeight / 2 },
         b = { x: center.x + boxWidth / 2, y: center.y + boxHeight / 2 };
-      ImDrawList_AddRectFilled(draw, a, b, packed(palette.white), 9, 0);
+      ImDrawList_AddRectFilled(draw, a, b, packed(palette.surface), 9, 0);
       ImDrawList_AddRect(
         draw,
         a,

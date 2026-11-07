@@ -5,6 +5,7 @@ import {
   ImGuiCol_Button,
   ImGuiCol_ButtonActive,
   ImGuiCol_ButtonHovered,
+  ImGuiCol_CheckboxSelectedBg,
   ImGuiCol_CheckMark,
   ImGuiCol_ChildBg,
   ImGuiCol_FrameBg,
@@ -16,6 +17,10 @@ import {
   ImGuiCol_NavCursor,
   ImGuiCol_PlotHistogram,
   ImGuiCol_PopupBg,
+  ImGuiCol_ScrollbarBg,
+  ImGuiCol_ScrollbarGrab,
+  ImGuiCol_ScrollbarGrabActive,
+  ImGuiCol_ScrollbarGrabHovered,
   ImGuiCol_Separator,
   ImGuiCol_SliderGrab,
   ImGuiCol_SliderGrabActive,
@@ -58,6 +63,7 @@ import {
   pv_font_atlas,
   pv_surface_background,
 } from "maligator:ffi/visualize";
+import type { Theme } from "../model.ts";
 import { type Font, fontFile } from "./font-files.ts";
 
 export type { Font } from "./font-files.ts";
@@ -87,7 +93,8 @@ export const palette = {
   muted: color("#687386"),
   accent: color("#087f8c"),
   paper: color("#f5f7fa"),
-  white: color("#ffffff"),
+  surface: color("#ffffff"),
+  onAccent: color("#ffffff"),
   border: color("#dfe6ee"),
   blue: color("#3b82f6"),
   positive: color("#087f8c"),
@@ -103,34 +110,44 @@ export const seriesColors = [
   color("#cf658d"),
   color("#77983e"),
 ];
-const colors: [number, Color][] = [
-  [ImGuiCol_Text, palette.ink],
-  [ImGuiCol_TextDisabled, palette.muted],
-  [ImGuiCol_WindowBg, palette.paper],
-  [ImGuiCol_ChildBg, palette.paper],
-  [ImGuiCol_PopupBg, palette.white],
-  [ImGuiCol_Border, palette.border],
-  [ImGuiCol_FrameBg, color("#eaf0f6")],
-  [ImGuiCol_FrameBgHovered, color("#e2ebf3")],
-  [ImGuiCol_FrameBgActive, color("#d7e5f0")],
-  [ImGuiCol_Header, color("#e2eef2")],
-  [ImGuiCol_HeaderHovered, color("#d7e8ee")],
-  [ImGuiCol_HeaderActive, color("#c7e0e7")],
-  [ImGuiCol_Button, color("#e2eef2")],
-  [ImGuiCol_ButtonHovered, color("#d1e7ec")],
-  [ImGuiCol_ButtonActive, color("#badbe3")],
-  [ImGuiCol_CheckMark, palette.accent],
-  [ImGuiCol_SliderGrab, palette.accent],
-  [ImGuiCol_SliderGrabActive, palette.blue],
-  [ImGuiCol_TableHeaderBg, color("#edf2f7")],
-  [ImGuiCol_TableBorderStrong, palette.border],
-  [ImGuiCol_TableBorderLight, palette.border],
-  [ImGuiCol_PlotHistogram, palette.accent],
-  [ImGuiCol_TableRowBgAlt, color("#f7f9fc")],
-  [ImGuiCol_Separator, palette.border],
-  [ImGuiCol_NavCursor, palette.accent],
-  [ImGuiCol_TextSelectedBg, color("#b8dce6", 0.75)],
-];
+function widgetColors(mode: Theme): [number, Color][] {
+  const shade = (light: string, dark: string, alpha = 1) =>
+    color(mode === "dark" ? dark : light, alpha);
+  return [
+    [ImGuiCol_Text, palette.ink],
+    [ImGuiCol_TextDisabled, palette.muted],
+    [ImGuiCol_WindowBg, palette.paper],
+    [ImGuiCol_ChildBg, palette.paper],
+    [ImGuiCol_PopupBg, palette.surface],
+    [ImGuiCol_Border, palette.border],
+    [ImGuiCol_FrameBg, shade("#eaf0f6", "#233347")],
+    [ImGuiCol_FrameBgHovered, shade("#e2ebf3", "#2c4158")],
+    [ImGuiCol_FrameBgActive, shade("#d7e5f0", "#314c64")],
+    [ImGuiCol_Header, shade("#e2eef2", "#23434e")],
+    [ImGuiCol_HeaderHovered, shade("#d7e8ee", "#2e4f5a")],
+    [ImGuiCol_HeaderActive, shade("#c7e0e7", "#365d67")],
+    [ImGuiCol_Button, shade("#e2eef2", "#23434e")],
+    [ImGuiCol_ButtonHovered, shade("#d1e7ec", "#2c5360")],
+    [ImGuiCol_ButtonActive, shade("#badbe3", "#356474")],
+    [ImGuiCol_CheckMark, palette.accent],
+    [ImGuiCol_CheckboxSelectedBg, shade("#e2eef2", "#23434e")],
+    [ImGuiCol_ScrollbarBg, palette.paper],
+    [ImGuiCol_ScrollbarGrab, shade("#c6d1dd", "#40536b")],
+    [ImGuiCol_ScrollbarGrabHovered, shade("#adbdce", "#526b87")],
+    [ImGuiCol_ScrollbarGrabActive, shade("#91a8bf", "#637f9f")],
+    [ImGuiCol_SliderGrab, palette.accent],
+    [ImGuiCol_SliderGrabActive, palette.blue],
+    [ImGuiCol_TableHeaderBg, shade("#edf2f7", "#223348")],
+    [ImGuiCol_TableBorderStrong, palette.border],
+    [ImGuiCol_TableBorderLight, palette.border],
+    [ImGuiCol_PlotHistogram, palette.accent],
+    [ImGuiCol_TableRowBgAlt, shade("#f7f9fc", "#1e2d40")],
+    [ImGuiCol_Separator, palette.border],
+    [ImGuiCol_NavCursor, palette.accent],
+    [ImGuiCol_TextSelectedBg, shade("#b8dce6", "#31677a", 0.75)],
+  ];
+}
+let colors = widgetColors("light");
 const vectors: [number, { x: number; y: number }][] = [
   [ImGuiStyleVar_WindowPadding, { x: 28, y: 28 }],
   [ImGuiStyleVar_FramePadding, { x: 10, y: 7 }],
@@ -145,20 +162,59 @@ const scalars: [number, number][] = [
   [ImGuiStyleVar_ChildRounding, 10],
 ];
 const plotColors: [number, Color][] = [
-  [ImPlotCol_FrameBg, palette.white],
-  [ImPlotCol_PlotBg, palette.white],
+  [ImPlotCol_FrameBg, palette.surface],
+  [ImPlotCol_PlotBg, palette.surface],
   [ImPlotCol_PlotBorder, palette.border],
-  [ImPlotCol_LegendBg, palette.white],
+  [ImPlotCol_LegendBg, palette.surface],
   [ImPlotCol_LegendBorder, palette.border],
   [ImPlotCol_LegendText, palette.ink],
   [ImPlotCol_AxisText, palette.muted],
   [ImPlotCol_AxisGrid, palette.border],
   [ImPlotCol_AxisTick, palette.border],
 ];
-export function initializeTheme() {
+const lightPalette = Object.fromEntries(
+  Object.entries(palette).map(([key, value]) => [key, { ...value }]),
+) as typeof palette;
+const lightSeries = seriesColors.map((value) => ({ ...value }));
+const darkPalette: Record<keyof typeof palette, string> = {
+  ink: "#e8eef6",
+  muted: "#9aacc2",
+  accent: "#55c8c0",
+  paper: "#111a25",
+  surface: "#1b2838",
+  onAccent: "#102d34",
+  border: "#304156",
+  blue: "#7caeff",
+  positive: "#55c8c0",
+  negative: "#f28b91",
+  warning: "#e8b56a",
+  code: "#172331",
+};
+let activeTheme: Theme = "light";
+export function currentTheme(): Theme {
+  return activeTheme;
+}
+export function setTheme(mode: Theme) {
+  for (const key of Object.keys(palette) as (keyof typeof palette)[])
+    Object.assign(
+      palette[key],
+      mode === "light" ? lightPalette[key] : color(darkPalette[key]),
+    );
+  for (let i = 2; i < seriesColors.length; i++)
+    Object.assign(
+      seriesColors[i],
+      mode === "light"
+        ? lightSeries[i]
+        : color(["#f0aa78", "#b49bf2", "#ee91b3", "#a8c977"][i - 2]),
+    );
+  colors = widgetColors(mode);
+  activeTheme = mode;
+  pv_surface_background(palette.paper);
+}
+export function initializeTheme(mode: Theme = "light") {
   igStyleColorsLight();
   ImPlot_StyleColorsLight();
-  pv_surface_background(palette.paper);
+  setTheme(mode);
   const atlas = pv_font_atlas();
   if (!atlas) throw new Error("Cannot access the font atlas");
   for (const name of ["regular", "bold", "italic", "mono"] as Font[]) {

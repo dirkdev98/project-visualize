@@ -37,7 +37,7 @@ import { lexer, type MarkedToken, type Token } from "marked";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
 import { keepTogether } from "./layout.ts";
 import { available, captureText, panel, text } from "./primitives.ts";
-import { type Font, fonts, packed, palette } from "./theme.ts";
+import { currentTheme, type Font, fonts, packed, palette } from "./theme.ts";
 
 interface Run {
   value: string;
@@ -119,6 +119,7 @@ export class RichText {
   private image: (asset: string, width: number) => number;
   private trees = new Map<string, Token[]>();
   private codeTokens = new Map<string, CodeLines>();
+  private codeTheme = currentTheme();
   constructor(image: (asset: string, width: number) => number) {
     this.image = image;
   }
@@ -259,6 +260,10 @@ export class RichText {
     igDummy({ x: width, y: y + line });
   }
   code(source: string, language: string, exporting: boolean) {
+    if (this.codeTheme !== currentTheme()) {
+      this.codeTokens.clear();
+      this.codeTheme = currentTheme();
+    }
     const key = `${language}\0${source}`;
     let lines = this.codeTokens.get(key);
     if (!lines) {
@@ -386,7 +391,7 @@ export class RichText {
                   draw,
                   { x: a.x + 3, y: a.y + 7 },
                   { x: a.x + 6, y: a.y + 10 },
-                  packed(palette.white),
+                  packed(palette.onAccent),
                   1.5,
                   0,
                 );
@@ -394,7 +399,7 @@ export class RichText {
                   draw,
                   { x: a.x + 6, y: a.y + 10 },
                   { x: a.x + 11, y: a.y + 4 },
-                  packed(palette.white),
+                  packed(palette.onAccent),
                   1.5,
                   0,
                 );

@@ -21,7 +21,7 @@ import {
   pv_surface_pixels,
 } from "maligator:ffi/visualize";
 import { writeFileSync } from "node:fs";
-import type { Artifact } from "../model.ts";
+import type { Artifact, Theme } from "../model.ts";
 import { DocumentRenderer, documentState } from "./content.ts";
 import { captureLayout, type LayoutCapture } from "./layout.ts";
 import { pdfPages, rasterPdf } from "./pdf.ts";
@@ -57,6 +57,7 @@ export async function renderArtifact(
   width: number,
   scale: number,
   parameters?: unknown,
+  theme?: Theme,
 ): Promise<number> {
   const state = documentState(document, parameters);
   checked(pv_surface_open(0));
@@ -65,7 +66,7 @@ export async function renderArtifact(
   let pixels: Uint8Array;
   let layout: LayoutCapture;
   try {
-    initializeTheme();
+    initializeTheme(theme ?? document.theme ?? "light");
     renderer = new DocumentRenderer(document, state);
     const limit = pv_surface_limit();
     for (let pass = 0; pass < 2; pass++) {

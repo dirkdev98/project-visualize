@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-11-07 matching light and dark themes
+
+- Keep light as the default and add matching dark canvas, control, chart and syntax
+  colors. Change colors without rebuilding font resources. Load syntax themes on
+  demand and release cached code colors when the appearance changes.
+- Save an explicit render-theme override with the source. Keep export and viewer
+  overrides temporary so they preserve the creation-time snapshots and version history.
+  Label the viewer's PDF action as the saved export to make that distinction visible.
+- Add Cmd+K for library search and Cmd+Shift+L for appearance. Queue appearance changes
+  between frames so style-stack restoration cannot mix the two palettes.
+- Preserve a reduced parser diagnostic: a nested arrow expression in an object-property
+  value runs as a JS entry but fails after TypeScript stripping. Clear loops avoid the
+  diagnostic's parser failure without changing application behavior.
+
+Keep track of;
+
+- Verify on-screen theme switching and shortcuts when native window capture is usable.
+  Offscreen light/dark rendering and repeated syntax-theme switching work. The native
+  hide/restore check passed earlier, then could not acquire a visible surface again;
+  closing the other viewer did not resolve that later limitation.
+- Recheck nested-arrow property values when updating Maligator's TypeScript parser.
+
 ## 2026-11-07 deferred native presentation
 
 - Report deferred surface acquisition to JS and retain the unpresented frame. Retry

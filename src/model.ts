@@ -1,4 +1,5 @@
 export type Tone = "neutral" | "positive" | "warning" | "negative";
+export type Theme = "light" | "dark";
 export type Cell = string | number | boolean | null;
 export type DataRow = Record<string, Cell>;
 export type Aggregate = "sum" | "mean" | "count" | "min" | "max";
@@ -121,6 +122,7 @@ export interface Artifact {
   context?: Record<string, unknown>;
   assets?: Record<string, string>;
   datasets?: Record<string, DataRow[]>;
+  theme?: Theme;
   pdf?: { paper?: "a4" | "letter"; orientation?: "portrait" | "landscape" };
   body: Block[];
 }
@@ -236,6 +238,8 @@ export function validate(input: unknown): Artifact {
     if (doc[field] !== undefined) string(doc[field], field, 1000);
   }
   if (doc.context !== undefined) object(doc.context, "context");
+  if (doc.theme !== undefined && doc.theme !== "light" && doc.theme !== "dark")
+    fail("theme", "expected light or dark");
   if (doc.pdf !== undefined) {
     const pdf = object(doc.pdf, "pdf");
     if (pdf.paper !== undefined && pdf.paper !== "a4" && pdf.paper !== "letter")

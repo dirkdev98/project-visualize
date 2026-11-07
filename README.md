@@ -40,6 +40,8 @@ bin/visualize export --project observatory --artifact weekly-review \
 Use `--version` with `inspect`, `open` or `export` to select an earlier revision.
 `--file -` reads a document from stdin. `--width` sets the export layout width and
 `--scale` controls pixel density. `--help` describes the CLI.
+Use `--theme dark` with `render`, `export` or `open` for the matching dark appearance.
+The viewer also has a theme button; Cmd+K focuses its library search.
 
 Artifacts live in `~/Library/Application Support/Project Visualize`. Set
 `VISUALIZE_HOME` or pass `--store` for a separate library.

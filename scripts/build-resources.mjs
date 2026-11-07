@@ -1,8 +1,15 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import theme from "@shikijs/themes/github-light";
+import dark from "@shikijs/themes/github-dark";
+import light from "@shikijs/themes/github-light";
 import { languages } from "../src/ui/languages.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,6 +23,7 @@ for (const [name, source] of Object.entries(manifest.files)) {
     throw new Error(`Font checksum mismatch: ${name}`);
 }
 const output = join(root, ".cache/resources/syntax");
+if (existsSync(output)) rmSync(output, { recursive: true });
 mkdirSync(output, { recursive: true });
 for (const language of Object.keys(languages)) {
   const grammar = await import(`@shikijs/langs/${language}`);
@@ -24,4 +32,5 @@ for (const language of Object.keys(languages)) {
     JSON.stringify(grammar.default),
   );
 }
-writeFileSync(join(output, "theme.json"), JSON.stringify(theme));
+writeFileSync(join(output, "github-light.json"), JSON.stringify(light));
+writeFileSync(join(output, "github-dark.json"), JSON.stringify(dark));

@@ -17,6 +17,7 @@ visualize validate --file document.json
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
 render and export accept --width 480..2560 and --scale 1|2.
+render, export and open accept --theme light|dark.
 render always saves a new immutable version with PNG and PDF snapshots.
 Commands return JSON. open (the default) runs the native desktop viewer.
 inspect, export and open accept --params JSON to override declared controls.
@@ -35,7 +36,7 @@ async function main() {
   const command =
     args.length && !args[0].startsWith("--") ? args.shift() : "open";
   const permitted: Record<string, string[]> = {
-    render: ["project", "artifact", "file", "width", "scale", "store"],
+    render: ["project", "artifact", "file", "width", "scale", "store", "theme"],
     list: ["project", "artifact", "store"],
     inspect: ["project", "artifact", "version", "store", "params"],
     export: [
@@ -48,8 +49,9 @@ async function main() {
       "scale",
       "store",
       "params",
+      "theme",
     ],
-    open: ["project", "artifact", "version", "store", "params"],
+    open: ["project", "artifact", "version", "store", "params", "theme"],
     validate: ["file", "store"],
   };
   if (!command || !Object.hasOwn(permitted, command))
@@ -86,6 +88,9 @@ async function main() {
   const root = storeRoot(options.store);
   const parameters =
     options.params === undefined ? undefined : JSON.parse(options.params);
+  const theme = options.theme;
+  if (theme !== undefined && theme !== "light" && theme !== "dark")
+    throw new Error("--theme must be light or dark");
   for (const key of ["project", "artifact"])
     if (options[key]) slug(options[key], key);
   let result: unknown;
@@ -95,6 +100,7 @@ async function main() {
     if (Buffer.byteLength(raw) > 5 * 1024 * 1024)
       throw new Error("Artifact document exceeds 5 MiB");
     const document = validate(JSON.parse(raw));
+    if (theme !== undefined) document.theme = theme;
     if (command === "validate") result = { valid: true, title: document.title };
     else {
       const width = dimension("width", 1280, 480, 2560),
@@ -176,11 +182,19 @@ async function main() {
     if (
       width === entry.width &&
       scale === entry.scale &&
-      parameters === undefined
+      parameters === undefined &&
+      theme === undefined
     )
       copyFileSync(join(entry.directory, `snapshot.${format}`), out);
-    else await render(load(entry), out, width, scale, parameters);
-    result = { output: out, format, version: entry.version, width, scale };
+    else await render(load(entry), out, width, scale, parameters, theme);
+    result = {
+      output: out,
+      format,
+      version: entry.version,
+      width,
+      scale,
+      ...(theme ? { theme } : {}),
+    };
   } else if (command === "open") {
     if (options.artifact && !options.project)
       throw new Error("--artifact requires --project");
@@ -196,7 +210,7 @@ async function main() {
     }
     if (options.project && options.artifact)
       find(root, options.project, options.artifact, options.version);
-    openViewer(root, { ...options, parameters });
+    openViewer(root, { ...options, parameters, theme });
     return;
   }
   process.stdout.write(`${JSON.stringify(result)}\n`);

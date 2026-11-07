@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createHighlighterCoreSync } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import { languages } from "./languages.ts";
-import { type Color, color, palette } from "./theme.ts";
+import { type Color, color, currentTheme, palette } from "./theme.ts";
 
 export interface CodeRun {
   content: string;
@@ -42,15 +42,18 @@ export class SyntaxHighlighter {
       this.highlighter = createHighlighterCoreSync({
         engine: createJavaScriptRegexEngine(),
         langs: [],
-        themes: [
-          JSON.parse(readFileSync(join(this.resources, "theme.json"), "utf8")),
-        ],
+        themes: [],
       });
     }
     this.loadLanguage(lang);
+    const theme = `github-${currentTheme()}`;
+    if (!this.highlighter.getLoadedThemes().includes(theme))
+      this.highlighter.loadThemeSync(
+        JSON.parse(readFileSync(join(this.resources, `${theme}.json`), "utf8")),
+      );
     const result = this.highlighter.codeToTokens(source, {
       lang,
-      theme: "github-light",
+      theme,
     });
     return result.tokens.map((line) =>
       line.map((token) => ({
