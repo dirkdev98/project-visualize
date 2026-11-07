@@ -4,21 +4,32 @@ import {
   ImDrawList_GetClipRectMin,
   ImGuiKey_A,
   ImGuiKey_C,
+  ImGuiKey_End,
   ImGuiKey_Escape,
+  ImGuiKey_Home,
+  ImGuiKey_LeftArrow,
+  ImGuiKey_RightArrow,
+  ImGuiMod_Alt,
   ImGuiMod_Ctrl,
+  ImGuiMod_Shift,
   ImGuiMouseCursor_TextInput,
+  ImGuiPopupFlags_MouseButtonRight,
+  igBeginPopupContextWindow,
   igCalcTextSize,
+  igEndPopup,
   igGetActiveID,
+  igGetMouseClickedCount,
   igGetMousePos,
   igGetScrollY,
   igGetWindowDrawList,
+  igIsKeyDown_Nil,
   igIsKeyPressed_Bool,
   igIsMouseClicked_Bool,
-  igIsMouseDoubleClicked_Nil,
   igIsMouseDown_Nil,
   igIsMouseDragging,
   igIsWindowFocused,
   igIsWindowHovered,
+  igMenuItem_Bool,
   igPopClipRect,
   igPopFont,
   igPushClipRect,
@@ -93,6 +104,8 @@ export class TextSelection {
   private pressed = false;
   private moved = false;
   private hovered = false;
+  private unit: "character" | "word" | "paragraph" = "character";
+  private origin = { start: 0, end: 0 };
   get dragging() {
     return this.pressed && (this.moved || igIsMouseDragging(0, -1));
   }
@@ -140,6 +153,43 @@ export class TextSelection {
       igPopFont();
     }
   }
+  private range(offset: number, unit = this.unit) {
+    let start = offset,
+      end = offset;
+    if (unit === "paragraph") {
+      start = this.content.lastIndexOf("\n", Math.max(0, offset - 1)) + 1;
+      const next = this.content.indexOf("\n", offset);
+      end = next < 0 ? this.content.length : next + 1;
+    } else if (unit === "word") {
+      const points = Array.from(this.content);
+      let index = 0,
+        count = 0;
+      while (index < points.length && count < offset)
+        count += points[index++].length;
+      let a = index,
+        b = index;
+      const word = (value: string) => /[\p{L}\p{N}\p{M}_]/u.test(value);
+      const match = word(points[index] ?? "")
+        ? word
+        : (value: string) =>
+            !word(value) &&
+            value !== "\n" &&
+            /\s/u.test(value) === /\s/u.test(points[index] ?? "");
+      while (a > 0 && match(points[a - 1])) a--;
+      while (b < points.length && match(points[b])) b++;
+      start = points.slice(0, a).join("").length;
+      end = points.slice(0, b).join("").length;
+    }
+    return { start, end };
+  }
+  private copy() {
+    igSetClipboardText(
+      this.content.slice(
+        Math.min(this.anchor, this.focus),
+        Math.max(this.anchor, this.focus),
+      ),
+    );
+  }
   end() {
     if (this.previous !== this.content) {
       this.anchor = this.focus = 0;
@@ -175,28 +225,30 @@ export class TextSelection {
     if (this.hovered && igIsMouseClicked_Bool(0, false)) {
       this.pressed = hit !== undefined;
       this.moved = false;
-      this.anchor = this.focus = hit
-        ? this.offset(hit, mouse.x - hit.point.x)
-        : 0;
-      if (hit && igIsMouseDoubleClicked_Nil(0)) {
-        const points = Array.from(this.content);
-        let index = 0,
-          count = 0;
-        while (index < points.length && count < this.focus)
-          count += points[index++].length;
-        let start = index,
-          end = index;
-        const word = (value: string) => /[\p{L}\p{N}_]/u.test(value);
-        while (start > 0 && word(points[start - 1])) start--;
-        while (end < points.length && word(points[end])) end++;
-        this.anchor = points.slice(0, start).join("").length;
-        this.focus = points.slice(0, end).join("").length;
-        this.pressed = false;
+      const offset = hit ? this.offset(hit, mouse.x - hit.point.x) : 0;
+      const clicks = igGetMouseClickedCount(0);
+      this.unit =
+        clicks >= 2 ? (clicks % 2 === 0 ? "word" : "paragraph") : "character";
+      if (hit && igIsKeyDown_Nil(ImGuiMod_Shift) && clicks === 1)
+        this.focus = offset;
+      else {
+        this.origin = this.range(offset);
+        this.anchor = this.origin.start;
+        this.focus = this.origin.end;
       }
     }
     if (this.dragging && nearest) {
       this.moved = true;
-      this.focus = this.offset(nearest, mouse.x - nearest.point.x);
+      const offset = this.offset(nearest, mouse.x - nearest.point.x);
+      const range = this.range(offset);
+      if (this.unit === "character") this.focus = offset;
+      else if (offset < this.origin.start) {
+        this.anchor = this.origin.end;
+        this.focus = range.start;
+      } else {
+        this.anchor = this.origin.start;
+        this.focus = range.end;
+      }
       const draw = igGetWindowDrawList();
       if (draw) {
         const min = ImDrawList_GetClipRectMin(draw),
@@ -206,25 +258,87 @@ export class TextSelection {
       }
     }
     if (!igIsMouseDown_Nil(0)) this.pressed = false;
-    if (
-      igIsWindowFocused(0) &&
-      igGetActiveID() === 0 &&
-      this.anchor !== this.focus
-    ) {
+    if (igIsWindowFocused(0) && igGetActiveID() === 0) {
+      const shift = igIsKeyDown_Nil(ImGuiMod_Shift);
+      const command = igIsKeyDown_Nil(ImGuiMod_Ctrl);
+      const word =
+        process.platform === "darwin" ? igIsKeyDown_Nil(ImGuiMod_Alt) : command;
+      const left = igIsKeyPressed_Bool(ImGuiKey_LeftArrow, true),
+        right = igIsKeyPressed_Bool(ImGuiKey_RightArrow, true);
+      const home = igIsKeyPressed_Bool(ImGuiKey_Home, true),
+        end = igIsKeyPressed_Bool(ImGuiKey_End, true);
+      if (left || right || home || end) {
+        let next = this.focus;
+        if (home || end || (process.platform === "darwin" && command)) {
+          const range = this.range(this.focus, "paragraph");
+          next =
+            left || home
+              ? range.start
+              : Math.max(
+                  range.start,
+                  range.end - (this.content[range.end - 1] === "\n" ? 1 : 0),
+                );
+        } else if (!shift && this.anchor !== this.focus)
+          next = left
+            ? Math.min(this.anchor, this.focus)
+            : Math.max(this.anchor, this.focus);
+        else if (word) {
+          const range = this.range(
+            Math.max(0, this.focus - (left ? 1 : 0)),
+            "word",
+          );
+          next = left ? range.start : range.end;
+        } else {
+          const prefix = Array.from(this.content.slice(0, this.focus));
+          next = left
+            ? this.focus - (prefix.pop()?.length ?? 0)
+            : this.focus +
+              (Array.from(this.content.slice(this.focus))[0]?.length ?? 0);
+        }
+        this.focus = Math.max(0, Math.min(this.content.length, next));
+        if (!shift) this.anchor = this.focus;
+      }
       const all = igShortcut_Nil(ImGuiMod_Ctrl | ImGuiKey_A, 0);
       if (all) {
         this.anchor = 0;
         this.focus = this.content.length;
       }
-      if (igShortcut_Nil(ImGuiMod_Ctrl | ImGuiKey_C, 0))
-        igSetClipboardText(
-          this.content.slice(
-            Math.min(this.anchor, this.focus),
-            Math.max(this.anchor, this.focus),
-          ),
-        );
+      if (
+        igShortcut_Nil(ImGuiMod_Ctrl | ImGuiKey_C, 0) &&
+        this.anchor !== this.focus
+      )
+        this.copy();
       if (igIsKeyPressed_Bool(ImGuiKey_Escape, false))
         this.anchor = this.focus = 0;
+    }
+    if (
+      igGetActiveID() === 0 &&
+      igBeginPopupContextWindow(
+        "document-text",
+        ImGuiPopupFlags_MouseButtonRight,
+      )
+    ) {
+      if (
+        igMenuItem_Bool(
+          "Copy",
+          process.platform === "darwin" ? "Cmd+C" : "Ctrl+C",
+          false,
+          this.anchor !== this.focus,
+        )
+      )
+        this.copy();
+      if (
+        igMenuItem_Bool(
+          "Select all",
+          process.platform === "darwin" ? "Cmd+A" : "Ctrl+A",
+          false,
+          this.content.length > 0,
+        )
+      ) {
+        this.anchor = 0;
+        this.focus = this.content.length;
+      }
+      igEndPopup();
     }
     const start = Math.min(this.anchor, this.focus),
       end = Math.max(this.anchor, this.focus);

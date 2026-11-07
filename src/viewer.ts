@@ -2,6 +2,7 @@ import {
   ImDrawList_AddCircleFilled,
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
+  ImGuiButtonFlags_EnableNav,
   ImGuiChildFlags_Borders,
   ImGuiChildFlags_ResizeX,
   ImGuiCol_Button,
@@ -12,6 +13,7 @@ import {
   ImGuiCol_FrameBgHovered,
   ImGuiComboFlags_HeightLarge,
   ImGuiComboFlags_NoArrowButton,
+  ImGuiHoveredFlags_ForTooltip,
   ImGuiInputFlags_RouteGlobal,
   ImGuiKey_Comma,
   ImGuiKey_Escape,
@@ -193,9 +195,13 @@ function projectHeader(project: string, collapsed: boolean): boolean {
   const start = igGetCursorScreenPos(),
     width = available(),
     height = 26;
-  const clicked = igInvisibleButton("##project", { x: width, y: height }, 0);
-  const hovered = igIsItemHovered(0),
-    draw = igGetWindowDrawList();
+  const clicked = igInvisibleButton(
+    "##project",
+    { x: width, y: height },
+    ImGuiButtonFlags_EnableNav,
+  );
+  const hovered = igIsItemHovered(0);
+  const draw = igGetWindowDrawList();
   if (!draw || !fonts.bold) throw new Error("Cannot access the library canvas");
   if (hovered)
     ImDrawList_AddRectFilled(
@@ -239,8 +245,7 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
   igPushStyleColor_Vec4(ImGuiCol_ButtonActive, { ...palette.accent, w: 0.24 });
   const clicked = igButton(`##${entry.artifact}`, { x: width, y: height });
   igPopStyleColor(3);
-  const hovered = igIsItemHovered(0),
-    draw = igGetWindowDrawList();
+  const draw = igGetWindowDrawList();
   if (!draw || !fonts.regular)
     throw new Error("Cannot access the library canvas");
   const middle = start.y + height / 2;
@@ -283,7 +288,7 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
     compactLabel(entry.title, right - start.x - 44, 14, "regular"),
     0,
   );
-  if (hovered)
+  if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
     tooltip(
       `${entry.title}\n${entry.project} / ${entry.artifact}\nUpdated ${dateLabel(new Date(updated))}${entry.currentPresentation ? "\nShowing the presented revision" : ""}`,
     );
@@ -293,9 +298,13 @@ function moreRow(label: string): boolean {
   const start = igGetCursorScreenPos(),
     width = available(),
     height = 26;
-  const clicked = igInvisibleButton("##more", { x: width, y: height }, 0);
-  const hovered = igIsItemHovered(0),
-    draw = igGetWindowDrawList();
+  const clicked = igInvisibleButton(
+    "##more",
+    { x: width, y: height },
+    ImGuiButtonFlags_EnableNav,
+  );
+  const hovered = igIsItemHovered(0);
+  const draw = igGetWindowDrawList();
   if (!draw || !fonts.regular)
     throw new Error("Cannot access the library canvas");
   ImDrawList_AddText_FontPtr(
@@ -527,7 +536,7 @@ export function openViewer(root: string, options: Options) {
     igSetNextItemWidth(-1);
     if (focusSearch) igSetKeyboardFocusHere(0);
     input("##find", "Search artifacts", search);
-    if (igIsItemHovered(0))
+    if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
       tooltip(
         process.platform === "darwin" ? "Search · Cmd+K" : "Search · Ctrl+K",
       );
@@ -597,10 +606,6 @@ export function openViewer(root: string, options: Options) {
       );
     else if (!matches) {
       text("No artifacts match this search.", 16, "regular", palette.muted);
-      if (igButton("Clear search", { x: 0, y: 0 })) {
-        search.fill(0);
-        pending = 2;
-      }
     }
     igEndChild();
     if (process.platform !== "darwin") {
@@ -616,7 +621,7 @@ export function openViewer(root: string, options: Options) {
       "regular",
       palette.muted,
     );
-    if (igIsItemHovered(0)) tooltip(resolve(root));
+    if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip)) tooltip(resolve(root));
     igEndChild();
     igSameLine(0, -1);
     igBeginGroup();
@@ -922,7 +927,7 @@ export function openViewer(root: string, options: Options) {
             "mono",
             palette.muted,
           );
-          if (igIsItemHovered(0))
+          if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
             tooltip(
               `${selected.project} / ${selected.artifact}\n${revisionDate(selected, true)}\n${selected.version}`,
             );

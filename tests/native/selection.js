@@ -4,7 +4,10 @@ import {
   ImGuiIO_AddMousePosEvent,
   ImGuiKey_A,
   ImGuiKey_C,
+  ImGuiKey_V,
+  ImGuiKey_Z,
   ImGuiMod_Ctrl,
+  ImGuiMod_Shift,
   ImGuiMod_Super,
   ImGuiWindowFlags_NoDecoration,
   ImGuiWindowFlags_NoMove,
@@ -94,6 +97,12 @@ try {
   }
   frame();
   frame();
+  chord(ImGuiKey_A);
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText().startsWith("café Ω and satellites"),
+    "Select all requires no pre-existing selection",
+  );
   mouse(first);
   mouse(first, true);
   mouse({ x: last.x + 300, y: last.y });
@@ -126,6 +135,38 @@ try {
     igGetClipboardText() === "café",
     "Double click did not select the Unicode word",
   );
+  mouse(first, true);
+  mouse(first, false);
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText() === "café Ω and satellites\n",
+    `Triple click copied ${JSON.stringify(igGetClipboardText())}`,
+  );
+  for (let i = 0; i < 25; i++) frame();
+  mouse(first, true);
+  mouse(first, false);
+  mouse(first, true);
+  mouse({ x: first.x + 90, y: first.y });
+  mouse({ x: first.x + 90, y: first.y }, false);
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText().startsWith("café Ω and"),
+    "Double-click dragging expands by words",
+  );
+  for (let i = 0; i < 25; i++) frame();
+  mouse(first, true);
+  mouse(first, false);
+  ImGuiIO_AddKeyEvent(io, ImGuiMod_Shift, true);
+  frame();
+  mouse(lastEnd, true);
+  mouse(lastEnd, false);
+  ImGuiIO_AddKeyEvent(io, ImGuiMod_Shift, false);
+  frame();
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText().endsWith("Final evidence"),
+    "Shift-click extends from the existing anchor",
+  );
   chord(ImGuiKey_A);
   chord(ImGuiKey_C);
   expect(
@@ -141,6 +182,21 @@ try {
     igGetClipboardText() === "fictional query",
     "Document selection intercepted an editable control",
   );
+  igSetClipboardText("edited query");
+  chord(ImGuiKey_V);
+  chord(ImGuiKey_A);
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText() === "edited query",
+    "Paste belongs to the active input",
+  );
+  chord(ImGuiKey_Z);
+  chord(ImGuiKey_A);
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText() === "fictional query",
+    `Input undo copied ${JSON.stringify(igGetClipboardText())}`,
+  );
   const pixels = new Uint8Array(481 * 160 * 4);
   checked(pv_surface_capture(481, 160, pixels));
   checked(
@@ -154,6 +210,6 @@ console.log(
   JSON.stringify({
     ok: true,
     selection:
-      "forward, reverse, Unicode words, formatted text, highlighted code, select all, input ownership",
+      "forward, reverse, words, paragraphs, word dragging, shift extension, formatted text, select all, input ownership, paste and undo",
   }),
 );

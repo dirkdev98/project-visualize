@@ -96,6 +96,114 @@ extern "C" int pv_surface_input(void) {
   return (held ? 1 : 0) | (ImGui::GetIO().WantTextInput ? 2 : 0);
 }
 
+extern "C" void pv_ui_style(float caret_width) {
+  ImGui::GetStyle().InputTextCursorSize = caret_width;
+}
+
+namespace {
+enum class EditAction { None, Cut, Paste, SelectAll, Clear };
+struct EditCommand {
+  ImGuiID id = 0;
+  EditAction action = EditAction::None;
+  int start = 0, end = 0, cursor = 0;
+  std::string text;
+  bool applied = false;
+};
+EditCommand edit_command;
+
+int edit_callback(ImGuiInputTextCallbackData *data) {
+  auto &command = *static_cast<EditCommand *>(data->UserData);
+  if (command.action == EditAction::None) return 0;
+  command.applied = true;
+  data->SelectionStart = std::clamp(command.start, 0, data->BufTextLen);
+  data->SelectionEnd = std::clamp(command.end, 0, data->BufTextLen);
+  data->CursorPos = std::clamp(command.cursor, 0, data->BufTextLen);
+  if (command.action == EditAction::SelectAll) data->SelectAll();
+  if (command.action == EditAction::Clear) {
+    data->DeleteChars(0, data->BufTextLen);
+    data->CursorPos = data->SelectionStart = data->SelectionEnd = 0;
+  }
+  if (command.action == EditAction::Cut || command.action == EditAction::Paste) {
+    const int start = std::min(data->SelectionStart, data->SelectionEnd);
+    const int end = std::max(data->SelectionStart, data->SelectionEnd);
+    std::string filtered;
+    if (command.action == EditAction::Paste) {
+      const int available = data->BufSize - 1 - (data->BufTextLen - (end - start));
+      for (const char *cursor = command.text.c_str(); *cursor;) {
+        unsigned int codepoint;
+        const int length = ImTextCharFromUtf8(&codepoint, cursor, nullptr);
+        if (length <= 0) break;
+        if (codepoint >= 32 && codepoint != 127) {
+          if (static_cast<int>(filtered.size()) + length > available) break;
+          filtered.append(cursor, length);
+        }
+        cursor += length;
+      }
+    }
+    // Callback reconciliation records replacement as one undo step. The toolkit's
+    // ordinary paste path records deletion and insertion separately.
+    if (command.action == EditAction::Cut || !filtered.empty()) {
+      data->DeleteChars(start, end - start);
+      if (!filtered.empty()) data->InsertChars(start, filtered.c_str());
+      data->CursorPos = data->SelectionStart = data->SelectionEnd = start + static_cast<int>(filtered.size());
+    }
+  }
+  return 0;
+}
+}
+
+extern "C" int pv_input_text(const char *label, const char *hint, char *buffer, int capacity) {
+  const ImGuiID id = ImGui::GetID(label);
+  const bool queued = edit_command.id == id && edit_command.action != EditAction::None;
+  EditCommand command;
+  if (queued) {
+    command = std::move(edit_command);
+    edit_command = {};
+    ImGui::SetKeyboardFocusHere();
+  } else if (ImGui::GetActiveID() == id) {
+    const bool paste = ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_V, ImGuiInputFlags_Repeat, id);
+    const bool insert = ImGui::Shortcut(ImGuiMod_Shift | ImGuiKey_Insert, ImGuiInputFlags_Repeat, id);
+    if (paste || insert) {
+      if (const auto *state = ImGui::GetInputTextState(id)) {
+        const char *clipboard = ImGui::GetClipboardText();
+        command = { id, EditAction::Paste, state->GetSelectionStart(), state->GetSelectionEnd(), state->GetCursorPos(), clipboard ? clipboard : "" };
+        ImGui::SetKeyOwner(paste ? ImGuiKey_V : ImGuiKey_Insert, ImGui::GetID("##paste-handled"), ImGuiInputFlags_LockThisFrame);
+      }
+    }
+  }
+  const bool changed = ImGui::InputTextWithHint(label, hint, buffer, capacity, ImGuiInputTextFlags_CallbackAlways, edit_callback, &command);
+  if (queued && !command.applied) edit_command = std::move(command);
+  const auto input_item = GImGui->LastItemData;
+  if (ImGui::BeginPopupContextItem()) {
+    auto *state = ImGui::GetInputTextState(id);
+    const bool selected = state && state->HasSelection();
+    const auto queue = [&](EditAction action) {
+      const int length = static_cast<int>(std::strlen(buffer));
+      const char *clipboard = action == EditAction::Paste ? ImGui::GetClipboardText() : nullptr;
+      edit_command = { id, action, state ? state->GetSelectionStart() : length, state ? state->GetSelectionEnd() : length, state ? state->GetCursorPos() : length, clipboard ? clipboard : "" };
+    };
+    const auto copy = [&] {
+      if (selected) {
+        const int start = std::min(state->GetSelectionStart(), state->GetSelectionEnd());
+        const int length = std::abs(state->GetSelectionEnd() - state->GetSelectionStart());
+        ImGui::SetClipboardText(std::string(state->TextA.Data + start, length).c_str());
+      }
+    };
+    if (ImGui::MenuItem("Cut", nullptr, false, selected)) { copy(); queue(EditAction::Cut); }
+    if (ImGui::MenuItem("Copy", nullptr, false, selected)) copy();
+    if (ImGui::MenuItem("Paste")) queue(EditAction::Paste);
+    ImGui::Separator();
+    if (ImGui::MenuItem("Select all")) queue(EditAction::SelectAll);
+    ImGui::EndPopup();
+  }
+  GImGui->LastItemData = input_item;
+  return changed;
+}
+
+extern "C" void pv_input_clear(unsigned int id) {
+  edit_command = { id, EditAction::Clear };
+}
+
 extern "C" int pv_surface_command(void) {
 #ifdef __APPLE__
   return pv::take_menu_command();
@@ -165,7 +273,7 @@ extern "C" int pv_surface_capture(int width, int height, unsigned char *pixels, 
   } catch (const std::exception &error) { last_error = error.what(); return -1; }
 }
 
-extern "C" void pv_surface_close(void) { context.reset(); }
+extern "C" void pv_surface_close(void) { edit_command = {}; context.reset(); }
 extern "C" const char *pv_error(void) { return last_error.empty() ? nullptr : last_error.c_str(); }
 
 extern "C" int pv_png_write(const char *file, int width, int height,

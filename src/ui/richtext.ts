@@ -3,6 +3,7 @@ import {
   ImDrawList_AddRect,
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
+  ImGuiButtonFlags_EnableNav,
   ImGuiMouseCursor_Hand,
   ImGuiStyleVar_CellPadding,
   ImGuiTableFlags_BordersInnerH,
@@ -11,12 +12,9 @@ import {
   ImGuiTableRowFlags_Headers,
   igAlignTextToFramePadding,
   igBeginTable,
-  igBeginTooltip,
-  igButton,
   igCalcTextSize,
   igDummy,
   igEndTable,
-  igEndTooltip,
   igGetCursorScreenPos,
   igGetItemRectMax,
   igGetItemRectMin,
@@ -44,6 +42,7 @@ import {
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
+import { iconButton } from "./icons.ts";
 import {
   captureHeading,
   captureTable,
@@ -51,21 +50,15 @@ import {
   keepLineTogether,
   keepTogether,
 } from "./layout.ts";
-import { available, captureText, panel, text } from "./primitives.ts";
 import {
-  draggingText,
-  selectionBreak,
-  selectionText,
-  withoutTextSelection,
-} from "./selection.ts";
-import {
-  currentTheme,
-  type Font,
-  fonts,
-  framePadding,
-  packed,
-  palette,
-} from "./theme.ts";
+  available,
+  captureText,
+  itemTooltip,
+  panel,
+  text,
+} from "./primitives.ts";
+import { draggingText, selectionBreak, selectionText } from "./selection.ts";
+import { currentTheme, type Font, fonts, packed, palette } from "./theme.ts";
 
 interface Run {
   value: string;
@@ -268,7 +261,7 @@ export class RichText {
               igInvisibleButton(
                 "link",
                 { x: Math.max(1, partWidth), y: size + 3 },
-                0,
+                ImGuiButtonFlags_EnableNav,
               ) &&
               !draggingText() &&
               /^(https?:|mailto:)/.test(run.link)
@@ -276,12 +269,8 @@ export class RichText {
               SDL_OpenURL(run.link);
             if (igIsItemHovered(0)) {
               igSetMouseCursor(ImGuiMouseCursor_Hand);
-              igBeginTooltip();
-              withoutTextSelection(() =>
-                text(run.link ?? "", 15, "regular", palette.ink, -1),
-              );
-              igEndTooltip();
             }
+            itemTooltip(run.link ?? "");
             igPopID();
           }
           piece = piece.slice(part.length);
@@ -318,8 +307,7 @@ export class RichText {
         if (!regular) throw new Error("Fonts are not initialized");
         const width = available();
         igPushFont(regular, 14);
-        const copyWidth =
-          igCalcTextSize("Copy code", false, -1).x + framePadding.x * 2;
+        const copyWidth = 28;
         igAlignTextToFramePadding();
         text(
           language ? language.toUpperCase() : "CODE",
@@ -330,7 +318,7 @@ export class RichText {
         const labelWidth = igGetItemRectMax().x - igGetItemRectMin().x;
         const gap = width - labelWidth - copyWidth;
         if (gap >= 12) igSameLine(0, gap);
-        if (igButton("Copy code", { x: copyWidth, y: 0 }))
+        if (iconButton("##copy-code", "copy", "Copy code"))
           igSetClipboardText(source);
         igPopFont();
       }

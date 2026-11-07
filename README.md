@@ -85,7 +85,10 @@ presented version by default and offers Follow latest for inspecting newer draft
 Earlier presented versions keep their delivery history.
 
 The viewer supports linked dataset controls, chart zoom, table sorting and filtering,
-expandable sections and links. Use `--params` with `inspect`, `export` or `open` to
+expandable sections and links. Diagrams cover process flows, states, hierarchies,
+relationships, message sequences and schedules. Distribution plots and waterfalls
+complement the trend charts. See the [authoring guide](docs/artifacts.md) for their
+data contracts. Use `--params` with `inspect`, `export` or `open` to
 reproduce a linked selection. PNG/PDF exports capture the saved document with details
 expanded. PDFs paginate the rendered canvas and add selectable document text and links.
 Native chart labels remain rasterized. Documents describe
@@ -129,6 +132,8 @@ Run `npm run check:plots` after series adapter changes to verify supplied legend
 colors and shaded baseline fitting in both build modes.
 Run `npm run check:selection` after document text or selection changes to verify
 Unicode, formatted text, highlighted code and native clipboard shortcuts in both modes.
+Run `npm run check:inputs` after input adapter changes to verify paste, undo, redo,
+non-text clipboards and UTF-8 buffer limits through the native editor.
 Run `npm run check:navigation` after graph input changes to verify ordinary scrolling,
 modified zoom, fitting and SDL pinch accumulation in both modes. This offscreen check
 does not establish physical trackpad delivery. The native bridge requires SDL 3.4.18

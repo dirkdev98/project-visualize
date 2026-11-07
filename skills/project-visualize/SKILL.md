@@ -1,8 +1,19 @@
 ---
 
 name: project-visualize
-description: Create, revise and export saved dashboards, rich documents and diagrams through the Project Visualize native application and CLI. Use when the user asks for Project Visualize artifacts or its established project workflow.
+description: Create visual explanations, charts, dashboards, diagrams and rich reports with Project Visualize. Use when showing how something works, comparing options or trends, exploring data, or turning findings into a visual artifact for the conversation, PNG or PDF. Consider it when a visual would clarify the answer, even if the user does not name the app. Do not use it to build or edit a website, app or existing UI.
 ---
+
+Use this skill when a saved visual helps the user understand, compare or inspect an
+answer. Requests such as "show how this works", "visualize this", "compare these
+options", "diagram the flow" and "make a dashboard" do not need to name the app.
+Keep simple facts, short explanations and ordinary tables in the conversation.
+
+Choose a supported composition: charts for measured data, diagrams for structure or
+sequences, and rich documents for evidence with explanation. Combine them into a
+dashboard when the user needs to inspect related views. Read the artifact guide below
+for the schema. Do not substitute a screenshot for a requested editable website or an
+interactive simulation that the artifact format cannot represent.
 
 Use the CLI to save a versioned artifact and return its screenshot to the conversation.
 The native viewer adds chart navigation, sortable tables and retained context.
@@ -52,7 +63,10 @@ when the full canvas is too tall at that density. Fix clipping, unclear labels a
 poor composition by rendering a revision.
 Return the screenshot using the conversation host's supported image mechanism, with
 the artifact's project, ID and version available when useful. A path alone does not
-display an image on every host.
+display an image on every host. When the host requires an HTML wrapper for inline
+display, embed the returned screenshot in that wrapper and use its preview and display
+tools. Keep the saved native artifact as the source; do not recreate it as an HTML
+report. Honor an explicitly requested output format.
 
 Once you have chosen the revision and screenshot to deliver, run `present --project
 ID --artifact ID --version ID` with that exact saved version, then return its image.
@@ -68,6 +82,7 @@ in Settings or the system; pass `--theme light|dark` when a specific palette mat
 Temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
 A dataset-bound bar chart can `select` its matching select control through Shift-click.
+Click elsewhere in the plot to clear the selected bar without changing the saved artifact.
 Its comparison bars stay visible while the other linked widgets use the selection.
 Inspection exposes typed categories in `view.chartSelections`.
 Use `inspect --params` to check the selected rows and derived values, then export with

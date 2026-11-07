@@ -41,6 +41,9 @@ const char *pv_error(void);
 /* Resolve the physical executable independently of its invocation name. */
 const char *pv_executable_path(void);
 ImFontAtlas *pv_font_atlas(void);
+void pv_ui_style(float caret_width);
+int pv_input_text(const char *label, const char *hint, char *buffer, int capacity);
+void pv_input_clear(unsigned int id);
 PVSize pv_font_metrics(ImFont *font, float size);
 /* The wrap API requires an end pointer into text; FFI copies the returned suffix. */
 const char *pv_text_wrap(const char *text, float wrap_width);

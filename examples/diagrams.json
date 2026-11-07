@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "How an orbital station works",
+  "subtitle": "Fictional processes, messages, data and schedules.",
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "flowchart",
+      "title": "Reading acceptance",
+      "direction": "down",
+      "nodes": [
+        { "id": "read", "label": "Receive reading", "shape": "start" },
+        { "id": "check", "label": "Within range?", "shape": "decision" },
+        { "id": "save", "label": "Save observation", "shape": "end" },
+        { "id": "review", "label": "Request review" }
+      ],
+      "edges": [
+        { "from": "read", "to": "check" },
+        { "from": "check", "to": "save", "label": "Yes" },
+        { "from": "check", "to": "review", "label": "No" },
+        { "from": "review", "to": "read", "label": "Retry" }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "sequence",
+      "title": "Observation exchange",
+      "participants": [
+        { "id": "sensor", "label": "Sensor" },
+        { "id": "station", "label": "Station" },
+        { "id": "archive", "label": "Archive" }
+      ],
+      "messages": [
+        { "from": "sensor", "to": "station", "label": "Submit reading" },
+        { "from": "station", "to": "station", "label": "Validate units" },
+        { "from": "station", "to": "archive", "label": "Store observation" },
+        {
+          "from": "archive",
+          "to": "station",
+          "label": "Observation stored",
+          "kind": "return"
+        },
+        {
+          "from": "station",
+          "to": "sensor",
+          "label": "Accepted",
+          "kind": "event"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "state",
+      "title": "Station lifecycle",
+      "nodes": [
+        { "id": "idle", "label": "Idle", "shape": "start" },
+        { "id": "recording", "label": "Recording" },
+        { "id": "complete", "label": "Complete", "shape": "end" }
+      ],
+      "edges": [
+        { "from": "idle", "to": "recording", "label": "Start" },
+        { "from": "recording", "to": "recording", "label": "Reading" },
+        { "from": "recording", "to": "complete", "label": "Finish" }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "er",
+      "direction": "right",
+      "title": "Observation records",
+      "nodes": [
+        {
+          "id": "station",
+          "label": "Station",
+          "fields": [
+            { "name": "id", "type": "string", "key": "primary" },
+            { "name": "name", "type": "string" }
+          ]
+        },
+        {
+          "id": "reading",
+          "label": "Reading",
+          "fields": [
+            { "name": "id", "type": "string", "key": "primary" },
+            { "name": "station_id", "type": "string", "key": "foreign" },
+            { "name": "value", "type": "number" }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "station",
+          "to": "reading",
+          "label": "records",
+          "fromCardinality": "one",
+          "toCardinality": "many"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "tree",
+      "title": "Station hierarchy",
+      "nodes": [
+        { "id": "network", "label": "Orbital network" },
+        { "id": "north", "label": "North station" },
+        { "id": "south", "label": "South station" },
+        { "id": "sensor", "label": "Temperature sensor" }
+      ],
+      "edges": [
+        { "from": "network", "to": "north" },
+        { "from": "network", "to": "south" },
+        { "from": "north", "to": "sensor" }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "gantt",
+      "title": "Maintenance schedule",
+      "caption": "Scheduled dates are inclusive. Dependencies describe order without rescheduling tasks.",
+      "tasks": [
+        {
+          "id": "inspect",
+          "label": "Inspect instruments",
+          "start": "2026-11-02",
+          "end": "2026-11-03",
+          "progress": 1
+        },
+        {
+          "id": "calibrate",
+          "label": "Calibrate sensors",
+          "start": "2026-11-04",
+          "end": "2026-11-06",
+          "progress": 0.5,
+          "dependsOn": ["inspect"]
+        },
+        {
+          "id": "verify",
+          "label": "Verify readings",
+          "start": "2026-11-07",
+          "end": "2026-11-09",
+          "progress": 0,
+          "dependsOn": ["calibrate"]
+        }
+      ]
+    }
+  ]
+}

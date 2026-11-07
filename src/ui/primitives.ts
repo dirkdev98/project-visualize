@@ -7,44 +7,46 @@ import {
   ImDrawListSplitter_Merge,
   ImDrawListSplitter_SetCurrentChannel,
   ImDrawListSplitter_Split,
+  ImGuiCol_FrameBg,
   ImGuiCol_Text,
   ImGuiStyleVar_CellPadding,
   ImGuiTableFlags_PadOuterX,
   ImGuiTableFlags_SizingStretchSame,
   igBeginTable,
-  igBeginTooltip,
+  igCalcTextSize,
   igDummy,
   igEndTable,
-  igEndTooltip,
+  igGetColorU32_Col,
   igGetContentRegionAvail,
   igGetCursorPosX,
   igGetCursorScreenPos,
+  igGetItemID,
   igGetItemRectMax,
   igGetItemRectMin,
   igGetWindowDrawList,
-  igInputTextWithHint,
   igPopFont,
+  igPopID,
   igPopStyleColor,
   igPopStyleVar,
   igPopTextWrapPos,
   igPushFont,
+  igPushID_Str,
   igPushStyleColor_Vec4,
   igPushStyleVar_Vec2,
   igPushTextWrapPos,
   igSetCursorScreenPos,
+  igSetNextItemAllowOverlap,
   igTableNextColumn,
   igTableNextRow,
   igTextUnformatted,
   pv_error,
   pv_font_metrics,
+  pv_input_clear,
+  pv_input_text,
 } from "maligator:ffi/visualize";
+import { iconButton } from "./icons.ts";
 import { currentCapture, keepLineTogether } from "./layout.ts";
-import {
-  selectingText,
-  selectionBreak,
-  selectionText,
-  withoutTextSelection,
-} from "./selection.ts";
+import { selectingText, selectionBreak, selectionText } from "./selection.ts";
 import { textLine } from "./text-layout.ts";
 import {
   type Color,
@@ -54,6 +56,7 @@ import {
   packed,
   palette,
 } from "./theme.ts";
+import { itemTooltip } from "./tooltips.ts";
 
 export function checked(result: number): number {
   if (result < 0) throw new Error(pv_error() ?? "Native rendering failed");
@@ -176,7 +179,38 @@ export function inputValue(buffer: Int8Array): string {
   ).toString("utf8");
 }
 export function input(id: string, hint: string, buffer: Int8Array): boolean {
-  return igInputTextWithHint(id, hint, buffer, 0);
+  igSetNextItemAllowOverlap();
+  const changed = pv_input_text(id, hint, buffer) !== 0;
+  const value = inputValue(buffer);
+  if (value) {
+    const inputID = igGetItemID();
+    const min = igGetItemRectMin(),
+      max = igGetItemRectMax();
+    if (igCalcTextSize(value, false, -1).x > max.x - min.x - 42)
+      itemTooltip(value);
+    overlay(() => {
+      const draw = igGetWindowDrawList();
+      if (draw)
+        ImDrawList_AddRectFilled(
+          draw,
+          { x: max.x - 29, y: min.y + 2 },
+          { x: max.x - 2, y: max.y - 2 },
+          igGetColorU32_Col(ImGuiCol_FrameBg, 1),
+          5,
+          0,
+        );
+      igSetCursorScreenPos({
+        x: max.x - 27,
+        y: min.y + (max.y - min.y - 24) / 2,
+      });
+      igPushID_Str(id);
+      if (iconButton("##clear", "close", "Clear", { size: 24, iconSize: 13 })) {
+        pv_input_clear(inputID);
+      }
+      igPopID();
+    });
+  }
+  return changed;
 }
 const splitters: ImDrawListSplitter[] = [];
 let panelDepth = 0;
@@ -236,8 +270,4 @@ export function overlay(body: () => void) {
   igSetCursorScreenPos({ x: cursor.x, y: cursor.y - itemSpacing.y });
   igDummy({ x: 0, y: 0 });
 }
-export function tooltip(value: string) {
-  igBeginTooltip();
-  withoutTextSelection(() => text(value, 16, "regular", palette.ink, 420));
-  igEndTooltip();
-}
+export { itemTooltip, tooltip } from "./tooltips.ts";

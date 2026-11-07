@@ -1,5 +1,30 @@
 # Decisions
 
+## 2026-11-07 native interaction and visual authoring
+
+- Use Graphite and Iris for the application and artifact palettes. Keep neutral
+  surfaces and a violet accent, with distinct success and failure colors.
+- Clear chart selections with an ordinary click elsewhere in the plot, committing
+  on release and rejecting drags. Keep zoom controls and legends independent. This
+  replaces the separate clear button from chart-driven linked selection.
+- Extend document selection by words, paragraphs and Shift-click, and keep input
+  shortcuts with the active field. Theme the caret explicitly and make it thicker.
+  Use the toolkit callback to keep replacement pastes and clearing as single undo
+  actions, and offer an input context menu without replacing the native editor.
+- Use compact tooltips with delayed control hints, immediate chart details, aligned
+  values and series colors. Put clearing inside search fields and copying beside code.
+- Replace the grid-only diagram layout from responsive diagram spacing with graph
+  layers and routed connectors. Keep sequence messages and schedules in their own
+  layouts, and retain readable message lists on narrow canvases.
+- Add raw-observation distributions and explicit waterfall totals. Share histogram
+  boundaries across series and use interpolated quartiles with observed Tukey
+  whiskers, so missing measurements cannot silently become counts or zero values.
+- Broaden skill discovery to visual explanations, comparisons, trends and diagrams
+  without requiring the product name. Preserve requested formats and actual app or
+  website work; use a host-required image wrapper only for delivery of saved artifacts.
+- Retain request timing, headers and cache metadata with image-cache assertion failures
+  so another extra request identifies its creating invocation without weakening counts.
+
 ## 2026-11-07 artifact types and viewer chrome
 
 - Require an artifact `type` of dashboard, document or diagram and copy it into
@@ -337,11 +362,6 @@ Keep track of;
 - Keep geometry in JS and use the existing native drawing operations. Inspect light,
   dark, narrow, intermediate, explicit and multirow exports, retaining selectable
   node and edge labels. This is a layout correction without a performance-win claim.
-
-Keep track of;
-
-- Route connectors around intervening nodes for complex diagrams; the grid draws
-  straight edges and explicit positions remain an authoring choice.
 
 ## 2026-11-07 titled PDF sections
 

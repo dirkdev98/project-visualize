@@ -4,8 +4,6 @@ import {
   ImDrawList_AddLine,
   ImDrawList_AddRect,
   ImDrawList_AddRectFilled,
-  ImDrawList_AddText_FontPtr,
-  ImDrawList_AddTriangleFilled,
   ImGuiCol_PlotHistogram,
   ImGuiCond_Always,
   ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
@@ -70,7 +68,6 @@ import {
   igGetMousePos,
   igGetWindowDrawList,
   igIndent,
-  igInvisibleButton,
   igIsItemHovered,
   igIsKeyDown_Nil,
   igIsMouseClicked_Bool,
@@ -136,6 +133,7 @@ import type {
 } from "../model.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import { crowdedCategories } from "./chart-layout.ts";
+import { Diagrams } from "./diagrams.ts";
 import { type Icon, iconButton } from "./icons.ts";
 import { layoutImage } from "./image-layout.ts";
 import {
@@ -148,7 +146,6 @@ import { formatNumber } from "./number-format.ts";
 import { Plots } from "./plots.ts";
 import {
   available,
-  captureWrappedText,
   input,
   inputBuffer,
   inputValue,
@@ -160,6 +157,7 @@ import {
 } from "./primitives.ts";
 import { RichText } from "./richtext.ts";
 import { TextSelection, withTextSelection } from "./selection.ts";
+import { boxplot, histogram, waterfall } from "./statistics.ts";
 import { textLine } from "./text-layout.ts";
 import {
   type Color,
@@ -200,7 +198,6 @@ function tone(value: Tone | undefined): Color {
 }
 type TableBlock = Extract<Block, { type: "table" }>;
 type ChartBlock = Extract<Block, { type: "chart" }>;
-type DiagramBlock = Extract<Block, { type: "diagram" }>;
 
 const heatRamps = {
   light: [color("#edf5f6"), color("#7bbfc6"), color("#087f8c")],
@@ -263,8 +260,20 @@ export class DocumentRenderer {
       stride: number;
     }
   >();
-  private barPress: { key: string; revision: number; value: Cell } | undefined;
+  private barPress:
+    | { key: string; revision: number; value?: Cell; clear: boolean }
+    | undefined;
   private rich: RichText;
+  private diagrams = new Diagrams();
+  private distributions = new Map<
+    Block,
+    {
+      chart?: ChartBlock;
+      histogram?: ReturnType<typeof histogram>;
+      boxes?: ReturnType<typeof boxplot>[];
+      waterfall?: ReturnType<typeof waterfall>;
+    }
+  >();
   private selection = new TextSelection();
   private view: ResolvedView | undefined;
   private viewRevision = -1;
@@ -383,6 +392,7 @@ export class DocumentRenderer {
       this.tableCells.clear();
       this.cellWidths.clear();
       this.categoryLayouts.clear();
+      this.distributions.clear();
       this.pinchViews.clear();
       this.fitRequests.clear();
     }
@@ -606,7 +616,12 @@ export class DocumentRenderer {
         this.heatmap(value, exporting);
         break;
       case "diagram":
-        this.diagram(value, exporting);
+        this.diagrams.draw(value, exporting);
+        break;
+      case "histogram":
+      case "boxplot":
+      case "waterfall":
+        this.analytical(value, exporting, key);
         break;
       case "image":
         this.image(value.asset, available(), value.height, value.fit);
@@ -992,10 +1007,6 @@ export class DocumentRenderer {
         "regular",
         palette.muted,
       );
-      if (!exporting && empty === "search" && igSmallButton("Clear search")) {
-        state.query = "";
-        buffer.fill(0);
-      }
     }
   }
   private heatmap(
@@ -1379,6 +1390,27 @@ export class DocumentRenderer {
             key: interactionKey,
             revision: this.viewRevision,
             value: selection.values[category],
+            clear: false,
+          };
+        const plotPosition = ImPlot_GetPlotPos(),
+          plotSize = ImPlot_GetPlotSize();
+        const pointer = igGetMousePos();
+        const overZoom =
+          pointer.x >= plotPosition.x + plotSize.x - 96 &&
+          pointer.y <= plotPosition.y + 42;
+        const outside = category === undefined || category !== selectedIndex;
+        if (
+          hovered &&
+          !shift &&
+          !isAll(selected) &&
+          outside &&
+          !overZoom &&
+          igIsMouseClicked_Bool(0, false)
+        )
+          this.barPress = {
+            key: interactionKey,
+            revision: this.viewRevision,
+            clear: true,
           };
         if (this.barPress?.key === interactionKey && igIsMouseReleased_Nil(0)) {
           const press = this.barPress;
@@ -1388,11 +1420,14 @@ export class DocumentRenderer {
             igIsMouseDragPastThreshold(0, -1) ||
             Math.hypot(delta.x, delta.y) > 6;
           if (
-            shift &&
             !dragged &&
-            category !== undefined &&
             press.revision === this.state.revision &&
-            press.value === selection.values[category]
+            hovered &&
+            (press.clear
+              ? !shift && outside && !overZoom
+              : shift &&
+                category !== undefined &&
+                press.value === selection.values[category])
           ) {
             const control = controls(this.document).find(
               (control) => control.id === selection.control,
@@ -1400,28 +1435,34 @@ export class DocumentRenderer {
             if (control)
               this.parameter(
                 control,
-                parameterValue(this.state.parameters, control.id) ===
-                  press.value
+                press.clear ||
+                  parameterValue(this.state.parameters, control.id) ===
+                    press.value
                   ? ALL
-                  : press.value,
+                  : (press.value ?? null),
               );
           }
           this.barPress = undefined;
         }
       }
       if (hovered) {
-        const lines: string[] = [];
+        const rows: { label: string; value: string; color: Color }[] = [];
+        let title: string | undefined;
+        const coordinates: string[] = [];
         if (selection && category !== undefined) {
-          lines.push(
-            value.labels?.[category] ?? scalar(selection.values[category]),
-          );
+          title =
+            value.labels?.[category] ?? scalar(selection.values[category]);
           for (let i = 0; i < series.length; i++) {
             if (hidden[i]) continue;
             const j = series[i].x?.indexOf(category) ?? -1;
-            if (j >= 0) lines.push(`${series[i].name}: ${series[i].values[j]}`);
+            if (j >= 0)
+              rows.push({
+                label: series[i].name,
+                value: formatNumber(series[i].values[j]),
+                color: seriesColors[i % seriesColors.length],
+              });
           }
-          lines.push("Shift-click to select; repeat to clear");
-        } else if (!selection)
+        } else if (!selection) {
           for (let i = 0; i < series.length; i++) {
             if (hidden[i]) continue;
             let nearest = 0;
@@ -1429,15 +1470,35 @@ export class DocumentRenderer {
             for (let j = 1; j < x.length; j++)
               if (Math.abs(x[j] - mouse.x) < Math.abs(x[nearest] - mouse.x))
                 nearest = j;
-            lines.push(`${series[i].name}: ${y[nearest]}`);
-            if (value.labels && i === 0)
-              lines.unshift(
-                value.labels[series[i].x?.[nearest] ?? nearest] ?? "",
-              );
+            const coordinate =
+              value.labels?.[series[i].x?.[nearest] ?? nearest] ??
+              `${value.xLabel ? `${value.xLabel}: ` : ""}${formatNumber(series[i].x?.[nearest] ?? nearest)}`;
+            title ??= coordinate;
+            coordinates.push(coordinate);
+            rows.push({
+              label: series[i].name,
+              value: formatNumber(y[nearest]),
+              color: seriesColors[i % seriesColors.length],
+            });
           }
-        if (lines.length) tooltip(lines.join("\n"));
+        }
+        if (new Set(coordinates).size > 1) {
+          title = "Nearest observations";
+          for (let i = 0; i < rows.length; i++)
+            rows[i].label += ` · ${coordinates[i]}`;
+        }
+        if (rows.length)
+          tooltip({
+            title,
+            subtitle: value.yLabel,
+            rows,
+            shortcut: selection
+              ? "Shift-click to select · click outside to clear"
+              : undefined,
+          });
       }
     }
+
     const area = exporting
       ? undefined
       : {
@@ -1457,23 +1518,6 @@ export class DocumentRenderer {
         "regular",
         palette.accent,
       );
-    if (!exporting && selection) {
-      text(
-        "Shift-click a bar to filter; repeat to clear.",
-        13,
-        "regular",
-        palette.muted,
-      );
-      if (
-        !isAll(parameterValue(this.state.parameters, selection.control)) &&
-        igSmallButton("Clear chart selection")
-      ) {
-        const control = controls(this.document).find(
-          (control) => control.id === selection.control,
-        );
-        if (control) this.parameter(control, ALL);
-      }
-    }
   }
 
   private zoomControls(
@@ -1539,151 +1583,187 @@ export class DocumentRenderer {
     }
   }
 
-  private diagram(value: DiagramBlock, exporting: boolean) {
-    const width = available(),
-      columns = Math.min(3, value.nodes.length),
-      rows = Math.ceil(value.nodes.length / columns),
-      horizontalBoxWidth = Math.min(180, width / 3.5);
-    const face = fonts.regular;
-    if (!face) throw new Error("Fonts are not initialized");
-    let connectorWidth = 48;
-    igPushFont(face, 15);
-    for (const edge of value.edges ?? [])
-      if (edge.label)
-        connectorWidth = Math.max(
-          connectorWidth,
-          igCalcTextSize(edge.label, false, -1).x + 16,
-        );
-    igPopFont();
-    const narrow =
-      width < 520 ||
-      (columns > 1 && width / columns - horizontalBoxWidth < connectorWidth);
-    const height = Math.max(
-      value.height ?? 320,
-      (narrow ? value.nodes.length : rows) * 94 + 24,
+  private analytical(
+    value: Extract<Block, { type: "histogram" | "boxplot" | "waterfall" }>,
+    exporting: boolean,
+    key: string,
+  ) {
+    let prepared = this.distributions.get(value);
+    const fresh = !prepared;
+    if (!prepared) {
+      prepared =
+        value.type === "waterfall"
+          ? { waterfall: waterfall(value.steps) }
+          : value.type === "histogram"
+            ? {
+                histogram: histogram(
+                  (value.series ?? []).map((series) => series.values),
+                  value.bins,
+                ),
+              }
+            : {
+                boxes: (value.series ?? []).map((series) =>
+                  boxplot(series.values),
+                ),
+              };
+      this.distributions.set(value, prepared);
+    }
+    if (value.type === "histogram") {
+      const result = prepared.histogram;
+      if (!result?.boundaries.length) {
+        text("No observations in this view.", 16, "regular", palette.muted);
+        return;
+      }
+      const bins = result.counts[0]?.length ?? 0;
+      const label = (v: number) => formatNumber(Number(v.toPrecision(4)));
+      prepared.chart ??= {
+        ...value,
+        type: "chart",
+        kind: "bar",
+        source: undefined,
+        xLabel: value.xLabel ?? "Observation range",
+        yLabel: value.yLabel ?? "Count",
+        labels: Array.from(
+          { length: bins },
+          (_, i) =>
+            `${label(result.boundaries[i])}–${label(result.boundaries[i + 1])}`,
+        ),
+        series: (value.series ?? []).map((series, i) => ({
+          name: series.name,
+          values: result.counts[i],
+        })),
+      };
+      this.chart(prepared.chart, exporting, key);
+      return;
+    }
+    const reset = this.fitRequests.delete(key),
+      pinch = this.pinchViews.get(key);
+    this.pinchViews.delete(key);
+    if (exporting || fresh || reset) ImPlot_SetNextAxesToFit();
+    else if (pinch)
+      ImPlot_SetNextAxesLimits(
+        pinch.xMin,
+        pinch.xMax,
+        pinch.yMin,
+        pinch.yMax,
+        ImGuiCond_Always,
+      );
+    if (
+      !ImPlot_BeginPlot(
+        "##analysis",
+        { x: -1, y: value.height ?? 300 },
+        ImPlotFlags_NoTitle |
+          ImPlotFlags_NoMenus |
+          (exporting ? ImPlotFlags_NoInputs : 0),
+      )
+    )
+      return;
+    ImPlot_SetupAxes("", value.yLabel ?? "", 0, 0);
+    ImPlot_SetupLegend(
+      ImPlotLocation_South,
+      ImPlotLegendFlags_Horizontal |
+        ImPlotLegendFlags_Outside |
+        ImPlotLegendFlags_NoMenus,
     );
-    const origin = igGetCursorScreenPos();
-    const draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the diagram canvas");
-    const boxWidth = narrow ? Math.min(180, width - 24) : horizontalBoxWidth,
-      boxHeight = 66;
-    const positions = value.nodes.map((node, i) => ({
-      x: narrow
-        ? origin.x + width / 2
-        : origin.x +
-          (node.x === undefined
-            ? (((i % columns) + 0.5) * width) / columns
-            : boxWidth / 2 + node.x * (width - boxWidth)),
-      y: narrow
-        ? origin.y + boxHeight / 2 + 12 + i * 94
-        : origin.y +
-          (node.y === undefined
-            ? ((Math.floor(i / columns) + 0.5) * height) / rows
-            : boxHeight / 2 + node.y * (height - boxHeight)),
-    }));
-    const ids = new Map(value.nodes.map((node, i) => [node.id, i]));
-    for (const edge of value.edges ?? []) {
-      const a = positions[ids.get(edge.from) ?? 0],
-        b = positions[ids.get(edge.to) ?? 0];
-      const dx = b.x - a.x,
-        dy = b.y - a.y;
-      if (Math.abs(dx) + Math.abs(dy) < 1) continue;
-      const fraction = Math.min(
-        boxWidth / (2 * Math.max(0.1, Math.abs(dx))),
-        boxHeight / (2 * Math.max(0.1, Math.abs(dy))),
+    if (value.type === "boxplot") {
+      for (const [i, series] of (value.series ?? []).entries())
+        pv_plot_tick(0, i, series.name);
+      for (const [i, series] of (value.series ?? []).entries()) {
+        const summary = prepared.boxes?.[i];
+        if (summary)
+          this.plotDrawing.box(
+            series.name,
+            i,
+            summary,
+            seriesColors[i % seriesColors.length],
+          );
+      }
+    } else {
+      for (const [i, step] of value.steps.entries())
+        pv_plot_tick(0, i, step.label);
+      this.plotDrawing.waterfall(
+        value.title ?? "Change",
+        prepared.waterfall ?? [],
+        value.steps.map((step) =>
+          step.kind === "total"
+            ? palette.accent
+            : step.value >= 0
+              ? palette.positive
+              : palette.negative,
+        ),
       );
-      const start = { x: a.x + dx * fraction, y: a.y + dy * fraction },
-        end = { x: b.x - dx * fraction, y: b.y - dy * fraction };
-      const angle = Math.atan2(dy, dx);
-      ImDrawList_AddLine(draw, start, end, packed(palette.muted), 1.5, 0);
-      ImDrawList_AddTriangleFilled(
-        draw,
-        end,
-        {
-          x: end.x - 9 * Math.cos(angle - 0.45),
-          y: end.y - 9 * Math.sin(angle - 0.45),
-        },
-        {
-          x: end.x - 9 * Math.cos(angle + 0.45),
-          y: end.y - 9 * Math.sin(angle + 0.45),
-        },
-        packed(palette.muted),
-      );
-      if (edge.label) {
-        const face = fonts.regular;
-        if (!face) throw new Error("Fonts are not initialized");
-        igPushFont(face, 15);
-        const size = igCalcTextSize(edge.label, false, -1);
-        igPopFont();
-        const p = {
-          x: (a.x + b.x - size.x) / 2,
-          y: (a.y + b.y - size.y) / 2 - 4,
-        };
-        ImDrawList_AddRectFilled(
-          draw,
-          { x: p.x - 4, y: p.y - 2 },
-          { x: p.x + size.x + 4, y: p.y + size.y + 2 },
-          packed(palette.paper),
-          3,
-          0,
+    }
+    if (!exporting && ImPlot_IsPlotHovered()) {
+      const mouse = ImPlot_GetPlotMousePos(-1, -1),
+        index = Math.round(mouse.x);
+      if (value.type === "boxplot") {
+        const summary = prepared.boxes?.[index],
+          series = value.series?.[index];
+        if (summary && series)
+          tooltip({
+            title: series.name,
+            rows: [
+              { label: "Median", value: formatNumber(summary.median) },
+              {
+                label: "Middle 50%",
+                value: `${formatNumber(summary.q1)} – ${formatNumber(summary.q3)}`,
+              },
+              {
+                label: "Whiskers",
+                value: `${formatNumber(summary.low)} – ${formatNumber(summary.high)}`,
+              },
+              { label: "Observations", value: String(summary.count) },
+            ],
+          });
+      } else {
+        const step = value.steps[index],
+          total = prepared.waterfall?.[index];
+        if (step && total)
+          tooltip({
+            title: step.label,
+            rows: [
+              {
+                label: step.kind === "total" ? "Total" : "Change",
+                value: formatNumber(step.value),
+              },
+              { label: "Running total", value: formatNumber(total.end) },
+            ],
+          });
+      }
+      if (Math.abs(this.pinchScale - 1) > 0.00001) {
+        const pos = ImPlot_GetPlotPos(),
+          size = ImPlot_GetPlotSize(),
+          pointer = igGetMousePos();
+        const a = ImPlot_PixelsToPlot_Vec2(
+          {
+            x: pointer.x + (pos.x - pointer.x) / this.pinchScale,
+            y: pointer.y + (pos.y - pointer.y) / this.pinchScale,
+          },
+          -1,
+          -1,
         );
-        ImDrawList_AddText_FontPtr(
-          draw,
-          face,
-          15,
-          p,
-          packed(palette.muted),
-          edge.label,
-          0,
+        const b = ImPlot_PixelsToPlot_Vec2(
+          {
+            x: pointer.x + (pos.x + size.x - pointer.x) / this.pinchScale,
+            y: pointer.y + (pos.y + size.y - pointer.y) / this.pinchScale,
+          },
+          -1,
+          -1,
         );
-        captureWrappedText(edge.label, "regular", 15, p, 0);
+        this.pinchViews.set(key, {
+          xMin: Math.min(a.x, b.x),
+          xMax: Math.max(a.x, b.x),
+          yMin: Math.min(a.y, b.y),
+          yMax: Math.max(a.y, b.y),
+        });
       }
     }
-    for (let i = 0; i < value.nodes.length; i++) {
-      const node = value.nodes[i],
-        center = positions[i],
-        a = { x: center.x - boxWidth / 2, y: center.y - boxHeight / 2 },
-        b = { x: center.x + boxWidth / 2, y: center.y + boxHeight / 2 };
-      ImDrawList_AddRectFilled(draw, a, b, packed(palette.surface), 9, 0);
-      ImDrawList_AddRect(
-        draw,
-        a,
-        b,
-        packed(tone(node.tone ?? "positive")),
-        9,
-        1.5,
-        0,
-      );
-      const face = fonts.bold;
-      if (!face) throw new Error("Fonts are not initialized");
-      igPushFont(face, 17);
-      const size = igCalcTextSize(node.label, false, boxWidth - 16);
-      igPopFont();
-      ImDrawList_AddText_FontPtr(
-        draw,
-        face,
-        17,
-        { x: center.x - size.x / 2, y: center.y - size.y / 2 },
-        packed(palette.ink),
-        node.label,
-        boxWidth - 16,
-      );
-      captureWrappedText(
-        node.label,
-        "bold",
-        17,
-        { x: center.x - size.x / 2, y: center.y - size.y / 2 },
-        boxWidth - 16,
-      );
-      if (!exporting) {
-        igSetCursorScreenPos(a);
-        igPushID_Int(i);
-        igInvisibleButton("node", { x: boxWidth, y: boxHeight }, 0);
-        if (igIsItemHovered(0) && node.detail) tooltip(node.detail);
-        igPopID();
-      }
-    }
-    igSetCursorScreenPos(origin);
-    igDummy({ x: width, y: height });
+    const area = {
+      position: ImPlot_GetPlotPos(),
+      size: ImPlot_GetPlotSize(),
+      limits: ImPlot_GetPlotLimits(-1, -1),
+    };
+    ImPlot_EndPlot();
+    if (!exporting) overlay(() => this.zoomControls(key, area));
   }
 }

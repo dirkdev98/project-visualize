@@ -221,7 +221,9 @@ category/series pair stays absent.
 
 Set a dataset-bound bar chart's `select` to a select-control ID for the same dataset
 and x field. Shift-click a visible bar to select that raw category across the linked
-view; repeat to clear it. Plain dragging pans, the wheel zooms, and a plain
+view. Click outside that bar in the plot to clear it; Shift-clicking it again also
+clears it. Dragging, legends and zoom controls preserve selections. Plain dragging pans,
+Cmd+scroll zooms (Ctrl+scroll on other platforms), and a plain
 double-click fits the data. Shift is reserved for category selection. The
 legend remains outside the plot so toggling a series cannot select a bar underneath.
 Selection bars treat numeric values as separate categories and preserve scalar types.
@@ -248,6 +250,62 @@ theme and `params` as JSON. Pass those identifiers and parameters to the corresp
 CLI flags to reproduce the selection. Context shows the typed control values;
 saved PNG/PDF snapshots retain the document's defaults.
 Chart navigation and local table searches remain temporary viewer state.
+
+## Diagrams
+
+Use a `diagram` block with a `kind` matching the structure. The
+[diagram example](../examples/diagrams.json) shows graph, message and schedule layouts.
+
+Flowcharts, state diagrams, trees and ER diagrams take `nodes` and `edges` with
+`from`, `to` and optional `label`. Omit `kind` for a general flowchart. Automatic
+placement follows graph dependencies and routes connectors around nodes. Set
+`direction: "right"` for horizontal flow; narrow layouts flow down. Optional normalized
+node `x` and `y` positions override placement. Leave room around explicit positions
+for connectors.
+
+Nodes have an `id` and `label`, optional tooltip `detail` and a `shape` of `box`,
+`decision`, `start` or `end`. State diagrams support self-transitions and loops.
+Trees permit forests and require at most one parent per node, without cycles.
+
+ER nodes can include `fields` with a `name`, optional `type` and `key` of `primary`
+or `foreign`. Set an edge's `fromCardinality` and `toCardinality` to `one`,
+`zero-or-one`, `many` or `one-or-many` to show the relationship at each end.
+
+Sequence diagrams take `participants` with an `id` and `label`, and ordered
+`messages` with `from`, `to` and `label`. A message `kind` of `call` is the default;
+`return` draws a dashed reply and `event` an open arrow. Self-messages loop back to
+their participant. Narrow layouts become an ordered message list that retains the
+sender, receiver and complete message.
+
+Gantt diagrams take `tasks` with an `id`, `label`, `start` and `end` as real ISO dates
+(`YYYY-MM-DD`). End dates are inclusive. Optional `progress` runs from zero to one;
+`dependsOn` names prerequisite task IDs. Dependencies draw connectors without
+rescheduling the supplied dates, and cannot contain cycles.
+
+## Distributions and changes
+
+Use `histogram` and `boxplot` blocks with named `series` containing raw numeric
+`values`. They summarize observations rather than precomputed counts. The
+[distribution example](../examples/distributions.json) combines these with a waterfall.
+
+Histograms share bin boundaries across series and include the maximum observation
+in the final bin. Set an integer `bins` to control the partition; otherwise the sample
+size determines it. `xLabel` describes the observation and units; `yLabel` defaults
+to Count. Constant observations get a finite range around their value.
+
+Box plots use linearly interpolated quartiles (R-7). The box spans the middle half,
+with a median line. Tukey whiskers reach the most extreme observed values within
+1.5 interquartile ranges; observations outside them appear as individual points.
+
+Both distributions can use `source: { "dataset": "readings", "field": "temperature",
+"series": "station" }` instead of `series`. The grouping field is optional. Linked
+controls filter the observations before computing the distribution. Nonnumeric and
+missing measurements are omitted without coercion.
+
+A `waterfall` takes ordered `steps` with a `label`, numeric `value` and optional
+`kind`. The default `delta` adds to the running total. A `total` step draws from zero
+and resets the running total to its explicit value. Use totals for opening and
+closing balances instead of implying a total from the last step's position.
 
 ## Heatmaps
 
@@ -362,8 +420,10 @@ five most recent artifacts until **Show more…**; a search lists every match. T
 artifact header's PDF action opens the creation-time export.
 
 Drag across document text to select it, then press Cmd+C to copy. Double-click a word
-to select it. With a document selection active, Cmd+A selects the rendered document
-text and Escape clears the selection. Formatting, soft wraps and syntax colors do
+or triple-click a paragraph or code line; keep dragging to extend by that unit.
+Shift-click extends from the existing anchor. Cmd+A selects the rendered document
+text and Escape clears the selection. The context menu offers Copy and Select all.
+Formatting, soft wraps and syntax colors do
 not enter the clipboard. Editable controls keep their own keyboard shortcuts.
 
 The saved PNG and PDF use the render command's width and scale. `export` renders the

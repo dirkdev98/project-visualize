@@ -2539,3 +2539,87 @@ test("scatter bindings preserve duplicate coordinates and source order", (t) => 
     document.datasets.observations.map((row) => row.accepted),
   );
 });
+
+test("diagram validation rejects invalid topology, participants and dates before publishing", (t) => {
+  const { run, ok } = workspace(t);
+  const variants = [
+    {
+      type: "diagram",
+      kind: "tree",
+      nodes: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B" },
+      ],
+      edges: [
+        { from: "a", to: "b" },
+        { from: "b", to: "a" },
+      ],
+    },
+    {
+      type: "diagram",
+      kind: "sequence",
+      participants: [{ id: "a", label: "A" }],
+      messages: [{ from: "a", to: "missing", label: "Request" }],
+    },
+    {
+      type: "diagram",
+      kind: "gantt",
+      tasks: [
+        { id: "a", label: "Inspect", start: "2026-02-30", end: "2026-03-04" },
+      ],
+    },
+    {
+      type: "diagram",
+      kind: "gantt",
+      tasks: [
+        { id: "a", label: "Inspect", start: "2026-03-04", end: "2026-03-03" },
+      ],
+    },
+  ];
+  for (const block of variants) {
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      { ...minimal(), body: [block] },
+    );
+    assert.equal(result.status, 1);
+    assert.ok(JSON.parse(result.stderr).error);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
+test("linked distribution widgets retain raw observations after filtering", (t) => {
+  const { render, ok } = workspace(t);
+  const readings = [
+    { station: "North", value: 3 },
+    { station: "North", value: 7 },
+    { station: "South", value: 100 },
+    { station: "North", value: null },
+  ];
+  render({
+    ...minimal(),
+    datasets: { readings },
+    body: [
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "readings",
+        field: "station",
+      },
+      {
+        type: "histogram",
+        source: { dataset: "readings", field: "value", series: "station" },
+      },
+      {
+        type: "boxplot",
+        source: { dataset: "readings", field: "value", series: "station" },
+      },
+    ],
+  });
+  const selected = inspectView(ok, { station: "North" });
+  for (const block of selected.body.slice(1))
+    assert.deepEqual(block.series, [{ name: "North", values: [3, 7] }]);
+  const empty = inspectView(ok, { station: "Absent" });
+  for (const block of empty.body.slice(1)) assert.deepEqual(block.series, []);
+});

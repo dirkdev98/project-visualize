@@ -376,6 +376,34 @@ export function resolveView(
           block.source ? datasetRows(document, block.source.dataset) : [],
           block.source ? rows(block.source.dataset) : [],
         );
+      if (
+        (block.type === "histogram" || block.type === "boxplot") &&
+        block.source
+      ) {
+        const { source, ...rest } = block;
+        const groups = new Map<string, { name: Cell; values: number[] }>();
+        for (const row of rows(source.dataset)) {
+          const value = dataCell(row, source.field);
+          if (typeof value !== "number") continue;
+          const name = source.series
+            ? dataCell(row, source.series)
+            : source.field;
+          let group = groups.get(key(name));
+          if (!group) {
+            group = { name, values: [] };
+            groups.set(key(name), group);
+          }
+          group.values.push(value);
+        }
+        const names = labels([...groups.values()].map((group) => group.name));
+        return {
+          ...rest,
+          series: [...groups.values()].map((group, i) => ({
+            name: names[i],
+            values: group.values,
+          })),
+        };
+      }
       if (block.type === "chart" && block.source) {
         const dataset = block.source.dataset;
         chartFitKeys.set(

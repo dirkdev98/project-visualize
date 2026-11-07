@@ -114,6 +114,9 @@ export default defineLibrary({
         user_data: { constant: "NULL" },
       },
     },
+    pv_input_text: {
+      params: { buffer: { array: { length: "capacity", writable: true } } },
+    },
     igInputTextMultiline: {
       params: {
         buf: { array: { length: "buf_size", writable: true } },

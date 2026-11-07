@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -30,8 +31,16 @@ async function fixture(t, handler) {
   const root = mkdtempSync(join(tmpdir(), "visualize-images-"));
   const store = join(root, "library");
   const requests = [];
+  const trace = [];
   const server = createServer((request, response) => {
     requests.push(request.headers);
+    trace.push({
+      event: "request",
+      time: Date.now(),
+      method: request.method,
+      url: request.url,
+      headers: request.headers,
+    });
     handler(request, response);
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -57,8 +66,26 @@ async function fixture(t, handler) {
     }),
   );
   async function run(args) {
+    trace.push({
+      event: "start",
+      command: args[0],
+      time: Date.now(),
+      requests: requests.length,
+    });
     const result = await exec(binary, [...args, "--store", store], {
       timeout: 60_000,
+    });
+    const cache = join(store, "cache", "images");
+    trace.push({
+      event: "complete",
+      command: args[0],
+      time: Date.now(),
+      requests: requests.length,
+      metadata: existsSync(cache)
+        ? readdirSync(cache)
+            .filter((name) => name.endsWith(".json"))
+            .map((name) => JSON.parse(readFileSync(join(cache, name), "utf8")))
+        : [],
     });
     return JSON.parse(result.stdout);
   }
@@ -77,7 +104,16 @@ async function fixture(t, handler) {
       entry.directory,
       JSON.parse(readFileSync(entry.document, "utf8")).assets.station,
     );
-  return { root, store, requests, server, run, render, asset };
+  return {
+    root,
+    store,
+    requests,
+    server,
+    run,
+    render,
+    asset,
+    diagnostics: () => JSON.stringify(trace),
+  };
 }
 
 test("remote images reuse a fresh cache and rerender saved bytes offline", async (t) => {
@@ -87,7 +123,7 @@ test("remote images reuse a fresh cache and rerender saved bytes offline", async
   });
   const first = await f.render();
   const second = await f.render();
-  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests.length, 1, f.diagnostics());
   assert.deepEqual(readFileSync(f.asset(first)), png);
   assert.deepEqual(readFileSync(f.asset(second)), png);
   await new Promise((resolve) => f.server.close(resolve));
@@ -146,7 +182,7 @@ test("conditional image revalidation accepts 304 and renews freshness", async (t
   await f.render();
   await f.render();
   const entry = await f.render();
-  assert.equal(f.requests.length, 2);
+  assert.equal(f.requests.length, 2, f.diagnostics());
   assert.deepEqual(readFileSync(f.asset(entry)), png);
 });
 
@@ -189,7 +225,7 @@ test("no-store image responses are copied into revisions without cache retention
   });
   await f.render();
   const entry = await f.render();
-  assert.equal(f.requests.length, 2);
+  assert.equal(f.requests.length, 2, f.diagnostics());
   assert.deepEqual(readFileSync(f.asset(entry)), png);
   assert.deepEqual(readdirSync(join(f.store, "cache", "images")), []);
 });

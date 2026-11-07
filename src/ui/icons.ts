@@ -2,6 +2,7 @@ import {
   type ImDrawList,
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
+  ImGuiButtonFlags_EnableNav,
   igCalcTextSize,
   igGetItemRectMax,
   igGetItemRectMin,
@@ -13,8 +14,8 @@ import {
   igPushFont,
 } from "maligator:ffi/visualize";
 import type { ArtifactType } from "../model.ts";
-import { tooltip } from "./primitives.ts";
 import { type Color, fonts, packed, palette } from "./theme.ts";
+import { itemTooltip } from "./tooltips.ts";
 
 // Code points in the bundled Lucide font; see assets/icons/sources.json for its version.
 const glyphs = {
@@ -75,7 +76,11 @@ export function iconButton(
   options: { active?: boolean; size?: number; iconSize?: number } = {},
 ): boolean {
   const size = options.size ?? 28;
-  const clicked = igInvisibleButton(id, { x: size, y: size }, 0);
+  const clicked = igInvisibleButton(
+    id,
+    { x: size, y: size },
+    ImGuiButtonFlags_EnableNav,
+  );
   const hovered = igIsItemHovered(0),
     held = igIsItemActive();
   const min = igGetItemRectMin(),
@@ -98,6 +103,11 @@ export function iconButton(
     options.iconSize ?? 16,
     hovered || held || options.active ? palette.ink : palette.muted,
   );
-  if (hovered) tooltip(hint);
+  const split = hint.indexOf(" · ");
+  itemTooltip(
+    split < 0
+      ? hint
+      : { title: hint.slice(0, split), shortcut: hint.slice(split + 3) },
+  );
   return clicked;
 }

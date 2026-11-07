@@ -75,6 +75,51 @@ export interface DiagramNode {
   x?: number;
   y?: number;
   tone?: Tone;
+  shape?: "box" | "decision" | "start" | "end";
+  fields?: { name: string; type?: string; key?: "primary" | "foreign" }[];
+}
+export interface DiagramEdge {
+  from: string;
+  to: string;
+  label?: string;
+  fromCardinality?: "one" | "zero-or-one" | "many" | "one-or-many";
+  toCardinality?: "one" | "zero-or-one" | "many" | "one-or-many";
+}
+export type Diagram =
+  | {
+      type: "diagram";
+      kind?: "flowchart" | "state" | "tree" | "er";
+      direction?: "down" | "right";
+      nodes: DiagramNode[];
+      edges?: DiagramEdge[];
+    }
+  | {
+      type: "diagram";
+      kind: "sequence";
+      participants: { id: string; label: string }[];
+      messages: {
+        from: string;
+        to: string;
+        label: string;
+        kind?: "call" | "return" | "event";
+      }[];
+    }
+  | {
+      type: "diagram";
+      kind: "gantt";
+      tasks: {
+        id: string;
+        label: string;
+        start: string;
+        end: string;
+        progress?: number;
+        dependsOn?: string[];
+      }[];
+    };
+export interface DistributionSource {
+  dataset: string;
+  field: string;
+  series?: string;
 }
 export type Block = BlockStyle &
   (
@@ -139,10 +184,19 @@ export type Block = BlockStyle &
         | { rows: DataRow[]; dataset?: never }
         | { dataset: string; rows?: never }
       ))
+    | Diagram
+    | (({ type: "histogram" } | { type: "boxplot" }) & {
+        bins?: number;
+        xLabel?: string;
+        yLabel?: string;
+      } & (
+          | { series: Series[]; source?: never }
+          | { source: DistributionSource; series?: never }
+        ))
     | {
-        type: "diagram";
-        nodes: DiagramNode[];
-        edges?: { from: string; to: string; label?: string }[];
+        type: "waterfall";
+        yLabel?: string;
+        steps: { label: string; value: number; kind?: "delta" | "total" }[];
       }
     | { type: "image"; asset: string; fit?: ImageFit }
     | { type: "divider" | "spacer" }
@@ -767,9 +821,195 @@ export function validate(input: unknown): Artifact {
         });
         break;
       }
+      case "histogram":
+      case "boxplot": {
+        if (block.bins !== undefined) {
+          number(block.bins, field("bins"), 1, 100);
+          if (block.type !== "histogram" || !Number.isInteger(block.bins))
+            fail(field("bins"), "expected an integer for a histogram");
+        }
+        for (const key of ["xLabel", "yLabel"])
+          if (block[key] !== undefined) string(block[key], field(key), 240);
+        if ((block.series === undefined) === (block.source === undefined))
+          fail(location, "supply either series or source");
+        if (block.source !== undefined) {
+          const source = object(block.source, field("source"));
+          const rows = dataset(source.dataset, field("source.dataset"));
+          dataField(rows, source.field, field("source.field"), true);
+          if (source.series !== undefined) {
+            const group = dataField(
+              rows,
+              source.series,
+              field("source.series"),
+            );
+            if (
+              new Set(rows.map((row) => JSON.stringify(row[group]))).size > 12
+            )
+              fail(
+                field("source.series"),
+                "source exceeds the distribution series limit",
+              );
+          }
+        } else {
+          const names = new Set<string>();
+          array(block.series, field("series"), 1, 12).forEach((raw, i) => {
+            const item = object(raw, field(`series[${i}]`));
+            const name = string(item.name, field(`series[${i}].name`), 240);
+            if (!name || names.has(name))
+              fail(field("series"), "expected unique nonempty series names");
+            names.add(name);
+            if (item.x !== undefined)
+              fail(
+                field("series"),
+                "distributions take raw values without x coordinates",
+              );
+            const values = array(
+              item.values,
+              field(`series[${i}].values`),
+              1,
+              100_000,
+            );
+            points += values.length;
+            if (points > 250_000)
+              fail(location, "artifact exceeds the chart point limit");
+            values.forEach((v, j) => {
+              number(v, field(`series[${i}].values[${j}]`), -1e100, 1e100);
+            });
+          });
+        }
+        break;
+      }
+      case "waterfall": {
+        if (block.yLabel !== undefined)
+          string(block.yLabel, field("yLabel"), 240);
+        let total = 0;
+        array(block.steps, field("steps"), 1, 100).forEach((raw, i) => {
+          const step = object(raw, field(`steps[${i}]`));
+          string(step.label, field(`steps[${i}].label`), 240);
+          const value = number(
+            step.value,
+            field(`steps[${i}].value`),
+            -1e100,
+            1e100,
+          );
+          if (
+            step.kind !== undefined &&
+            !["delta", "total"].includes(String(step.kind))
+          )
+            fail(field("steps"), "expected delta or total steps");
+          total = step.kind === "total" ? value : total + value;
+          if (!Number.isFinite(total))
+            fail(field("steps"), "running total must stay finite");
+        });
+        break;
+      }
       case "diagram": {
         if (block.height !== undefined)
           number(block.height, field("height"), 160, 1600);
+        if (
+          block.kind !== undefined &&
+          !["flowchart", "state", "tree", "er", "sequence", "gantt"].includes(
+            String(block.kind),
+          )
+        )
+          fail(
+            field("kind"),
+            "expected flowchart, state, tree, er, sequence or gantt",
+          );
+        if (
+          block.direction !== undefined &&
+          !["down", "right"].includes(String(block.direction))
+        )
+          fail(field("direction"), "expected down or right");
+        if (block.kind === "sequence") {
+          const ids = new Set<string>();
+          array(block.participants, field("participants"), 1, 12).forEach(
+            (raw, i) => {
+              const p = object(raw, field(`participants[${i}]`));
+              const id = string(p.id, field("participant.id"), 120);
+              if (!id || ids.has(id))
+                fail(
+                  field("participants"),
+                  "participant IDs must be unique and nonempty",
+                );
+              ids.add(id);
+              string(p.label, field("participant.label"), 240);
+            },
+          );
+          array(block.messages, field("messages"), 1, 150).forEach((raw) => {
+            const m = object(raw, field("message"));
+            if (!ids.has(String(m.from)) || !ids.has(String(m.to)))
+              fail(
+                field("messages"),
+                "message endpoints must name participants",
+              );
+            string(m.label, field("message.label"), 1000);
+            if (
+              m.kind !== undefined &&
+              !["call", "return", "event"].includes(String(m.kind))
+            )
+              fail(field("message.kind"), "expected call, return or event");
+          });
+          break;
+        }
+        if (block.kind === "gantt") {
+          const tasks = array(block.tasks, field("tasks"), 1, 100).map((raw) =>
+            object(raw, field("task")),
+          );
+          const ids = new Set<string>();
+          for (const task of tasks) {
+            const id = string(task.id, field("task.id"), 120);
+            if (!id || ids.has(id))
+              fail(field("tasks"), "task IDs must be unique and nonempty");
+            ids.add(id);
+            string(task.label, field("task.label"), 240);
+            for (const key of ["start", "end"]) {
+              const date = string(task[key], field(`task.${key}`), 10);
+              const time = Date.parse(`${date}T00:00:00Z`);
+              if (
+                !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+                !Number.isFinite(time) ||
+                new Date(time).toISOString().slice(0, 10) !== date
+              )
+                fail(
+                  field(`task.${key}`),
+                  "expected a real ISO date (YYYY-MM-DD)",
+                );
+            }
+            if (String(task.end) < String(task.start))
+              fail(field("task.end"), "end must not precede start");
+            if (task.progress !== undefined)
+              number(task.progress, field("task.progress"), 0, 1);
+          }
+          const parents = new Map<string, string[]>();
+          for (const task of tasks) {
+            const deps =
+              task.dependsOn === undefined
+                ? []
+                : array(
+                    task.dependsOn,
+                    field("task.dependsOn"),
+                    0,
+                    tasks.length,
+                  ).map((dep) => string(dep, field("task.dependsOn"), 120));
+            if (deps.some((dep) => !ids.has(dep)))
+              fail(field("task.dependsOn"), "dependencies must name tasks");
+            parents.set(String(task.id), deps);
+          }
+          const done = new Set<string>(),
+            active = new Set<string>();
+          const visit = (id: string) => {
+            if (active.has(id))
+              fail(field("tasks"), "dependencies must not contain cycles");
+            if (done.has(id)) return;
+            active.add(id);
+            for (const parent of parents.get(id) ?? []) visit(parent);
+            active.delete(id);
+            done.add(id);
+          };
+          for (const id of ids) visit(id);
+          break;
+        }
         const ids = new Set<string>();
         array(block.nodes, field("nodes"), 1, 60).forEach((input, index) => {
           const node = object(input, `${field("nodes")}[${index}]`);
@@ -780,6 +1020,23 @@ export function validate(input: unknown): Artifact {
           string(node.label, field("node.label"), 240);
           if (node.detail !== undefined)
             string(node.detail, field("node.detail"));
+          if (
+            node.shape !== undefined &&
+            !["box", "decision", "start", "end"].includes(String(node.shape))
+          )
+            fail(field("node.shape"), "expected box, decision, start or end");
+          if (node.fields !== undefined)
+            array(node.fields, field("node.fields"), 0, 30).forEach((raw) => {
+              const item = object(raw, field("node.field"));
+              string(item.name, field("node.field.name"), 120);
+              if (item.type !== undefined)
+                string(item.type, field("node.field.type"), 120);
+              if (
+                item.key !== undefined &&
+                !["primary", "foreign"].includes(String(item.key))
+              )
+                fail(field("node.field.key"), "expected primary or foreign");
+            });
           if (
             node.tone !== undefined &&
             !["neutral", "positive", "warning", "negative"].includes(
@@ -804,7 +1061,39 @@ export function validate(input: unknown): Artifact {
               );
             if (edge.label !== undefined)
               string(edge.label, field("edge.label"), 240);
+            for (const key of ["fromCardinality", "toCardinality"])
+              if (
+                edge[key] !== undefined &&
+                !["one", "zero-or-one", "many", "one-or-many"].includes(
+                  String(edge[key]),
+                )
+              )
+                fail(
+                  field(`edge.${key}`),
+                  "expected one, zero-or-one, many or one-or-many",
+                );
           });
+        if (block.kind === "tree") {
+          const edges = (block.edges ?? []) as DiagramEdge[],
+            parents = new Set<string>();
+          for (const edge of edges) {
+            if (parents.has(edge.to))
+              fail(field("edges"), "tree nodes must have at most one parent");
+            parents.add(edge.to);
+          }
+          const done = new Set<string>(),
+            active = new Set<string>();
+          const visit = (id: string) => {
+            if (active.has(id))
+              fail(field("edges"), "trees must not contain cycles");
+            if (done.has(id)) return;
+            active.add(id);
+            for (const edge of edges) if (edge.from === id) visit(edge.to);
+            active.delete(id);
+            done.add(id);
+          };
+          for (const id of ids) visit(id);
+        }
         break;
       }
       case "image":
