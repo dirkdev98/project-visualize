@@ -6,6 +6,8 @@ import {
   ImGuiKey_L,
   ImGuiMod_Ctrl,
   ImGuiMod_Shift,
+  ImGuiStyleVar_CellPadding,
+  ImGuiTableFlags_SizingStretchSame,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImGuiWindowFlags_NoDecoration,
   ImGuiWindowFlags_NoSavedSettings,
@@ -13,6 +15,7 @@ import {
   igBeginChild_Str,
   igBeginCombo,
   igBeginGroup,
+  igBeginTable,
   igButton,
   igCalcTextSize,
   igCollapsingHeader_TreeNodeFlags,
@@ -20,6 +23,7 @@ import {
   igEndChild,
   igEndCombo,
   igEndGroup,
+  igEndTable,
   igGetContentRegionAvail,
   igGetCursorScreenPos,
   igGetItemRectMax,
@@ -27,8 +31,10 @@ import {
   igIsItemHovered,
   igPopFont,
   igPopID,
+  igPopStyleVar,
   igPushFont,
   igPushID_Str,
+  igPushStyleVar_Vec2,
   igRender,
   igSameLine,
   igSelectable_Bool,
@@ -39,6 +45,8 @@ import {
   igSetNextWindowSize,
   igShortcut_Nil,
   igSpacing,
+  igTableNextColumn,
+  igTableNextRow,
   pv_open_url,
   pv_surface_begin,
   pv_surface_close,
@@ -454,36 +462,59 @@ export function openViewer(root: string, options: Options) {
             ImGuiChildFlags_Borders,
             0,
           );
-          text("Artifact context", 23, "bold");
+          const definitions = controls(renderer.document);
           text(
-            `${selected.project} / ${selected.artifact}`,
-            15,
-            "regular",
-            palette.muted,
+            definitions.length ? "Linked controls" : "Artifact context",
+            18,
+            "bold",
           );
-          text(revisionDate(selected, true), 14, "regular", palette.muted);
           text(
             `Revision ${selected.version.slice(-8)}`,
             13,
             "mono",
             palette.muted,
           );
-          const definitions = controls(renderer.document);
+          if (igIsItemHovered(0))
+            tooltip(
+              `${selected.project} / ${selected.artifact}\n${revisionDate(selected, true)}\n${selected.version}`,
+            );
           if (definitions.length) {
-            text("Linked controls", 18, "bold");
-            for (const control of definitions) {
-              text(control.label, 14, "bold", palette.muted);
-              const value = parameterValue(
-                renderer.state.parameters,
-                control.id,
-              );
-              text(
-                isAll(value) ? "All values" : JSON.stringify(value),
-                15,
-                "mono",
-              );
+            igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 4, y: 3 });
+            if (
+              igBeginTable(
+                "parameters",
+                2,
+                ImGuiTableFlags_SizingStretchSame,
+                { x: 0, y: 0 },
+                0,
+              )
+            ) {
+              for (const control of definitions) {
+                igTableNextRow(0, 0);
+                igTableNextColumn();
+                text(control.label, 14, "bold", palette.muted);
+                igTableNextColumn();
+                const value = parameterValue(
+                  renderer.state.parameters,
+                  control.id,
+                );
+                let display: string;
+                if (isAll(value)) display = "All values";
+                else if (value !== null && typeof value === "object")
+                  display =
+                    value.min === undefined
+                      ? `Up to ${value.max}`
+                      : value.max === undefined
+                        ? `From ${value.min}`
+                        : `${value.min} to ${value.max}`;
+                else display = JSON.stringify(value);
+                text(display, 14, "mono");
+              }
+              igEndTable();
             }
+            igPopStyleVar(1);
             igSpacing();
+            text("Artifact context", 18, "bold");
           }
           const context = renderer.document.context;
           if (context)

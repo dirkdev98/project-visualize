@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-11-07 compact inspection context
+
+- Give linked-control values the first part of Context, using compact label/value
+  rows and readable range bounds. Keep scalar types visible and leave copied parameter
+  JSON unchanged. The stacked pane can show the controls together instead of spending
+  most of its height on repeated revision metadata.
+- Retain the short revision in the pane and show the full artifact identity and local
+  date on hover. Keep source context below the control summary and independently
+  scrollable, with the same arrangement in light and dark themes.
+
 ## 2026-11-07 responsive chart legends
 
 - Place short ordinary legends beneath the plot using measured label widths. Keep
