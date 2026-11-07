@@ -40,7 +40,7 @@ public:
   void draw(WGPUTextureView view);
   std::vector<unsigned char> capture(int width, int height);
   std::unique_ptr<Image> load_image(const std::string &file);
-  void present();
+  bool present();
 };
 void write_png(const std::string &file, int width, int height, const unsigned char *pixels);
 }

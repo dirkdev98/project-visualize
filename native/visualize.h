@@ -26,6 +26,7 @@ int pv_surface_input(void);
 PVSize pv_surface_size(void);
 int pv_surface_limit(void);
 int pv_surface_begin(int width, int height, int scale);
+/* A retryable result (1) occurs before drawing, so the same frame can be retried. */
 int pv_surface_present(void);
 void pv_surface_background(PVColor color);
 unsigned char *pv_surface_pixels(int width, int height, int *byte_count);

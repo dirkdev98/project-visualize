@@ -100,7 +100,7 @@ extern "C" int pv_surface_begin(int width, int height, int scale) {
 }
 
 extern "C" int pv_surface_present(void) {
-  try { surface().present(); return 0; }
+  try { return surface().present() ? 0 : 1; }
   catch (const std::exception &error) { last_error = error.what(); return -1; }
 }
 

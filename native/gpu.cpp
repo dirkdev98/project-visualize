@@ -268,10 +268,10 @@ std::unique_ptr<Image> Gpu::load_image(const std::string &file) {
   return image;
 }
 
-void Gpu::present() {
+bool Gpu::present() {
   int width, height;
   SDL_GetWindowSizeInPixels(window, &width, &height);
-  if (width <= 0 || height <= 0) return;
+  if (width <= 0 || height <= 0) return false;
   if (configuration.width != static_cast<uint32_t>(width) || configuration.height != static_cast<uint32_t>(height)) {
     configuration.width = width;
     configuration.height = height;
@@ -280,27 +280,35 @@ void Gpu::present() {
   WGPUSurfaceTexture texture{};
   wgpuSurfaceGetCurrentTexture(surface, &texture);
   check();
-  if (static_cast<uint32_t>(texture.status) == WGPUSurfaceGetCurrentTextureStatus_Occluded) return;
+  if (static_cast<uint32_t>(texture.status) == WGPUSurfaceGetCurrentTextureStatus_Occluded) return false;
   if (ImGui_ImplWGPU_IsSurfaceStatusError(texture.status)) {
     if (texture.texture) wgpuTextureRelease(texture.texture);
     throw std::runtime_error("Cannot acquire the window surface texture");
   }
   if (texture.status == WGPUSurfaceGetCurrentTextureStatus_Timeout) {
     if (texture.texture) wgpuTextureRelease(texture.texture);
-    return;
+    return false;
   }
   if (texture.status == WGPUSurfaceGetCurrentTextureStatus_Outdated ||
       texture.status == WGPUSurfaceGetCurrentTextureStatus_Lost || !texture.texture) {
     if (texture.texture) wgpuTextureRelease(texture.texture);
     wgpuSurfaceConfigure(surface, &configuration);
-    return;
+    return false;
   }
   // SuccessSuboptimal still carries a drawable frame, including on scaled macOS surfaces.
   auto view = wgpuTextureCreateView(texture.texture, nullptr);
-  draw(view);
-  wgpuSurfacePresent(surface);
+  try {
+    draw(view);
+    if (wgpuSurfacePresent(surface) != WGPUStatus_Success)
+      throw std::runtime_error("Cannot present the window surface texture");
+  } catch (...) {
+    wgpuTextureViewRelease(view);
+    wgpuTextureRelease(texture.texture);
+    throw;
+  }
   wgpuTextureViewRelease(view);
   wgpuTextureRelease(texture.texture);
+  return true;
 }
 
 void write_png(const std::string &file, int width, int height, const unsigned char *pixels) {

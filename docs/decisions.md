@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-07 deferred native presentation
+
+- Report deferred surface acquisition to JS and retain the unpresented frame. Retry
+  after the bounded idle wait without recomposing widgets. Refresh and selection run
+  first so disposed document textures are replaced before another presentation attempt.
+- Retry only before drawing. The GPU UI backend expects one draw per ImGui frame;
+  presentation failure after drawing is an error, with the acquired resources released.
+- Keep a native presentation check that hides and restores its own window. The fixed
+  backend reports deferral and presents the retained frame without advancing ImGui.
+  The earlier wrapper reported success while hidden, hiding that distinction.
+- Foreground default-library rendering, live revision refresh and keyboard revision
+  selection work. The connection between the deferred-frame gap and the earlier
+  background-launch black window remains unproved.
+
 ## 2026-11-07 rounded surfaces and document widgets
 
 - Keep table-based auto-height layout and draw rounded panel backgrounds through
@@ -16,8 +30,8 @@
 Keep track of;
 
 - Investigate the initial black surface observed after background application launch.
-  A foreground launch of the same binary rendered correctly, so session locking alone
-  does not explain the observation.
+  A foreground launch with the same default library rendered correctly. The deferred
+  presentation fix closes one lost-frame path without proving that it caused this case.
 
 ## 2026-11-07 pinned font bytes
 

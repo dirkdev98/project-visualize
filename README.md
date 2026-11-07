@@ -72,6 +72,11 @@ preservation. Run `npm run build` after source changes. `npm run dev -- --help` 
 Maligator's development runner after the native bridge has been built.
 PDF extraction checks use Poppler (`brew install poppler`).
 
+Run `npm run check:viewer` in an unlocked Mac session to verify surface recovery.
+It hides a test window, restores it and presents the retained UI frame. Exit code 3
+means the graphics driver did not expose a deferred presentation, so that check is
+inconclusive.
+
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings
 connect it to Dear ImGui and ImPlot. The small backend in

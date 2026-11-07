@@ -81,6 +81,7 @@ export function openViewer(root: string, options: Options) {
   let pending = 2,
     animateUntil = 0,
     showContext = false;
+  let unpresented = false;
   const search = inputBuffer();
   const states = new Map<string, DocumentState>();
   function select(entry: Entry | undefined, follow: boolean) {
@@ -326,14 +327,17 @@ export function openViewer(root: string, options: Options) {
         animateUntil = Date.now() + 500;
       }
       refresh();
-      if (pending === 0 && !animating && !editing) continue;
+      if (pending === 0 && !animating && !editing) {
+        if (unpresented) unpresented = checked(pv_surface_present()) === 1;
+        continue;
+      }
       if (pending > 0) pending--;
       checked(pv_surface_begin(0, 0, 1));
       pushTheme();
       draw();
       popTheme();
       igRender();
-      checked(pv_surface_present());
+      unpresented = checked(pv_surface_present()) === 1;
     }
   } finally {
     renderer?.dispose();
