@@ -39,6 +39,7 @@ import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
 import {
+  captureHeading,
   captureTable,
   currentCapture,
   keepLineTogether,
@@ -136,13 +137,13 @@ export class RichText {
     this.codeTokens.clear();
     this.highlighter.dispose();
   }
-  markdown(source: string, exporting: boolean) {
+  markdown(source: string, exporting: boolean, parentHeading?: number) {
     let tokens = this.trees.get(source);
     if (!tokens) {
       tokens = lexer(source, { gfm: true });
       this.trees.set(source, tokens);
     }
-    this.blocks(tokens, exporting);
+    this.blocks(tokens, exporting, parentHeading);
   }
   private inline(tokens: Token[], size = 18, strong = false) {
     const origin = igGetCursorScreenPos();
@@ -343,9 +344,10 @@ export class RichText {
       igPopFont();
     }, palette.code);
   }
-  private blocks(tokens: Token[], exporting: boolean) {
+  private blocks(tokens: Token[], exporting: boolean, parentHeading?: number) {
     const capture = currentCapture();
     let headingTop: number | undefined;
+    const headings: { depth: number; index: number }[] = [];
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i] as MarkedToken;
       const lineStart = capture?.lines.length ?? 0;
@@ -365,6 +367,22 @@ export class RichText {
           );
           break;
         case "heading":
+          if (capture) {
+            while (
+              headings.length &&
+              headings[headings.length - 1].depth >= token.depth
+            )
+              headings.pop();
+            const index = captureHeading(
+              runs(token.tokens)
+                .map((run) => run.value)
+                .join(""),
+              igGetCursorScreenPos().y,
+              headings[headings.length - 1]?.index ?? parentHeading,
+            );
+            if (index !== undefined)
+              headings.push({ depth: token.depth, index });
+          }
           this.inline(token.tokens, Math.max(19, 34 - token.depth * 3), true);
           break;
         case "hr":
@@ -377,7 +395,11 @@ export class RichText {
           break;
         case "blockquote":
           igIndent(20);
-          this.blocks(token.tokens, exporting);
+          this.blocks(
+            token.tokens,
+            exporting,
+            headings[headings.length - 1]?.index ?? parentHeading,
+          );
           igUnindent(20);
           break;
         case "list": {
@@ -431,7 +453,12 @@ export class RichText {
             const children = item.tokens.filter(
               (child) => child.type !== "checkbox",
             );
-            if (children.length) this.blocks(children, exporting);
+            if (children.length)
+              this.blocks(
+                children,
+                exporting,
+                headings[headings.length - 1]?.index ?? parentHeading,
+              );
             else igDummy({ x: available(), y: 26 });
             igUnindent(24);
             igPopID();

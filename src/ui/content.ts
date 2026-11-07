@@ -129,7 +129,12 @@ import type {
 } from "../model.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import { layoutImage } from "./image-layout.ts";
-import { captureTable, currentCapture, keepTogether } from "./layout.ts";
+import {
+  captureHeading,
+  captureTable,
+  currentCapture,
+  keepTogether,
+} from "./layout.ts";
 import { formatNumber } from "./number-format.ts";
 import {
   available,
@@ -349,7 +354,12 @@ export class DocumentRenderer {
     if (!exporting && !igIsMouseDown_Nil(0)) this.barPress = undefined;
     igSpacing();
   }
-  private blocks(children: Block[], exporting: boolean, parent: string) {
+  private blocks(
+    children: Block[],
+    exporting: boolean,
+    parent: string,
+    parentHeading?: number,
+  ) {
     for (let i = 0; i < children.length; i++) {
       const block = children[i];
       if (parent === "body" && block.pageBreakBefore)
@@ -358,17 +368,25 @@ export class DocumentRenderer {
         );
       const key = `${parent}.${block.id ?? i}`;
       igPushID_Str(block.id ?? String(i));
-      this.block(block, exporting, key);
+      this.block(block, exporting, key, parentHeading);
       igPopID();
     }
   }
-  private block(value: Block, exporting: boolean, key: string) {
+  private block(
+    value: Block,
+    exporting: boolean,
+    key: string,
+    parentHeading?: number,
+  ) {
     const top = igGetCursorScreenPos().y;
-    if (value.title && !["callout", "details", "card"].includes(value.type))
+    let heading = parentHeading;
+    if (value.title && !["callout", "details", "card"].includes(value.type)) {
+      heading = captureHeading(value.title, top, parentHeading);
       text(value.title, 22, "bold");
+    }
     switch (value.type) {
       case "markdown":
-        this.rich.markdown(value.content, exporting);
+        this.rich.markdown(value.content, exporting, heading);
         break;
       case "text":
         text(value.content);
@@ -430,12 +448,12 @@ export class DocumentRenderer {
         break;
       }
       case "timeline":
-        this.timeline(value, exporting);
+        this.timeline(value, exporting, heading);
         break;
       case "row":
       case "column":
         if (value.type === "column" || available() < 620)
-          this.blocks(value.children, exporting, key);
+          this.blocks(value.children, exporting, key, heading);
         else {
           igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 8, y: 0 });
           if (
@@ -462,6 +480,7 @@ export class DocumentRenderer {
                 value.children[i],
                 exporting,
                 `${key}.${value.children[i].id ?? i}`,
+                heading,
               );
               igPopID();
             }
@@ -472,31 +491,51 @@ export class DocumentRenderer {
         break;
       case "card":
         panel(() => {
-          if (value.title) text(value.title, 21, "bold");
-          this.blocks(value.children, exporting, key);
+          if (value.title) {
+            heading = captureHeading(
+              value.title,
+              igGetCursorScreenPos().y,
+              parentHeading,
+            );
+            text(value.title, 21, "bold");
+          }
+          this.blocks(value.children, exporting, key, heading);
         });
         break;
       case "callout":
         panel(
           () => {
-            if (value.title)
+            if (value.title) {
+              heading = captureHeading(
+                value.title,
+                igGetCursorScreenPos().y,
+                parentHeading,
+              );
               text(value.title, 21, "bold", tone(value.tone ?? "positive"));
-            this.rich.markdown(value.content, exporting);
+            }
+            this.rich.markdown(value.content, exporting, heading);
           },
           { ...tone(value.tone ?? "positive"), w: 0.08 },
         );
         break;
       case "details":
         if (exporting) {
-          if (value.title) text(value.title, 21, "bold");
-          this.blocks(value.children, exporting, key);
+          if (value.title) {
+            heading = captureHeading(
+              value.title,
+              igGetCursorScreenPos().y,
+              parentHeading,
+            );
+            text(value.title, 21, "bold");
+          }
+          this.blocks(value.children, exporting, key, heading);
         } else if (
           igCollapsingHeader_TreeNodeFlags(
             value.title ?? "Details",
             ImGuiTreeNodeFlags_DefaultOpen,
           )
         )
-          this.blocks(value.children, exporting, key);
+          this.blocks(value.children, exporting, key, heading);
         break;
       case "code":
         this.rich.code(value.content, value.language ?? "", exporting);
@@ -528,6 +567,7 @@ export class DocumentRenderer {
   private timeline(
     value: Extract<Block, { type: "timeline" }>,
     exporting: boolean,
+    heading?: number,
   ) {
     const origin = igGetCursorScreenPos(),
       draw = igGetWindowDrawList();
@@ -540,7 +580,7 @@ export class DocumentRenderer {
       points.push({ y: top + 9, tint: tone(event.tone ?? "positive") });
       if (event.label) text(event.label, 12, "bold", palette.muted);
       text(event.title, 20, "bold");
-      if (event.content) this.rich.markdown(event.content, exporting);
+      if (event.content) this.rich.markdown(event.content, exporting, heading);
       keepTogether(top, igGetCursorScreenPos().y);
       igDummy({ x: 0, y: 8 });
       igPopID();

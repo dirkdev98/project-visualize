@@ -11,6 +11,7 @@ export interface TableCapture {
 }
 export interface LayoutCapture {
   breaks: number[];
+  headings: { title: string; top: number; parent?: number }[];
   regions: VerticalRange[];
   lines: VerticalRange[];
   tables: TableCapture[];
@@ -31,6 +32,7 @@ let active: LayoutCapture | undefined;
 export function captureLayout(draw: () => void): LayoutCapture {
   const capture: LayoutCapture = {
     breaks: [],
+    headings: [],
     regions: [],
     lines: [],
     tables: [],
@@ -48,6 +50,18 @@ export function captureLayout(draw: () => void): LayoutCapture {
 }
 export function currentCapture(): LayoutCapture | undefined {
   return active;
+}
+export function captureHeading(
+  title: string,
+  top: number,
+  parent?: number,
+): number | undefined {
+  if (!active) return;
+  const label = title.replace(/\s+/g, " ").trim();
+  if (!label) return parent;
+  const index = active.headings.length;
+  active.headings.push({ title: label, top, parent });
+  return index;
 }
 export function keepTogether(top: number, bottom: number) {
   if (active && bottom > top) active.regions.push({ top, bottom });

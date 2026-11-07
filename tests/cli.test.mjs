@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
-import { PDFDocument } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName } from "pdf-lib";
 
 const executable = resolve(
   process.env.VISUALIZE_TEST_BINARY ?? "dist/bin/visualize",
@@ -137,6 +137,221 @@ function pdfTextPages(file) {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.split("\f").filter((page) => page.trim());
 }
+
+async function pdfBookmarks(file) {
+  const pdf = await PDFDocument.load(readFileSync(file));
+  const pages = pdf.getPages(),
+    visited = new Set();
+  const root = pdf.catalog.lookupMaybe(PDFName.of("Outlines"), PDFDict);
+  function siblings(first) {
+    const result = [];
+    for (let reference = first; reference; ) {
+      assert.ok(
+        !visited.has(reference.toString()),
+        "The bookmark tree contains a cycle",
+      );
+      visited.add(reference.toString());
+      const node = pdf.context.lookup(reference, PDFDict);
+      const destination = node.lookup(PDFName.of("Dest"), PDFArray);
+      const page = pages.findIndex(
+        (page) => page.ref.toString() === destination.get(0).toString(),
+      );
+      assert.ok(page >= 0, "A bookmark points outside the document");
+      const top = destination.lookup(3).asNumber();
+      assert.ok(top > 0 && top < pages[page].getHeight());
+      result.push({
+        title: node.lookup(PDFName.of("Title")).decodeText(),
+        page,
+        children: siblings(node.get(PDFName.of("First"))),
+      });
+      reference = node.get(PDFName.of("Next"));
+    }
+    return result;
+  }
+  return root ? siblings(root.get(PDFName.of("First"))) : [];
+}
+
+test("PDF bookmarks follow rendered section hierarchy and destination pages", async (t) => {
+  const { render } = workspace(t);
+  const overview = "OVERVIEW Ω",
+    detail = "DETAILS café & signal source",
+    appendix = "APPENDIX Ω",
+    source = "SOURCE_REFERENCE";
+  const evidence = Array.from(
+    { length: 26 },
+    (_, i) =>
+      `Fictional observation ${i} retains its source, matched operating hours and review assumptions.`,
+  ).join("\n\n");
+  const entry = render({
+    ...minimal(),
+    body: [
+      {
+        type: "markdown",
+        content: `# ${overview}\n\n${evidence}\n\n## DETAILS **café** &amp; \`signal\` [source](https://example.com/evidence)\n\nThe final finding preserves the evidence.`,
+      },
+      {
+        type: "details",
+        title: appendix,
+        pageBreakBefore: true,
+        children: [
+          {
+            type: "markdown",
+            content: `### ${source}\n\nRetain this original fictional source.`,
+          },
+        ],
+      },
+    ],
+  });
+  const text = pdfTextPages(entry.pdf);
+  const pageOf = (marker) => {
+    const page = text.findIndex((page) => page.includes(marker));
+    assert.ok(page >= 0, marker);
+    return page;
+  };
+  assert.ok(pageOf("DETAILS") > pageOf(overview));
+  assert.deepEqual(await pdfBookmarks(entry.pdf), [
+    {
+      title: overview,
+      page: pageOf(overview),
+      children: [{ title: detail, page: pageOf("DETAILS"), children: [] }],
+    },
+    {
+      title: appendix,
+      page: pageOf(appendix),
+      children: [{ title: source, page: pageOf(source), children: [] }],
+    },
+  ]);
+});
+
+test("PDF bookmarks target heading text after continued tables at either density", async (t) => {
+  const { ok } = workspace(t);
+  for (const [width, scale, theme] of [
+    [1280, 1, "light"],
+    [1024, 2, "dark"],
+    [480, 1, "light"],
+  ]) {
+    const entry = ok(
+      [
+        "render",
+        "--project",
+        "orbital",
+        "--artifact",
+        "review",
+        "--file",
+        "-",
+        "--width",
+        String(width),
+        "--scale",
+        String(scale),
+      ],
+      {
+        ...minimal(),
+        theme,
+        body: [
+          {
+            type: "table",
+            columns: [{ key: "observation", label: "Station evidence" }],
+            rows: Array.from({ length: 77 }, (_, i) => ({
+              observation: `RECORD_${i}`,
+            })),
+          },
+          {
+            type: "markdown",
+            content:
+              "## DESTINATION_HEADING\n\nKeep the next review beside this evidence.",
+          },
+        ],
+      },
+    );
+    const pdf = await PDFDocument.load(readFileSync(entry.pdf));
+    const root = pdf.catalog.lookup(PDFName.of("Outlines"), PDFDict);
+    const node = root.lookup(PDFName.of("First"), PDFDict);
+    const destination = node.lookup(PDFName.of("Dest"), PDFArray);
+    const page = pdf
+      .getPages()
+      .findIndex(
+        (page) => page.ref.toString() === destination.get(0).toString(),
+      );
+    const extraction = spawnSync("pdftotext", ["-bbox", entry.pdf, "-"], {
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+    assert.ifError(extraction.error);
+    assert.equal(extraction.status, 0, extraction.stderr);
+    const pages = [
+      ...extraction.stdout.matchAll(/<page\b[^>]*>([\s\S]*?)<\/page>/g),
+    ];
+    const word = [
+      ...pages[page][1].matchAll(
+        /<word\b[^>]*yMin="([^"]+)"[^>]*yMax="([^"]+)"[^>]*>([^<]*)<\/word>/g,
+      ),
+    ].find((word) => word[3] === "DESTINATION_HEADING");
+    assert.ok(word, "The bookmark destination does not contain its heading");
+    const inkTop = pdf.getPages()[page].getHeight() - Number(word[1]);
+    const gap = destination.lookup(3).asNumber() - inkTop;
+    assert.ok(
+      gap >= 0 && gap <= Number(word[2]) - Number(word[1]),
+      "The bookmark must open just above the heading's first visible glyph",
+    );
+  }
+});
+
+test("parallel cards and separate Markdown blocks keep independent bookmarks", async (t) => {
+  const { render } = workspace(t);
+  const entry = render({
+    ...minimal(),
+    body: [
+      {
+        type: "row",
+        children: [
+          {
+            type: "card",
+            title: "LEFT_SECTION",
+            children: [
+              {
+                type: "markdown",
+                content:
+                  "# LEFT_PRIMARY\n\nEvidence.\n\n## REPEATED_TITLE\n\nMore evidence.",
+              },
+              {
+                type: "markdown",
+                content: "### SEPARATE_SECTION\n\nIndependent section.",
+              },
+            ],
+          },
+          {
+            type: "card",
+            children: [
+              {
+                type: "markdown",
+                content: "### UNTITLED_COLUMN\n\nIndependent column.",
+              },
+            ],
+          },
+          {
+            type: "card",
+            title: "RIGHT_SECTION",
+            children: [
+              {
+                type: "markdown",
+                content: "## REPEATED_TITLE\n\nSeparate evidence.",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  const bookmark = (title, children = []) => ({ title, page: 0, children });
+  assert.deepEqual(await pdfBookmarks(entry.pdf), [
+    bookmark("LEFT_SECTION", [
+      bookmark("LEFT_PRIMARY", [bookmark("REPEATED_TITLE")]),
+      bookmark("SEPARATE_SECTION"),
+    ]),
+    bookmark("UNTITLED_COLUMN"),
+    bookmark("RIGHT_SECTION", [bookmark("REPEATED_TITLE")]),
+  ]);
+});
 
 test("Markdown headings stay with the first following body line in a long report", (t) => {
   const { ok } = workspace(t);

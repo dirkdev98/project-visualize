@@ -58,6 +58,11 @@ block leaves the document title on its own page. Trailing padding creates no ext
 page. The viewer and PNG remain continuous; nested blocks cannot request a break
 because a PDF page spans every column.
 
+PDFs include bookmarks for block titles and Markdown headings. Titled containers
+keep their children together in the outline; separate Markdown blocks and parallel
+columns keep independent heading hierarchies. Bookmarks retain plain Unicode titles
+and navigate to the rendered heading without changing the reader's zoom.
+
 Use a `badge` with a short `label` and `tone` for status. A `timeline` contains `events`
 with a `title`, optional `label`, Markdown `content` and `tone`. A `progress` block
 uses a value from zero to one and the same tone colors. The

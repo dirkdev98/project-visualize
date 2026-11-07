@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-11-07 PDF navigation
+
+- Add Unicode bookmarks for rendered block titles and Markdown headings. Capture
+  their actual positions and explicit container parents during the final export
+  pass, then map them through the same page and repeated-header offsets as selectable
+  text. Preserve continuous PNG bytes and leave the PDF reader's zoom and page mode alone.
+- Keep a fresh heading hierarchy for each Markdown block and nested branch. Preserve
+  document traversal order through parallel columns, including duplicate titles;
+  neither vertical sorting nor one global heading-depth stack preserves that structure.
+- Keep this in JS with the existing PDF library. Write bookmark titles as Unicode
+  strings, link parents and siblings explicitly, and count descendants for expanded
+  navigation. Check destinations against the actual extracted heading glyphs at both
+  export densities, including headings following continued tables.
+
+Keep track of;
+
+- Inspect bookmark navigation in a desktop PDF reader when its window is available.
+  The exported PDF structure and destinations pass; Mac automation currently returns
+  `cgWindowNotFound` for the viewer and PDF reader.
+- Consider a native document outline with stable heading identities and automatic
+  opening of collapsed ancestors. Cached screen coordinates cannot resolve those jumps.
+
 ## 2026-11-07 JS viewer idle acceptance
 
 - Replace the visible-window deferral in JS renderer performance cost with a matched
