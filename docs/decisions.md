@@ -1,5 +1,23 @@
 # Decisions
 
+## 2026-11-07 linked snapshot controls
+
+- Bind tables, aggregate metrics and charts to named scalar datasets. Keep filtering,
+  aggregation and chart preparation in JS, and share the resolved view between the
+  native viewer, CLI inspection and parameterized exports.
+- Combine select, search, inclusive numeric range and enabled-boolean controls on a
+  dataset. Derive choices and bounds from the original rows so filtering cannot hide
+  the way out of a selection. Preserve scalar types and use an explicit all-values
+  sentinel because null is a meaningful data value.
+- Preserve empty results and sparse chart groups without fabricating observations.
+  Scope controls and chart ranges to a saved revision, refit charts when their data
+  changes, and keep ordinary redraws from resetting pan and zoom.
+- Rerender explicit CLI parameters without changing the source, default snapshots or
+  version history. Reserve native input and revision-switch acceptance for an unlocked
+  Mac session; offscreen rendering and public CLI checks cover the data path.
+- Use a named interface for the all-values type predicate. Maligator's compact TS
+  stripper rejected the inline object return type, another potential parser improvement.
+
 ## 2026-11-07 JS document rendering
 
 - Move viewer composition, document layout, table transforms, chart preparation,

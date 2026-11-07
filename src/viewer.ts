@@ -60,6 +60,7 @@ interface Options {
   project?: string;
   artifact?: string;
   version?: string;
+  parameters?: unknown;
 }
 export function openViewer(root: string, options: Options) {
   let entries = list(root);
@@ -69,6 +70,7 @@ export function openViewer(root: string, options: Options) {
       (!options.artifact || entry.artifact === options.artifact) &&
       (!options.version || entry.version === options.version),
   );
+  const initialDirectory = selected?.directory;
   let followLatest = options.version === undefined;
   let loaded = "",
     error = "";
@@ -93,9 +95,17 @@ export function openViewer(root: string, options: Options) {
         return;
       }
       try {
-        const state = states.get(entry.directory) ?? documentState();
+        const document = load(entry);
+        const state =
+          states.get(entry.directory) ??
+          documentState(
+            document,
+            entry.directory === initialDirectory
+              ? options.parameters
+              : undefined,
+          );
         states.set(entry.directory, state);
-        renderer = new DocumentRenderer(load(entry), state);
+        renderer = new DocumentRenderer(document, state);
         loaded = entry.directory;
         error = "";
       } catch (cause) {
@@ -230,6 +240,11 @@ export function openViewer(root: string, options: Options) {
           pathToFileURL(join(selected.directory, "snapshot.pdf")).href,
         );
       if (renderer) {
+        if (renderer.hasControls()) {
+          igSameLine(0, -1);
+          if (igButton("Reset controls", { x: 0, y: 0 }))
+            renderer.resetControls();
+        }
         const width = Math.max(320, available() - (showContext ? 324 : 0));
         igPushID_Str(selected.directory);
         igBeginChild_Str(

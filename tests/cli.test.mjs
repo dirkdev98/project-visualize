@@ -432,3 +432,322 @@ test("block IDs can repeat in separate containers", (t) => {
   };
   assert.equal(ok(["validate", "--file", "-"], document).valid, true);
 });
+
+function linkedDocument() {
+  return {
+    schemaVersion: 1,
+    title: "Linked station evidence",
+    datasets: {
+      observations: [
+        { station: "North", day: "Mon", accepted: 12, active: true },
+        { station: "South", day: "Mon", accepted: 8, active: false },
+        { station: "North", day: "Tue", accepted: 18, active: true },
+        { station: "South", day: "Tue", accepted: 11, active: true },
+        { station: "West", day: "Mon", accepted: 5, active: false },
+        { station: "West", day: "Tue", accepted: 7, active: true },
+      ],
+    },
+    body: [
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "observations",
+        field: "station",
+      },
+      {
+        type: "control",
+        id: "accepted",
+        kind: "range",
+        label: "Accepted",
+        dataset: "observations",
+        field: "accepted",
+      },
+      {
+        type: "control",
+        id: "active",
+        kind: "toggle",
+        label: "Active only",
+        dataset: "observations",
+        field: "active",
+      },
+      {
+        type: "control",
+        id: "day",
+        kind: "search",
+        label: "Day",
+        dataset: "observations",
+        field: "day",
+      },
+      {
+        type: "metric",
+        id: "total",
+        label: "Accepted",
+        source: {
+          dataset: "observations",
+          field: "accepted",
+          aggregate: "sum",
+        },
+      },
+      {
+        type: "metric",
+        id: "mean",
+        label: "Mean",
+        source: {
+          dataset: "observations",
+          field: "accepted",
+          aggregate: "mean",
+        },
+      },
+      {
+        type: "chart",
+        id: "daily",
+        kind: "bar",
+        source: {
+          dataset: "observations",
+          x: "day",
+          y: "accepted",
+          aggregate: "sum",
+        },
+      },
+      {
+        type: "table",
+        id: "evidence",
+        dataset: "observations",
+        columns: [
+          { key: "station", label: "Station" },
+          { key: "day", label: "Day" },
+          { key: "accepted", label: "Accepted" },
+        ],
+      },
+    ],
+  };
+}
+
+function inspectView(ok, params) {
+  return ok([
+    "inspect",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    ...(params === undefined ? [] : ["--params", JSON.stringify(params)]),
+  ]).view;
+}
+
+test("a parameter filters a shared table, metric and chart consistently", (t) => {
+  const { render, ok } = workspace(t);
+  const document = linkedDocument();
+  render(document);
+  const selected = document.datasets.observations.filter(
+    (row) => row.station === "North",
+  );
+  const view = inspectView(ok, { station: "North" });
+  assert.deepEqual(
+    view.body.find((block) => block.id === "evidence").rows,
+    selected,
+  );
+  assert.equal(
+    view.body.find((block) => block.id === "total").value,
+    selected.reduce((sum, row) => sum + row.accepted, 0),
+  );
+  const chart = view.body.find((block) => block.id === "daily");
+  assert.deepEqual(
+    chart.labels,
+    selected.map((row) => row.day),
+  );
+  assert.deepEqual(
+    chart.series[0].values,
+    selected.map((row) => row.accepted),
+  );
+  assert.equal(view.datasetRows.observations, selected.length);
+});
+
+test("an empty linked selection still inspects and exports", (t) => {
+  const { root, render, ok } = workspace(t);
+  render(linkedDocument());
+  const params = { station: "North", accepted: { max: 1 } };
+  const view = inspectView(ok, params);
+  assert.deepEqual(view.body.find((block) => block.id === "evidence").rows, []);
+  assert.equal(view.body.find((block) => block.id === "total").value, 0);
+  assert.equal(view.body.find((block) => block.id === "mean").value, "N/A");
+  assert.deepEqual(view.body.find((block) => block.id === "daily").series, []);
+  const out = join(root, "empty.png");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--format",
+    "png",
+    "--out",
+    out,
+    "--params",
+    JSON.stringify(params),
+  ]);
+  assert.ok(existsSync(out));
+});
+
+test("search, toggle and inclusive range controls compose on the same dataset", (t) => {
+  const { render, ok } = workspace(t);
+  const document = linkedDocument();
+  render(document);
+  const view = inspectView(ok, {
+    day: "TUE",
+    active: true,
+    accepted: { min: 7, max: 11 },
+  });
+  const selected = document.datasets.observations.filter(
+    (row) =>
+      row.day === "Tue" &&
+      row.active &&
+      row.accepted >= 7 &&
+      row.accepted <= 11,
+  );
+  assert.deepEqual(
+    view.body.find((block) => block.id === "evidence").rows,
+    selected,
+  );
+  assert.equal(
+    view.body.find((block) => block.id === "total").value,
+    selected.reduce((sum, row) => sum + row.accepted, 0),
+  );
+});
+
+test("parameter exports rerender at the saved width and preserve the saved revision", (t) => {
+  const { root, render, ok } = workspace(t);
+  const entry = render(linkedDocument());
+  const files = [entry.document, entry.png, entry.pdf];
+  const before = files.map(digest);
+  const versions = ok(["list"]).versions;
+  const out = join(root, "north.png");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--format",
+    "png",
+    "--out",
+    out,
+    "--params",
+    JSON.stringify({ station: "North" }),
+  ]);
+  assert.notEqual(digest(out), digest(entry.png));
+  assert.deepEqual(files.map(digest), before);
+  assert.deepEqual(ok(["list"]).versions, versions);
+});
+
+test("select parameters distinguish scalar types and can clear a null default", (t) => {
+  const { render, ok } = workspace(t);
+  const document = linkedDocument();
+  document.datasets.observations = [
+    { station: 1, day: "Mon", accepted: 10 },
+    { station: "1", day: "Tue", accepted: 20 },
+    { station: null, day: "Wed", accepted: 30 },
+    { day: "Thu", accepted: 40 },
+  ];
+  document.body = document.body.filter((block) => block.id !== "active");
+  document.body[0].default = null;
+  render(document);
+  const expected = new Map([
+    [1, 10],
+    ["1", 20],
+    [null, 70],
+  ]);
+  for (const [station, total] of expected)
+    assert.equal(
+      inspectView(ok, { station }).body.find((block) => block.id === "total")
+        .value,
+      total,
+    );
+  assert.equal(
+    inspectView(ok).body.find((block) => block.id === "total").value,
+    expected.get(null),
+  );
+  const all = document.datasets.observations.reduce(
+    (sum, row) => sum + row.accepted,
+    0,
+  );
+  assert.equal(
+    inspectView(ok, { station: { all: true } }).body.find(
+      (block) => block.id === "total",
+    ).value,
+    all,
+  );
+});
+
+test("unknown parameters fail without writing an export", (t) => {
+  const { root, render, run } = workspace(t);
+  render(linkedDocument());
+  const out = join(root, "unknown.png");
+  const result = run([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--format",
+    "png",
+    "--out",
+    out,
+    "--params",
+    JSON.stringify({ missing: "North" }),
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(JSON.parse(result.stderr).error, /params\.missing/);
+  assert.equal(existsSync(out), false);
+});
+
+test("linked series preserve sparse categories without fabricating zero values", (t) => {
+  const { render, ok } = workspace(t);
+  const document = linkedDocument();
+  document.datasets.observations = document.datasets.observations.filter(
+    (row) =>
+      row.station === "North" || (row.station === "South" && row.day === "Tue"),
+  );
+  document.body.find((block) => block.id === "daily").source.series = "station";
+  document.body.find((block) => block.id === "daily").source.aggregate = "mean";
+  render(document);
+  const chart = inspectView(ok).body.find((block) => block.id === "daily");
+  for (const series of chart.series) {
+    const rows = document.datasets.observations.filter(
+      (row) => row.station === series.name,
+    );
+    assert.deepEqual(
+      series.values,
+      rows.map((row) => row.accepted),
+    );
+    assert.deepEqual(
+      series.x,
+      rows.map((row) => chart.labels.indexOf(row.day)),
+    );
+  }
+});
+
+test("scatter bindings preserve duplicate coordinates and source order", (t) => {
+  const { render, ok } = workspace(t);
+  const document = linkedDocument();
+  document.datasets.observations = [
+    { station: "North", day: 2, accepted: 20, active: true },
+    { station: "North", day: 1, accepted: 10, active: true },
+    { station: "North", day: 2, accepted: 25, active: true },
+  ];
+  const chart = document.body.find((block) => block.id === "daily");
+  chart.kind = "scatter";
+  delete chart.source.aggregate;
+  render(document);
+  const series = inspectView(ok).body.find((block) => block.id === "daily")
+    .series[0];
+  assert.deepEqual(
+    series.x,
+    document.datasets.observations.map((row) => row.day),
+  );
+  assert.deepEqual(
+    series.values,
+    document.datasets.observations.map((row) => row.accepted),
+  );
+});

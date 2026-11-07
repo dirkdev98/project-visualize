@@ -1,0 +1,392 @@
+{
+  "schemaVersion": 1,
+  "title": "The observatory, connected",
+  "subtitle": "A shared snapshot with linked controls, charts and evidence",
+  "category": "Operations dashboard",
+  "context": {
+    "source": "Fictional demonstration data",
+    "question": "How do station, activity and shift selection change the result?",
+    "method": "Controls filter the shared snapshot. The saved source and default export stay intact."
+  },
+  "datasets": {
+    "observations": [
+      {
+        "day": "Mon",
+        "station": "North",
+        "observations": 420,
+        "availability": 98.0,
+        "energy": 200,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Mon",
+        "station": "East",
+        "observations": 468,
+        "availability": 98.5,
+        "energy": 214,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Mon",
+        "station": "West",
+        "observations": 516,
+        "availability": 99.0,
+        "energy": 228,
+        "active": false,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Tue",
+        "station": "North",
+        "observations": 455,
+        "availability": 98.5,
+        "energy": 209,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Tue",
+        "station": "East",
+        "observations": 503,
+        "availability": 99.0,
+        "energy": 223,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Tue",
+        "station": "West",
+        "observations": 551,
+        "availability": 98.0,
+        "energy": 237,
+        "active": false,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Wed",
+        "station": "North",
+        "observations": 490,
+        "availability": 99.0,
+        "energy": 218,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Wed",
+        "station": "East",
+        "observations": 538,
+        "availability": 98.0,
+        "energy": 232,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Wed",
+        "station": "West",
+        "observations": 586,
+        "availability": 98.5,
+        "energy": 246,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Thu",
+        "station": "North",
+        "observations": 525,
+        "availability": 98.0,
+        "energy": 227,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Thu",
+        "station": "East",
+        "observations": 573,
+        "availability": 98.5,
+        "energy": 241,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Thu",
+        "station": "West",
+        "observations": 621,
+        "availability": 99.0,
+        "energy": 255,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Fri",
+        "station": "North",
+        "observations": 560,
+        "availability": 98.5,
+        "energy": 236,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Fri",
+        "station": "East",
+        "observations": 608,
+        "availability": 99.0,
+        "energy": 250,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Fri",
+        "station": "West",
+        "observations": 656,
+        "availability": 98.0,
+        "energy": 264,
+        "active": true,
+        "note": "Matched shift"
+      },
+      {
+        "day": "Sat",
+        "station": "North",
+        "observations": 595,
+        "availability": 99.0,
+        "energy": 245,
+        "active": true,
+        "note": "Weekend schedule"
+      },
+      {
+        "day": "Sat",
+        "station": "East",
+        "observations": 643,
+        "availability": 98.0,
+        "energy": 259,
+        "active": true,
+        "note": "Weekend schedule"
+      },
+      {
+        "day": "Sat",
+        "station": "West",
+        "observations": 691,
+        "availability": 98.5,
+        "energy": 273,
+        "active": true,
+        "note": "Weekend schedule"
+      },
+      {
+        "day": "Sun",
+        "station": "North",
+        "observations": 630,
+        "availability": 98.0,
+        "energy": 254,
+        "active": true,
+        "note": "Weekend schedule"
+      },
+      {
+        "day": "Sun",
+        "station": "East",
+        "observations": 678,
+        "availability": 98.5,
+        "energy": 268,
+        "active": true,
+        "note": "Weekend schedule"
+      },
+      {
+        "day": "Sun",
+        "station": "West",
+        "observations": 726,
+        "availability": 99.0,
+        "energy": 282,
+        "active": true,
+        "note": "Weekend schedule"
+      }
+    ]
+  },
+  "body": [
+    {
+      "type": "card",
+      "title": "Explore the week",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "control",
+              "id": "station",
+              "kind": "select",
+              "label": "Station",
+              "dataset": "observations",
+              "field": "station"
+            },
+            {
+              "type": "control",
+              "id": "notes",
+              "kind": "search",
+              "label": "Shift note",
+              "dataset": "observations",
+              "field": "note"
+            },
+            {
+              "type": "control",
+              "id": "active",
+              "kind": "toggle",
+              "label": "Active stations only",
+              "dataset": "observations",
+              "field": "active"
+            }
+          ]
+        },
+        {
+          "type": "control",
+          "id": "accepted",
+          "kind": "range",
+          "label": "Accepted observations per shift",
+          "dataset": "observations",
+          "field": "observations"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "id": "total",
+          "label": "Accepted observations",
+          "source": {
+            "dataset": "observations",
+            "field": "observations",
+            "aggregate": "sum"
+          },
+          "detail": "Across the selected station shifts",
+          "decimals": 0
+        },
+        {
+          "type": "metric",
+          "id": "availability",
+          "label": "Mean availability",
+          "source": {
+            "dataset": "observations",
+            "field": "availability",
+            "aggregate": "mean"
+          },
+          "decimals": 1,
+          "suffix": "%"
+        },
+        {
+          "type": "metric",
+          "id": "shifts",
+          "label": "Matching shifts",
+          "source": {
+            "dataset": "observations",
+            "aggregate": "count"
+          },
+          "detail": "The same rows drive every widget",
+          "decimals": 0
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "weights": [2, 1],
+      "children": [
+        {
+          "type": "card",
+          "title": "Observation cadence",
+          "children": [
+            {
+              "type": "chart",
+              "id": "cadence",
+              "kind": "line",
+              "height": 310,
+              "yLabel": "Accepted observations",
+              "source": {
+                "dataset": "observations",
+                "x": "day",
+                "y": "observations",
+                "series": "station",
+                "aggregate": "sum"
+              }
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "By station",
+          "children": [
+            {
+              "type": "chart",
+              "id": "capacity",
+              "kind": "bar",
+              "height": 310,
+              "yLabel": "Accepted observations",
+              "source": {
+                "dataset": "observations",
+                "x": "station",
+                "y": "observations",
+                "aggregate": "sum"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "title": "Read the linked view",
+      "content": "Choose a station, search for a **matched shift**, or enable active stations. The charts, totals and rows use the same selected observations. **All values** clears a control; Reset controls restores the saved defaults."
+    },
+    {
+      "type": "card",
+      "title": "The observations behind the view",
+      "children": [
+        {
+          "type": "table",
+          "id": "evidence",
+          "dataset": "observations",
+          "columns": [
+            {
+              "key": "day",
+              "label": "Day"
+            },
+            {
+              "key": "station",
+              "label": "Station"
+            },
+            {
+              "key": "observations",
+              "label": "Accepted"
+            },
+            {
+              "key": "availability",
+              "label": "Availability (%)"
+            },
+            {
+              "key": "active",
+              "label": "Active"
+            },
+            {
+              "key": "note",
+              "label": "Shift note"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "details",
+      "title": "What this snapshot means",
+      "children": [
+        {
+          "type": "markdown",
+          "content": "### A reproducible view\n\nThe source rows are fictional and immutable. Controls change the view, not the saved evidence. Numeric ranges exclude missing or nonnumeric values; means remain unavailable when no numeric observations match.\n\n- [x] Use one dataset across widgets.\n- [x] Keep the selected parameters with an exported view.\n- [ ] Compare a second matched period."
+        },
+        {
+          "type": "code",
+          "language": "typescript",
+          "title": "The same selection in JavaScript",
+          "content": "const selected = rows.filter(row => row.station === \"North\");\nconst accepted = selected.reduce((sum, row) => sum + row.observations, 0);"
+        }
+      ]
+    }
+  ]
+}

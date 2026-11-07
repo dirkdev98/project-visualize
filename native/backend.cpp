@@ -144,3 +144,7 @@ extern "C" void pv_plot_series(const char *label, const double *x, const double 
 }
 
 extern "C" void pv_open_url(const char *url) { SDL_OpenURL(url); }
+
+extern "C" int pv_slider_double(const char *label, double *value, double min, double max) {
+  return ImGui::SliderScalar(label, ImGuiDataType_Double, value, &min, &max, "%.6g", ImGuiSliderFlags_AlwaysClamp);
+}

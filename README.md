@@ -51,8 +51,9 @@ Read [the artifact guide](docs/artifacts.md) and adapt the runnable examples in
 creation, revision and screenshot delivery. Keep that folder available to your agent,
 or link it into your agent's skill directory.
 
-The viewer supports local interactions such as chart zoom, table sorting and filtering,
-expandable sections and links. PNG/PDF exports capture the saved document with details
+The viewer supports linked dataset controls, chart zoom, table sorting and filtering,
+expandable sections and links. Use `--params` with `inspect`, `export` or `open` to
+reproduce a linked selection. PNG/PDF exports capture the saved document with details
 expanded. PDF pages contain raster images; text is not selectable. Documents describe
 content and layout; arbitrary HTML, scripts and live data connectors are outside the
 artifact format.

@@ -72,8 +72,9 @@ unique among siblings.
 
 ## Evidence
 
-Charts use named series with numeric `values`. Supply either chart `labels` or a
-series' numeric `x` coordinates. Coordinate arrays and labels must match the values.
+Charts use named series with numeric `values`. Supply chart `labels`, a series'
+numeric `x` coordinates, or both. Without `x`, each series has one value per label.
+With labels and `x`, coordinates index the labels and can leave categories absent.
 Axis labels should include units. The viewer supports zooming and panning; exports
 fit all the supplied data.
 
@@ -91,11 +92,84 @@ Tables use `columns` with a `key` and `label`, plus rows keyed by those column n
 Cells hold text, numbers, booleans or null. Sort and filter in the viewer; exports
 include all source rows in their saved order.
 
+Metrics accept numeric or text values. Use `decimals`, `prefix` and `suffix` to format
+numeric values without changing the underlying data.
+
 Diagrams use nodes with unique IDs and edges referring to them through `from` and
 `to`. Add normalized `x` and `y` coordinates for an explicit layout, or let nodes
 flow into a grid. Node `detail` text appears on hover. Keep labels short enough to
 read inside a node. The [dashboard example](../examples/observatory.json) composes
 charts, tables and a diagram with their explanation.
+
+## Linked views
+
+Put shared rows in a named `datasets` entry. A table's `dataset` uses those rows; a
+metric or chart's `source` derives values from them. Controls filter every widget
+bound to the same dataset. See the [linked dashboard](../examples/linked-observatory.json)
+for a complete example.
+
+```json
+{
+  "schemaVersion": 1,
+  "title": "Station selection",
+  "datasets": {
+    "results": [
+      { "station": "North", "accepted": 12 },
+      { "station": "South", "accepted": 18 }
+    ]
+  },
+  "body": [
+    {
+      "type": "control",
+      "id": "station",
+      "kind": "select",
+      "label": "Station",
+      "dataset": "results",
+      "field": "station"
+    },
+    {
+      "type": "metric",
+      "label": "Accepted",
+      "source": {
+        "dataset": "results",
+        "field": "accepted",
+        "aggregate": "sum"
+      }
+    }
+  ]
+}
+```
+
+Each control has a globally unique `id`. A `select` matches a scalar exactly, `search`
+matches text without case sensitivity, `range` includes numeric values between its
+bounds, and an enabled `toggle` keeps rows whose field is `true`. Controls combine
+with AND. Options and inferred bounds come from the original dataset, so a selection
+can always be changed. Missing cells behave as null; numeric operations do not coerce
+text, booleans or null into numbers.
+
+Use a control's `default` for the initial view. Select defaults and parameters preserve
+scalar types: `1`, `"1"` and `null` are different selections. `{ "all": true }` clears
+a control. A range parameter is an object with `min`, `max` or both. Search parameters
+are strings; toggle parameters are booleans. Reset controls restores the saved defaults.
+
+Metric sources support `sum`, `mean`, `count`, `min` and `max`. Count counts rows and
+needs no field. An empty sum is zero; an empty mean, minimum or maximum displays
+`N/A`. Chart sources name `x`, optionally `y` and a grouping `series` field. Bars sum
+by category by default; line and scatter charts preserve source points unless an
+`aggregate` is supplied. Numeric x values retain their coordinates. Other x values
+form categories in source order. An absent category/series pair stays absent.
+
+Inspect, export or open a reproducible selection with `--params`:
+
+```sh
+bin/visualize inspect --project orbital --artifact review --params '{"station":"North"}'
+bin/visualize export --project orbital --artifact review --format png \
+  --out ./north.png --params '{"station":"North"}'
+```
+
+Inspection returns the saved document plus a resolved `view` with parameters, row
+counts and widget values. Parameter exports rerender the view even at the saved width
+and scale. They preserve the source, default snapshots and version history.
 
 ## Images
 
@@ -121,7 +195,7 @@ referring to particular evidence.
 ## Exports
 
 The saved PNG and PDF use the render command's width and scale. Exporting at the
-same settings copies that snapshot. Changing `--width` or `--scale` rerenders the
+same settings copies that snapshot. Changing `--width`, `--scale` or `--params` rerenders the
 saved data and copied images without creating a revision. Viewer filters, chart
 zoom and other temporary interactions do not change the saved export.
 

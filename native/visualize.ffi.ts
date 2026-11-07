@@ -17,6 +17,8 @@ export default defineLibrary({
     PVImage: { handle: { destroy: "pv_image_destroy" } },
   },
   functions: {
+    igCheckbox: { params: { v: { inout: true } } },
+    pv_slider_double: { params: { value: { inout: true } } },
     igBegin: { params: { p_open: { constant: "NULL" } } },
     igTextUnformatted: { params: { text_end: { constant: "NULL" } } },
     igCalcTextSize: { params: { text_end: { constant: "NULL" } } },

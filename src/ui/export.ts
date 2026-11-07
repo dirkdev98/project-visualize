@@ -23,7 +23,7 @@ import {
 import { writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 import type { Artifact } from "../model.ts";
-import { DocumentRenderer } from "./content.ts";
+import { DocumentRenderer, documentState } from "./content.ts";
 import { checked } from "./primitives.ts";
 import { fonts, initializeTheme, popTheme, pushTheme } from "./theme.ts";
 
@@ -107,12 +107,14 @@ export function renderArtifact(
   output: string | string[],
   width: number,
   scale: number,
+  parameters?: unknown,
 ): number {
+  const state = documentState(document, parameters);
   checked(pv_surface_open(0));
   let renderer: DocumentRenderer | undefined;
   try {
     initializeTheme();
-    renderer = new DocumentRenderer(document);
+    renderer = new DocumentRenderer(document, state);
     const limit = pv_surface_limit();
     let height = 0;
     for (let pass = 0; pass < 2; pass++) {

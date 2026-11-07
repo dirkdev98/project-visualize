@@ -31,7 +31,10 @@ display an image on every host.
 Use `inspect` to read an existing saved document before revising it. `render` always
 creates a new version. Export with an explicit `--version` when the request refers to
 particular evidence. PNG and PDF exports use the saved data; temporary viewer zoom
-and filters do not change them. PDFs contain raster pages.
+and filters do not change them. Use shared datasets and controls for linked widgets.
+Use `inspect --params` to check the selected rows and derived values, then export with
+the same parameters to deliver that view without revising the source. PDFs contain
+raster pages.
 
 Use the CLI's returned paths; do not reconstruct paths into the internal store or
 edit saved version files. Run `open` only when a desktop window is useful or requested.

@@ -24,10 +24,15 @@ import {
   ImPlotFlags_NoTitle,
   ImPlotMarker_Circle,
   ImPlotMarker_None,
+  igBeginCombo,
+  igBeginDisabled,
   igBeginTable,
   igCalcTextSize,
+  igCheckbox,
   igCollapsingHeader_TreeNodeFlags,
   igDummy,
+  igEndCombo,
+  igEndDisabled,
   igEndTable,
   igGetCursorScreenPos,
   igGetWindowDrawList,
@@ -41,9 +46,11 @@ import {
   igPushID_Int,
   igPushID_Str,
   igPushStyleVar_Vec2,
+  igSelectable_Bool,
   igSeparator,
   igSetCursorScreenPos,
   igSetNextItemWidth,
+  igSmallButton,
   igSpacing,
   igTableHeadersRow,
   igTableNextColumn,
@@ -56,9 +63,31 @@ import {
   pv_image_size,
   pv_plot_series,
   pv_plot_tick,
+  pv_slider_double,
   pv_table_sort,
 } from "maligator:ffi/visualize";
-import type { Artifact, Block, Tone } from "../model.ts";
+import {
+  ALL,
+  dataCell as cell,
+  choices,
+  controls,
+  createParameters,
+  isAll,
+  labels,
+  numericBounds,
+  type Parameters,
+  parameterValue,
+  type ResolvedView,
+  resolveView,
+} from "../data.ts";
+import type {
+  Artifact,
+  Block,
+  Cell,
+  ControlBlock,
+  ParameterValue,
+  Tone,
+} from "../model.ts";
 import {
   available,
   input,
@@ -74,15 +103,23 @@ import { type Color, fonts, packed, palette, seriesColors } from "./theme.ts";
 
 export interface DocumentState {
   tables: Record<string, { query: string }>;
+  parameters: Parameters;
+  revision: number;
+  chartFits: Map<string, number>;
 }
-export function documentState(): DocumentState {
-  return { tables: {} };
+export function documentState(
+  document: Artifact,
+  overrides?: unknown,
+): DocumentState {
+  return {
+    tables: {},
+    parameters: createParameters(document, overrides),
+    revision: 0,
+    chartFits: new Map(),
+  };
 }
 function tone(value: Tone | undefined): Color {
   return value && value !== "neutral" ? palette[value] : palette.muted;
-}
-function cell(row: Record<string, unknown>, key: string): unknown {
-  return Object.hasOwn(row, key) ? row[key] : null;
 }
 type TableBlock = Extract<Block, { type: "table" }>;
 type ChartBlock = Extract<Block, { type: "chart" }>;
@@ -96,7 +133,17 @@ export class DocumentRenderer {
   private orders = new Map<string, { key: string; indices: number[] }>();
   private plots = new Map<ChartBlock, { x: Float64Array; y: Float64Array }[]>();
   private rich: RichText;
-  constructor(document: Artifact, state: DocumentState = documentState()) {
+  private view: ResolvedView | undefined;
+  private viewRevision = -1;
+  private controlChoices = new Map<
+    string,
+    { values: Cell[]; labels: string[] }
+  >();
+  private controlInputs = new Map<string, Int8Array>();
+  constructor(
+    document: Artifact,
+    state: DocumentState = documentState(document),
+  ) {
     this.document = document;
     this.state = state;
     this.rich = new RichText((asset, width) => this.image(asset, width));
@@ -124,7 +171,30 @@ export class DocumentRenderer {
     pv_image_draw(image, { x: w, y: height });
     return height;
   }
+  hasControls(): boolean {
+    return controls(this.document).length > 0;
+  }
+  resetControls() {
+    this.state.parameters = createParameters(this.document);
+    this.state.revision++;
+    this.controlInputs.clear();
+  }
+  private parameter(control: ControlBlock, value: ParameterValue) {
+    if (
+      JSON.stringify(parameterValue(this.state.parameters, control.id)) ===
+      JSON.stringify(value)
+    )
+      return;
+    this.state.parameters.set(control.id, value);
+    this.state.revision++;
+  }
   body(exporting: boolean) {
+    if (!this.view || this.viewRevision !== this.state.revision) {
+      this.view = resolveView(this.document, this.state.parameters);
+      this.viewRevision = this.state.revision;
+      this.orders.clear();
+      this.plots.clear();
+    }
     text(
       `PROJECT VISUALIZE  /  ${(this.document.category ?? "ARTIFACT").toUpperCase()}`,
       12,
@@ -137,7 +207,7 @@ export class DocumentRenderer {
     igSpacing();
     igSeparator();
     igSpacing();
-    this.blocks(this.document.body, exporting, "body");
+    this.blocks(this.view.body, exporting, "body");
     igSpacing();
   }
   private blocks(children: Block[], exporting: boolean, parent: string) {
@@ -170,9 +240,21 @@ export class DocumentRenderer {
       case "metric":
         panel(() => {
           text(value.label, 13, "bold", palette.muted);
-          text(scalar(value.value), 36, "bold");
-          if (value.detail) text(value.detail, 15, "regular", tone(value.tone));
+          let display = scalar(value.value);
+          if (typeof value.value === "number") {
+            const number =
+              value.decimals === undefined
+                ? String(value.value)
+                : value.value.toFixed(value.decimals);
+            const [integer, fraction] = number.split(".");
+            display = `${value.prefix ?? ""}${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction === undefined ? "" : `.${fraction}`}${value.suffix ?? ""}`;
+          }
+          text(display, 36, "bold");
+          text(value.detail ?? "", 15, "regular", tone(value.tone));
         });
+        break;
+      case "control":
+        this.control(value, exporting);
         break;
       case "progress":
         text(value.label, 17, "bold");
@@ -252,7 +334,7 @@ export class DocumentRenderer {
         this.table(value, exporting, key);
         break;
       case "chart":
-        this.chart(value, exporting);
+        this.chart(value, exporting, key);
         break;
       case "diagram":
         this.diagram(value, exporting);
@@ -263,15 +345,110 @@ export class DocumentRenderer {
     }
     if (value.caption) text(value.caption, 15, "regular", palette.muted);
   }
+  private control(control: ControlBlock, exporting: boolean) {
+    const current = parameterValue(this.state.parameters, control.id);
+    let options = this.controlChoices.get(control.id);
+    if (!options) {
+      const values = choices(this.document, control);
+      options = { values, labels: labels(values) };
+      this.controlChoices.set(control.id, options);
+    }
+    const selected =
+      current === null || typeof current !== "object"
+        ? options.values.indexOf(current)
+        : -1;
+    const preview = isAll(current)
+      ? "All values"
+      : control.kind === "toggle"
+        ? current === true
+          ? "On"
+          : "Off"
+        : control.kind === "range" && current && typeof current === "object"
+          ? `${current.min ?? "Any"} to ${current.max ?? "Any"}`
+          : selected >= 0
+            ? options.labels[selected]
+            : scalar(current);
+    if (exporting) {
+      text(control.label, 12, "bold", palette.muted);
+      text(preview || "All", 17);
+      return;
+    }
+    if (control.kind === "toggle") {
+      const result = igCheckbox(control.label, current === true);
+      if (result.result) this.parameter(control, result.v);
+      return;
+    }
+    text(control.label, 12, "bold", palette.muted);
+    igSetNextItemWidth(-1);
+    if (control.kind === "select") {
+      if (igBeginCombo("##value", preview, 0)) {
+        if (igSelectable_Bool("All values", isAll(current), 0, { x: 0, y: 0 }))
+          this.parameter(control, ALL);
+        for (let i = 0; i < options.values.length; i++)
+          if (
+            igSelectable_Bool(
+              `${options.labels[i]}##${i}`,
+              !isAll(current) && options.values[i] === current,
+              0,
+              { x: 0, y: 0 },
+            )
+          )
+            this.parameter(control, options.values[i]);
+        igEndCombo();
+      }
+    } else if (control.kind === "search") {
+      let buffer = this.controlInputs.get(control.id);
+      if (!buffer) {
+        buffer = inputBuffer(typeof current === "string" ? current : "", 1024);
+        this.controlInputs.set(control.id, buffer);
+      }
+      if (input("##value", "Search…", buffer))
+        this.parameter(control, inputValue(buffer));
+    } else {
+      const bounds = numericBounds(this.document, control);
+      const range =
+        current !== null && typeof current === "object" && !isAll(current)
+          ? current
+          : {};
+      bounds.min = Math.min(
+        bounds.min,
+        range.min ?? bounds.min,
+        range.max ?? bounds.max,
+      );
+      bounds.max = Math.max(
+        bounds.max,
+        range.min ?? bounds.min,
+        range.max ?? bounds.max,
+      );
+      let min = range.min ?? bounds.min,
+        max = range.max ?? bounds.max;
+      igBeginDisabled(bounds.min === bounds.max);
+      igSetNextItemWidth(Math.max(80, available() - 60));
+      const lower = pv_slider_double("From", min, bounds.min, max);
+      if (lower.result) {
+        min = lower.value;
+        this.parameter(control, { min, max });
+      }
+      igSetNextItemWidth(Math.max(80, available() - 60));
+      const upper = pv_slider_double("To", max, min, bounds.max);
+      if (upper.result) {
+        max = upper.value;
+        this.parameter(control, { min, max });
+      }
+      igEndDisabled();
+      if (igSmallButton("All values")) this.parameter(control, ALL);
+    }
+  }
   private table(value: TableBlock, exporting: boolean, key: string) {
     this.state.tables[key] ??= { query: "" };
     const state = this.state.tables[key];
+    const rows = value.rows ?? [];
     let buffer = this.searches.get(key);
     if (!buffer) {
       buffer = inputBuffer(state.query);
       this.searches.set(key, buffer);
     }
-    if (!exporting && value.rows.length > 5) {
+    if (!exporting && (rows.length > 5 || state.query.length > 0)) {
       igSetNextItemWidth(Math.min(300, available()));
       if (input("##search", "Filter rows…", buffer))
         state.query = inputValue(buffer);
@@ -298,13 +475,13 @@ export class DocumentRenderer {
       const signature = JSON.stringify([query, sort]);
       let cached = this.orders.get(key);
       if (!cached || cached.key !== signature) {
-        const indices = value.rows
+        const indices = rows
           .map((_, i) => i)
           .filter(
             (i) =>
               !query ||
               value.columns
-                .map((c) => scalar(cell(value.rows[i], c.key)))
+                .map((c) => scalar(cell(rows[i], c.key)))
                 .join(" ")
                 .toLowerCase()
                 .includes(query),
@@ -313,8 +490,8 @@ export class DocumentRenderer {
           indices.sort((a, b) => {
             for (const spec of sort) {
               const field = value.columns[spec.column].key;
-              const x = cell(value.rows[a], field),
-                y = cell(value.rows[b], field);
+              const x = cell(rows[a], field),
+                y = cell(rows[b], field);
               const order =
                 typeof x === "number" && typeof y === "number"
                   ? x - y
@@ -330,39 +507,51 @@ export class DocumentRenderer {
         igTableNextRow(0, 0);
         for (const column of value.columns) {
           igTableNextColumn();
-          text(scalar(cell(value.rows[index], column.key)), 16);
+          text(scalar(cell(rows[index], column.key)), 16);
         }
       }
       igEndTable();
     }
   }
-  private chart(value: ChartBlock, exporting: boolean) {
-    if (exporting) ImPlot_SetNextAxesToFit();
+  private chart(value: ChartBlock, exporting: boolean, key: string) {
+    const series = value.series ?? [];
+    if (!series.length) {
+      const origin = igGetCursorScreenPos();
+      text("No data matches the controls.", 16, "regular", palette.muted);
+      igSetCursorScreenPos(origin);
+      igDummy({ x: available(), y: value.height ?? 300 });
+      return;
+    }
+    const refit =
+      this.view?.boundCharts.has(key) &&
+      this.state.chartFits.get(key) !== this.viewRevision;
+    if (exporting || refit) ImPlot_SetNextAxesToFit();
     let flags = ImPlotFlags_NoTitle | ImPlotFlags_Crosshairs;
     if (exporting) flags |= ImPlotFlags_NoInputs | ImPlotFlags_NoMenus;
     if (!ImPlot_BeginPlot("##chart", { x: -1, y: value.height ?? 300 }, flags))
       return;
+    if (refit) this.state.chartFits.set(key, this.viewRevision);
     ImPlot_SetupAxes(value.xLabel ?? "", value.yLabel ?? "", 0, 0);
     if (value.labels)
       for (let i = 0; i < value.labels.length; i++)
         pv_plot_tick(0, i, value.labels[i]);
     let data = this.plots.get(value);
     if (!data) {
-      data = value.series.map((series, index) => {
-        const x = new Float64Array(series.values.length);
-        for (let i = 0; i < x.length; i++) x[i] = series.x?.[i] ?? i;
+      data = series.map((item, index) => {
+        const x = new Float64Array(item.values.length);
+        for (let i = 0; i < x.length; i++) x[i] = item.x?.[i] ?? i;
         if (value.kind === "bar") {
-          const width = 0.8 / value.series.length;
+          const width = 0.8 / series.length;
           for (let i = 0; i < x.length; i++)
-            x[i] += (index - (value.series.length - 1) / 2) * width;
+            x[i] += (index - (series.length - 1) / 2) * width;
         }
-        return { x, y: new Float64Array(series.values) };
+        return { x, y: new Float64Array(item.values) };
       });
       this.plots.set(value, data);
     }
-    for (let i = 0; i < value.series.length; i++)
+    for (let i = 0; i < series.length; i++)
       pv_plot_series(
-        value.series[i].name,
+        series[i].name,
         data[i].x,
         data[i].y,
         value.kind === "bar" ? 1 : value.kind === "scatter" ? 2 : 0,
@@ -372,19 +561,19 @@ export class DocumentRenderer {
           marker_size: 4,
           marker:
             value.kind === "scatter" ? ImPlotMarker_Circle : ImPlotMarker_None,
-          bar_width: 0.8 / value.series.length,
+          bar_width: 0.8 / series.length,
         },
       );
     if (!exporting && ImPlot_IsPlotHovered()) {
       const mouse = ImPlot_GetPlotMousePos(-1, -1);
       const lines: string[] = [];
-      for (let i = 0; i < value.series.length; i++) {
+      for (let i = 0; i < series.length; i++) {
         let nearest = 0;
         const { x, y } = data[i];
         for (let j = 1; j < x.length; j++)
           if (Math.abs(x[j] - mouse.x) < Math.abs(x[nearest] - mouse.x))
             nearest = j;
-        lines.push(`${value.series[i].name}: ${y[nearest]}`);
+        lines.push(`${series[i].name}: ${y[nearest]}`);
       }
       tooltip(lines.join("\n"));
     }
