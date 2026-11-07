@@ -137,6 +137,52 @@ function pdfTextPages(file) {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.split("\f").filter((page) => page.trim());
 }
+
+test("Markdown headings stay with the first following body line in a long report", (t) => {
+  const { ok } = workspace(t);
+  const sections = Array.from({ length: 10 }, (_, i) => {
+    const marker = String(i).padStart(2, "0");
+    return {
+      heading: `SECTION_${marker}`,
+      body: `BODY_${marker}`,
+      subheading: i === 7 ? "DETAIL_07" : "",
+    };
+  });
+  const content = sections
+    .map(
+      ({ heading, body, subheading }) =>
+        `## ${heading}\n\n${subheading ? `### ${subheading}\n\n` : ""}${body} begins this fictional station finding. ${"The review preserves observations and records the evidence for the next inspection. ".repeat(5)}`,
+    )
+    .join("\n\n");
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--width",
+      "480",
+    ],
+    {
+      ...minimal(),
+      title: "Fictional section pagination study",
+      theme: "dark",
+      body: [{ type: "markdown", content }],
+    },
+  );
+  const pages = pdfTextPages(entry.pdf);
+  assert.ok(pages.length > 1);
+  for (const { heading, body, subheading } of sections) {
+    const page = pages.find((page) => page.includes(body));
+    assert.ok(page?.includes(heading), `Orphaned heading: ${heading}`);
+    if (subheading) assert.ok(page?.includes(subheading));
+    assert.equal(pages.join(" ").split(body).length - 1, 1, body);
+  }
+});
+
 function assertTableContinuation(pages, header, markers) {
   for (const marker of markers)
     assert.equal(pages.join(" ").split(marker).length - 1, 1, marker);

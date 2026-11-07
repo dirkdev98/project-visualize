@@ -279,4 +279,7 @@ tall heading can be omitted when it leaves no room for body text. If parallel co
 has no safe text boundary, stack it vertically. Document text is searchable and selectable, and
 Markdown links remain clickable. The visible page is the captured rendering; native
 plot labels stay rasterized. The text layer does not provide tagged-PDF accessibility.
+PDF pagination keeps Markdown headings with the first following body line when
+that group fits on a page. Parallel columns may require a break between complete
+text lines when their preferred section boundaries conflict.
 Reduce the layout `--width` when a report needs larger text on paper.

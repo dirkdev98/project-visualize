@@ -38,7 +38,12 @@ import {
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
-import { captureTable, currentCapture, keepLineTogether } from "./layout.ts";
+import {
+  captureTable,
+  currentCapture,
+  keepLineTogether,
+  keepTogether,
+} from "./layout.ts";
 import { available, captureText, panel, text } from "./primitives.ts";
 import { currentTheme, type Font, fonts, packed, palette } from "./theme.ts";
 
@@ -339,8 +344,13 @@ export class RichText {
     }, palette.code);
   }
   private blocks(tokens: Token[], exporting: boolean) {
+    const capture = currentCapture();
+    let headingTop: number | undefined;
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i] as MarkedToken;
+      const lineStart = capture?.lines.length ?? 0;
+      if (capture && token.type === "heading" && headingTop === undefined)
+        headingTop = igGetCursorScreenPos().y;
       igPushID_Int(i);
       switch (token.type) {
         case "space":
@@ -480,6 +490,11 @@ export class RichText {
           break;
         default:
           this.inline([token]);
+      }
+      const firstLine = capture?.lines[lineStart];
+      if (token.type !== "heading" && firstLine && headingTop !== undefined) {
+        keepTogether(headingTop, firstLine.bottom);
+        headingTop = undefined;
       }
       igPopID();
     }

@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-11-07 Markdown section boundaries
+
+- Keep Markdown headings with the first following body line in PDF pagination.
+  Carry consecutive headings through intervening whitespace and reference definitions,
+  and scope the preference to each recursive block list so separate columns and list
+  branches cannot become connected.
+- Keep this a layout preference. Oversized groups may split, and conflicting parallel
+  sections still yield to intact glyph lines. Preserve the continuous viewer and PNG
+  layout; the narrow report uses another PDF page rather than orphaning its headings.
+
 ## 2026-11-07 framed image layouts
 
 - Keep natural image sizing and add full-width frames with contained or centered
