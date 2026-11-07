@@ -127,6 +127,10 @@ override this, and use `format` for decimal places, a prefix or a suffix:
 }
 ```
 
+Set a column's positive `weight` to distribute table width in proportion to its
+neighbors. An omitted weight is `1`. Give long headings or prose
+more room while keeping short identifiers and numeric columns compact.
+
 Formatting applies to numeric cells. Sorting and calculations use the original
 values; table search matches both the visible formatting and the original values.
 Clear search resets a table's local query while preserving linked controls and sorting.

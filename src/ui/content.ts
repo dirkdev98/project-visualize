@@ -761,7 +761,12 @@ export class DocumentRenderer {
     let empty: "view" | "search" | undefined;
     if (igBeginTable("data", value.columns.length, flags, { x: 0, y: 0 }, 0)) {
       for (const column of value.columns)
-        igTableSetupColumn(column.label, 0, 0, 0);
+        igTableSetupColumn(
+          column.label,
+          ImGuiTableColumnFlags_WidthStretch,
+          column.weight ?? 1,
+          0,
+        );
       if (exporting) {
         igTableNextRow(ImGuiTableRowFlags_Headers, 0);
         for (const column of value.columns) {

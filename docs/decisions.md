@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-11-07 table column proportions
+
+- Let authors give table columns positive relative weights, using equal shares when
+  omitted. Keep the proportions in the saved document and pass them to native stretch
+  columns in both the viewer and exports. Give prose and long headings room without
+  changing the data or introducing width heuristics.
+- Use calibrated proportions in the linked dashboard so its narrow table retains
+  whole headings. Preserve raw numeric sorting, raw and formatted searches, selected
+  rows and selectable PDF content across the layout change.
+
 ## 2026-11-07 compact code actions
 
 - Align the viewer's language label and Copy code action on one header row when

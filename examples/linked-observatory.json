@@ -347,29 +347,35 @@
           "columns": [
             {
               "key": "day",
-              "label": "Day"
+              "label": "Day",
+              "weight": 0.8
             },
             {
               "key": "station",
-              "label": "Station"
+              "label": "Station",
+              "weight": 1.1
             },
             {
               "key": "observations",
               "label": "Accepted",
+              "weight": 1.2,
               "format": { "decimals": 0 }
             },
             {
               "key": "availability",
               "label": "Availability",
+              "weight": 1.6,
               "format": { "decimals": 1, "suffix": "%" }
             },
             {
               "key": "active",
-              "label": "Active"
+              "label": "Active",
+              "weight": 0.9
             },
             {
               "key": "note",
-              "label": "Shift note"
+              "label": "Shift note",
+              "weight": 1.4
             }
           ]
         }

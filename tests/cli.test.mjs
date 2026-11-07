@@ -1149,6 +1149,7 @@ test("table number formats preserve raw values and nonnumeric cells", (t) => {
             key: "amount",
             label: "Amount",
             align: "right",
+            weight: 2,
             format: { decimals: 2, prefix: "$", suffix: " credits" },
           },
         ],
@@ -1176,6 +1177,10 @@ test("invalid table presentation options fail before publishing", (t) => {
   const { run, ok } = workspace(t);
   for (const options of [
     { align: "center" },
+    { weight: 0 },
+    { weight: -1 },
+    { weight: "2" },
+    { weight: 101 },
     { format: null },
     { format: { decimals: 1.5 } },
     { format: { decimals: 9 } },

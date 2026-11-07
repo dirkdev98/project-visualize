@@ -39,6 +39,7 @@ export interface TableColumn {
   key: string;
   label: string;
   align?: "left" | "right";
+  weight?: number;
   format?: NumberFormat;
 }
 export interface ControlBlock extends BlockStyle {
@@ -721,6 +722,8 @@ export function validate(input: unknown): Artifact {
             column.align !== "right"
           )
             fail(`${columnLocation}.align`, "expected left or right");
+          if (column.weight !== undefined)
+            number(column.weight, `${columnLocation}.weight`, 0.1, 100);
           if (column.format !== undefined)
             numberFormat(
               object(column.format, `${columnLocation}.format`),
