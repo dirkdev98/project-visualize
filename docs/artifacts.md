@@ -137,8 +137,8 @@ numeric values without changing the underlying data.
 Diagrams use nodes with unique IDs and edges referring to them through `from` and
 `to`. Add normalized `x` and `y` coordinates for an explicit layout, or let nodes
 flow into a grid. Node `detail` text appears on hover. Keep labels short enough to
-read inside a node. Narrow canvases stack nodes vertically to keep labels and
-connections readable. The [dashboard example](../examples/observatory.json) composes
+read inside a node. Canvases stack nodes vertically when the grid cannot leave
+enough space for nodes and labeled connections. The [dashboard example](../examples/observatory.json) composes
 charts, tables and a diagram with their explanation.
 
 ## Linked views

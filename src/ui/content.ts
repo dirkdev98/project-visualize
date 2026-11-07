@@ -1237,31 +1237,45 @@ export class DocumentRenderer {
 
   private diagram(value: DiagramBlock, exporting: boolean) {
     const width = available(),
-      narrow = width < 520;
-    const height = narrow
-      ? Math.max(value.height ?? 320, value.nodes.length * 94 + 24)
-      : (value.height ?? 320);
+      columns = Math.min(3, value.nodes.length),
+      rows = Math.ceil(value.nodes.length / columns),
+      horizontalBoxWidth = Math.min(180, width / 3.5);
+    const face = fonts.regular;
+    if (!face) throw new Error("Fonts are not initialized");
+    let connectorWidth = 48;
+    igPushFont(face, 15);
+    for (const edge of value.edges ?? [])
+      if (edge.label)
+        connectorWidth = Math.max(
+          connectorWidth,
+          igCalcTextSize(edge.label, false, -1).x + 16,
+        );
+    igPopFont();
+    const narrow =
+      width < 520 ||
+      (columns > 1 && width / columns - horizontalBoxWidth < connectorWidth);
+    const height = Math.max(
+      value.height ?? 320,
+      (narrow ? value.nodes.length : rows) * 94 + 24,
+    );
     const origin = igGetCursorScreenPos();
     const draw = igGetWindowDrawList();
     if (!draw) throw new Error("Cannot access the diagram canvas");
-    const boxWidth = narrow
-        ? Math.min(180, width - 24)
-        : Math.min(180, width / 3.5),
+    const boxWidth = narrow ? Math.min(180, width - 24) : horizontalBoxWidth,
       boxHeight = 66;
-    const columns = Math.min(3, value.nodes.length),
-      rows = Math.ceil(value.nodes.length / columns);
     const positions = value.nodes.map((node, i) => ({
       x: narrow
         ? origin.x + width / 2
         : origin.x +
-          boxWidth / 2 +
-          (node.x ?? ((i % columns) + 0.5) / columns) * (width - boxWidth),
+          (node.x === undefined
+            ? (((i % columns) + 0.5) * width) / columns
+            : boxWidth / 2 + node.x * (width - boxWidth)),
       y: narrow
         ? origin.y + boxHeight / 2 + 12 + i * 94
         : origin.y +
-          boxHeight / 2 +
-          (node.y ?? (Math.floor(i / columns) + 0.5) / rows) *
-            (height - boxHeight),
+          (node.y === undefined
+            ? ((Math.floor(i / columns) + 0.5) * height) / rows
+            : boxHeight / 2 + node.y * (height - boxHeight)),
     }));
     const ids = new Map(value.nodes.map((node, i) => [node.id, i]));
     for (const edge of value.edges ?? []) {

@@ -1,5 +1,21 @@
 # Decisions
 
+## 2026-11-07 responsive diagram spacing
+
+- Place automatic nodes at full grid-cell centers. The earlier inset compressed
+  adjacent centers and overlapped nodes at intermediate canvas widths.
+- Measure connector labels before choosing a grid or vertical flow. Leave room between
+  node boxes for their labeled arrows, and expand multirow grids instead of squeezing
+  more rows into a fixed height. Retain normalized explicit positions in the grid.
+- Keep geometry in JS and use the existing native drawing operations. Inspect light,
+  dark, narrow, intermediate, explicit and multirow exports, retaining selectable
+  node and edge labels. This is a layout correction without a performance-win claim.
+
+Keep track of;
+
+- Route connectors around intervening nodes for complex diagrams; the grid draws
+  straight edges and explicit positions remain an authoring choice.
+
 ## 2026-11-07 titled PDF sections
 
 - Keep a block title with its first rendered content line when a card, callout,
