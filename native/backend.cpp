@@ -2,8 +2,6 @@
 #include "imgui_impl_sdl3.h"
 #include "implot.h"
 #include "imgui_internal.h"
-#include "implot_internal.h"
-#include "cimplot.h"
 #include "visualize.h"
 #ifdef __APPLE__
 #include "macos.hpp"
@@ -239,16 +237,13 @@ extern "C" PVSize pv_surface_size(void) {
 
 extern "C" int pv_surface_limit(void) { return surface().max_dimension; }
 extern "C" ImFontAtlas *pv_font_atlas(void) { return ImGui::GetIO().Fonts; }
+// Pointer-only handles lack scalar field access:
+// https://github.com/dirkdev98/maligator/issues/96
 extern "C" PVSize pv_font_metrics(ImFont *font, float size) {
   auto baked = font->GetFontBaked(size);
   float scale = size / baked->Size;
   return {baked->Ascent * scale, baked->Descent * scale};
 }
-extern "C" const char *pv_text_wrap(const char *text, float wrap_width) {
-  return ImGui::GetFont()->CalcWordWrapPosition(
-      ImGui::GetFontSize(), text, text + std::strlen(text), wrap_width);
-}
-
 extern "C" int pv_surface_begin(int width, int height, int scale) {
   try { surface().begin(width, height, scale); return 0; }
   catch (const std::exception &error) { last_error = error.what(); return -1; }
@@ -263,11 +258,10 @@ extern "C" void pv_surface_background(PVColor color) {
   surface().background = {color.x, color.y, color.z, color.w};
 }
 
-extern "C" int pv_surface_capture(int width, int height, unsigned char *pixels, int byte_count) {
+extern "C" int pv_surface_capture(int width, int height, unsigned char *pixels) {
   try {
-    if (!pixels || width < 1 || height < 1 ||
-        static_cast<uint64_t>(width) * height * 4 != static_cast<uint64_t>(byte_count))
-      throw std::runtime_error("Capture dimensions do not match its pixel buffer");
+    if (!pixels || width < 1 || height < 1)
+      throw std::runtime_error("Capture requires positive dimensions and a pixel buffer");
     surface().capture(width, height, pixels);
     return 0;
   } catch (const std::exception &error) { last_error = error.what(); return -1; }
@@ -277,10 +271,10 @@ extern "C" void pv_surface_close(void) { edit_command = {}; context.reset(); }
 extern "C" const char *pv_error(void) { return last_error.empty() ? nullptr : last_error.c_str(); }
 
 extern "C" int pv_png_write(const char *file, int width, int height,
-                             const unsigned char *bytes, int byte_count) {
+                             const unsigned char *bytes) {
   try {
-    if (width < 1 || height < 1 || static_cast<uint64_t>(width) * height * 4 != static_cast<uint64_t>(byte_count))
-      throw std::runtime_error("PNG dimensions do not match its pixel buffer");
+    if (!bytes || width < 1 || height < 1)
+      throw std::runtime_error("PNG encoding requires positive dimensions and a pixel buffer");
     pv::write_png(file, width, height, bytes);
     return 0;
   } catch (const std::exception &error) { last_error = error.what(); return -1; }
@@ -304,29 +298,3 @@ extern "C" void pv_image_draw(PVImage *image, PVSize position, PVSize size,
 }
 
 extern "C" void pv_image_destroy(PVImage *image) { delete image; }
-
-extern "C" PVSortSpec pv_table_sort(int index) {
-  auto specs = ImGui::TableGetSortSpecs();
-  if (!specs || index < 0 || index >= specs->SpecsCount) return {0, 0, 0};
-  auto &spec = specs->Specs[index];
-  return {specs->SpecsCount, spec.ColumnIndex, static_cast<int>(spec.SortDirection)};
-}
-
-extern "C" PVPlotSpec pv_plot_spec(void) {
-  const ImPlotSpec s;
-  auto color = [](ImVec4 c) { return ImVec4_c{c.x, c.y, c.z, c.w}; };
-  return {color(s.LineColor), s.LineColors, s.LineWeight,
-          color(s.FillColor), s.FillColors, s.FillAlpha,
-          s.Marker, s.MarkerSize, s.MarkerSizes,
-          color(s.MarkerLineColor), s.MarkerLineColors,
-          color(s.MarkerFillColor), s.MarkerFillColors,
-          s.Size, s.Offset, s.Stride, s.Flags};
-}
-
-extern "C" void pv_plot_tick(int axis, double value, const char *label) {
-  ImPlot::SetupAxisTicks(axis, &value, 1, &label, false);
-}
-
-extern "C" int pv_slider_double(const char *label, double *value, double min, double max) {
-  return ImGui::SliderScalar(label, ImGuiDataType_Double, value, &min, &max, "%.6g", ImGuiSliderFlags_AlwaysClamp);
-}

@@ -31,10 +31,13 @@ const pixels = storage.subarray(guard, guard + bytes);
 checked(pv_surface_open(0));
 try {
   const short = new Uint8Array(bytes - 1).fill(0xa5);
-  expect(
-    pv_surface_capture(width, height, short) < 0,
-    "Short capture succeeded",
-  );
+  let rejected = false;
+  try {
+    pv_surface_capture(width, height, short);
+  } catch (error) {
+    rejected = error instanceof RangeError;
+  }
+  expect(rejected, "Short capture must fail before reaching C");
   expect(
     short.every((byte) => byte === 0xa5),
     "Short capture wrote outside its contract",
@@ -68,6 +71,7 @@ try {
     igRender();
   }
   checked(pv_surface_capture(width, height, pixels));
+  checked(pv_surface_capture(width, height, storage.subarray(guard)));
   expect(
     storage.subarray(0, guard).every((byte) => byte === 0xa5),
     "Capture changed the prefix guard",

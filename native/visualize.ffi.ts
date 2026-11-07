@@ -26,7 +26,11 @@ export default defineLibrary({
     ImFontAtlas: { handle: {} },
     ImDrawList: { handle: {} },
     ImDrawListSplitter: { handle: { destroy: "ImDrawListSplitter_destroy" } },
-    ImPlotSpec_c: { handle: {} },
+    ImPlotSpec_c: { handle: { destroy: "ImPlotSpec_destroy" } },
+    ImGuiTableSortSpecs: {
+      handle: {},
+      fields: { Specs: { array: { length: "SpecsCount" } } },
+    },
     PVImage: { handle: { destroy: "pv_image_destroy" } },
   },
   functions: {
@@ -77,8 +81,27 @@ export default defineLibrary({
         out_remaining: { constant: "NULL" },
       },
     },
+    ImFont_CalcWordWrapPosition: { params: { text_end: { end: "text" } } },
+    igTableGetSortSpecs: { returns: { borrowed: true } },
+    ImPlot_SetupAxisTicks_doublePtr: {
+      params: {
+        values: { array: { length: "n_ticks" } },
+        labels: { array: { length: "n_ticks" } },
+      },
+    },
     igCheckbox: { params: { v: { inout: true } } },
-    pv_slider_double: { params: { value: { inout: true } } },
+    igSliderScalar: {
+      variants: {
+        igSliderDouble: {
+          params: {
+            data_type: { constant: "ImGuiDataType_Double" },
+            p_data: { pointee: "double", inout: true },
+            p_min: { pointee: "double", inout: true },
+            p_max: { pointee: "double", inout: true },
+          },
+        },
+      },
+    },
     igBegin: { params: { p_open: { constant: "NULL" } } },
     igSetNextWindowSizeConstraints: {
       params: {
@@ -126,8 +149,10 @@ export default defineLibrary({
     },
     pv_font_atlas: { returns: { borrowed: true } },
     pv_surface_capture: {
-      params: { pixels: { bytes: { length: "byte_count" } } },
+      params: { pixels: { bytes: { length: "width * height * 4" } } },
     },
-    pv_png_write: { params: { bytes: { bytes: { length: "byte_count" } } } },
+    pv_png_write: {
+      params: { bytes: { bytes: { length: "width * height * 4" } } },
+    },
   },
 });

@@ -1,4 +1,5 @@
 import {
+  ImGuiSliderFlags_AlwaysClamp,
   igButton,
   igGetCursorPosX,
   igIsItemDeactivatedAfterEdit,
@@ -7,8 +8,8 @@ import {
   igSameLine,
   igSetClipboardText,
   igSetNextItemWidth,
+  igSliderDouble,
   igSpacing,
-  pv_slider_double,
 } from "maligator:ffi/visualize";
 import { delimiter, dirname } from "node:path";
 import type { Appearance, Settings } from "../settings.ts";
@@ -106,16 +107,18 @@ export class SettingsPanel {
         palette.muted,
       );
       igSpacing();
-      const speed = pv_slider_double(
+      const speed = igSliderDouble(
         "Scroll speed (%)",
         settings.wheelScale * 100,
         5,
         100,
+        "%.6g",
+        ImGuiSliderFlags_AlwaysClamp,
       );
-      if (speed.result) this.change({ wheelScale: speed.value / 100 }, false);
+      if (speed.result) this.change({ wheelScale: speed.p_data / 100 }, false);
       if (igIsItemDeactivatedAfterEdit())
         this.action(() => {
-          this.change({ wheelScale: speed.value / 100 });
+          this.change({ wheelScale: speed.p_data / 100 });
           return "Scroll speed saved.";
         });
     });

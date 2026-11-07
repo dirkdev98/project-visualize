@@ -13,6 +13,7 @@
     "check": "npm run lint && npm run typecheck && npm test",
     "check:viewer": "node scripts/check-presentation.mjs",
     "check:readback": "node scripts/check-native.mjs readback",
+    "check:bindings": "node scripts/check-native.mjs bindings",
     "check:images": "node scripts/check-native.mjs images",
     "check:plots": "node scripts/check-native.mjs plots",
     "check:selection": "node scripts/check-native.mjs selection",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
-    "@maligator/cli": "0.1.0-alpha.32",
+    "@maligator/cli": "0.1.0-alpha.33",
     "@types/node": "25.0.3",
     "typescript": "5.9.3"
   },

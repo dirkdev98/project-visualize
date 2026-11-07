@@ -4,9 +4,18 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const name = process.argv[2];
-if (!["readback", "images", "plots", "selection", "navigation"].includes(name))
+if (
+  ![
+    "readback",
+    "images",
+    "plots",
+    "selection",
+    "navigation",
+    "bindings",
+  ].includes(name)
+)
   throw new Error(
-    "Choose a native probe: readback, images, plots, selection or navigation",
+    "Choose a native probe: readback, images, plots, selection, navigation or bindings",
   );
 const scratch = mkdtempSync(join(tmpdir(), `visualize-${name}-`));
 const compiler = resolve("node_modules/.bin/maligator");

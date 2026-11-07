@@ -1,8 +1,8 @@
 import {
   ImFont_CalcTextSizeA,
+  ImFont_CalcWordWrapPosition,
   igGetFont,
   igGetFontSize,
-  pv_text_wrap,
 } from "maligator:ffi/visualize";
 
 export function textLine(value: string, wrapWidth: number) {
@@ -12,7 +12,7 @@ export function textLine(value: string, wrapWidth: number) {
   let length = value.indexOf("\n");
   if (length < 0) length = value.length;
   if (wrapWidth > 0) {
-    const suffix = pv_text_wrap(value, wrapWidth);
+    const suffix = ImFont_CalcWordWrapPosition(font, size, value, wrapWidth);
     if (suffix !== null)
       length = Math.min(length, value.length - suffix.length);
   }

@@ -20,7 +20,7 @@ export async function searchablePdf(
     popGraphicsState,
     setTextRenderingMode,
     setCharacterSqueeze,
-  } = (await import("pdf-lib")).default;
+  } = await import("pdf-lib");
   const { default: fontkit } = await import("@pdf-lib/fontkit");
   const pdf = await PDFDocument.load(raster, { updateMetadata: false });
   pdf.registerFontkit(fontkit);

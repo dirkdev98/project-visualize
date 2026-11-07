@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-11-07 alpha.33 library facts
+
+- Pin Maligator to `0.1.0-alpha.33` and describe native pointer contracts in the FFI
+  configuration. Use direct wrapping, plot constructors, counted sort records,
+  typed sliders and string-array ticks. This replaces the adapter exceptions from
+  direct plot and text bindings and JS document rendering.
+- Derive pixel-buffer bounds from width and height in the generated binding, removing
+  the duplicate byte-count argument. Keep GPU capture, image ownership and platform
+  event delivery native, with explicit plot-style disposal before context teardown.
+- Use pdf-lib's named dynamic imports now that CommonJS re-exports are discoverable.
+  Retire the parser diagnostic from matching light and dark themes after its original
+  reduced input runs successfully. Keep the shared parameter sentinel type because
+  it remains useful independently of the resolved inline-predicate limitation.
+- Retain the font-metric accessor until pointer-only handles expose scalar fields,
+  tracked in [Maligator #96](https://github.com/dirkdev98/maligator/issues/96).
+  Keep constructor fields explicit while parameter properties remain unsupported,
+  tracked in [Maligator #97](https://github.com/dirkdev98/maligator/issues/97).
+
+Keep track of;
+
+- Recheck scalar handle fields and constructor parameter properties on the next
+  Maligator update.
+
 ## 2026-11-07 native interaction and visual authoring
 
 - Use Graphite and Iris for the application and artifact palettes. Keep neutral
@@ -249,15 +272,6 @@ Keep track of;
   adapter and device callback records are pointers, while the corresponding WebGPU
   request functions require records by value. Keep this as an upstream binding gap
   rather than adding casts or exposing unowned callback storage.
-
-Keep track of;
-
-- Support an end pointer derived from an input string so the wrap adapter can go.
-- Support constructors returning pointer storage for types also passed by value,
-  eliminating the plot default-value factory.
-- Recheck typed views over scalar void pointers, pointer-record properties and
-  count expressions derived from dimensions before removing the slider, sort,
-  font/image and pixel-buffer adapters. Preserve main-thread resource teardown.
 
 ## 2026-11-07 remote image snapshots
 
@@ -732,10 +746,6 @@ Keep track of;
   value runs as a JS entry but fails after TypeScript stripping. Clear loops avoid the
   diagnostic's parser failure without changing application behavior.
 
-Keep track of;
-
-- Recheck nested-arrow property values when updating Maligator's TypeScript parser.
-
 ## 2026-11-07 deferred native presentation
 
 - Report deferred surface acquisition to JS and retain the unpresented frame. Retry
@@ -852,7 +862,6 @@ Keep track of;
 Keep track of;
 
 - Profile the remaining syntax grammar conversion and export allocation costs.
-- Recheck C-string pointer arrays and TS parameter properties when updating Maligator.
 
 ## 2026-11-07 JS renderer performance cost
 

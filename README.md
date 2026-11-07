@@ -126,6 +126,8 @@ Maligator's development runner after the native bridge has been built.
 PDF extraction checks use Poppler (`brew install poppler`).
 Run `npm run check:readback` after screenshot or FFI changes. It checks writable
 byte views, buffer bounds and GPU row padding in development and production builds.
+Run `npm run check:bindings` after sort or scalar binding changes to verify counted
+sort records and double slider values in both build modes.
 Run `npm run check:images` after image drawing changes to check native UV sampling,
 rounded corners and texture disposal in both build modes.
 Run `npm run check:plots` after series adapter changes to verify supplied legend
@@ -152,8 +154,8 @@ run this mode under Xvfb or a headless Wayland compositor.
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings
 connect it to Dear ImGui, ImPlot and SDL. Chart styles and line wrapping are composed
-in JS; the native adapters cover pointer-dependent operations. The small backend in
-[native/visualize.h](native/visualize.h) supplies window, font, image and GPU operations.
+in JS. [The native backend](native/visualize.h) supplies window, font, image and GPU
+operations.
 The viewer and exports share the TS content renderer.
 
 Shiki runs with its JavaScript regex engine. The build captures syntax grammars as

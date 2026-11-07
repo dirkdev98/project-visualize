@@ -8,6 +8,7 @@ import {
   ImGuiCond_Always,
   ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
   ImGuiMod_Shift,
+  ImGuiSliderFlags_AlwaysClamp,
   ImGuiStyleVar_CellPadding,
   ImGuiTableBgTarget_CellBg,
   ImGuiTableColumnFlags_WidthFixed,
@@ -37,6 +38,7 @@ import {
   ImPlot_SetNextAxesLimits,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
+  ImPlot_SetupAxisTicks_doublePtr,
   ImPlot_SetupLegend,
   ImPlotAxisFlags_Invert,
   ImPlotFlags_Crosshairs,
@@ -90,8 +92,10 @@ import {
   igSeparator,
   igSetCursorScreenPos,
   igSetNextItemWidth,
+  igSliderDouble,
   igSmallButton,
   igSpacing,
+  igTableGetSortSpecs,
   igTableHeader,
   igTableNextColumn,
   igTableNextRow,
@@ -104,9 +108,6 @@ import {
   pv_image_draw,
   pv_image_load,
   pv_image_size,
-  pv_plot_tick,
-  pv_slider_double,
-  pv_table_sort,
 } from "maligator:ffi/visualize";
 import {
   ALL,
@@ -759,15 +760,29 @@ export class DocumentRenderer {
         max = range.max ?? bounds.max;
       igBeginDisabled(bounds.min === bounds.max);
       igSetNextItemWidth(Math.max(80, available() - 60));
-      const lower = pv_slider_double("From", min, bounds.min, max);
+      const lower = igSliderDouble(
+        "From",
+        min,
+        bounds.min,
+        max,
+        "%.6g",
+        ImGuiSliderFlags_AlwaysClamp,
+      );
       if (lower.result) {
-        min = lower.value;
+        min = lower.p_data;
         this.parameter(control, { min, max });
       }
       igSetNextItemWidth(Math.max(80, available() - 60));
-      const upper = pv_slider_double("To", max, min, bounds.max);
+      const upper = igSliderDouble(
+        "To",
+        max,
+        min,
+        bounds.max,
+        "%.6g",
+        ImGuiSliderFlags_AlwaysClamp,
+      );
       if (upper.result) {
-        max = upper.value;
+        max = upper.p_data;
         this.parameter(control, { min, max });
       }
       igEndDisabled();
@@ -892,11 +907,12 @@ export class DocumentRenderer {
         textEnd = capture?.text.length ?? 0;
         if (!exporting) {
           sort = [];
-          const first = pv_table_sort(0);
-          for (let i = 0; i < first.count; i++) {
-            const spec = i === 0 ? first : pv_table_sort(i);
-            sort.push({ column: spec.column, direction: spec.direction });
-          }
+          const specs = igTableGetSortSpecs()?.Specs ?? [];
+          for (const spec of specs)
+            sort.push({
+              column: spec.ColumnIndex,
+              direction: spec.SortDirection,
+            });
         }
       }
     }
@@ -1245,10 +1261,11 @@ export class DocumentRenderer {
     if (value.labels)
       for (let i = 0; i < value.labels.length; i++)
         if (i % (categories?.stride ?? 1) === 0)
-          pv_plot_tick(
+          ImPlot_SetupAxisTicks_doublePtr(
             horizontalBars ? ImAxis_Y1 : 0,
-            i,
-            categories?.labels[i] ?? value.labels[i],
+            [i],
+            [categories?.labels[i] ?? value.labels[i]],
+            false,
           );
     const selected = selection
       ? parameterValue(this.state.parameters, selection.control)
@@ -1667,7 +1684,7 @@ export class DocumentRenderer {
     );
     if (value.type === "boxplot") {
       for (const [i, series] of (value.series ?? []).entries())
-        pv_plot_tick(0, i, series.name);
+        ImPlot_SetupAxisTicks_doublePtr(0, [i], [series.name], false);
       for (const [i, series] of (value.series ?? []).entries()) {
         const summary = prepared.boxes?.[i];
         if (summary)
@@ -1680,7 +1697,7 @@ export class DocumentRenderer {
       }
     } else {
       for (const [i, step] of value.steps.entries())
-        pv_plot_tick(0, i, step.label);
+        ImPlot_SetupAxisTicks_doublePtr(0, [i], [step.label], false);
       this.plotDrawing.waterfall(
         value.title ?? "Change",
         prepared.waterfall ?? [],

@@ -25,10 +25,10 @@ import {
   ImPlotProp_MarkerLineColor,
   ImPlotProp_MarkerSize,
   type ImPlotSpec_c,
+  ImPlotSpec_ImPlotSpec,
   ImPlotSpec_SetProp_Float,
   ImPlotSpec_SetProp_S32,
   ImPlotSpec_SetProp_Vec4,
-  pv_plot_spec,
 } from "maligator:ffi/visualize";
 import type { boxplot } from "./statistics.ts";
 import { type Color, currentTheme, packed } from "./theme.ts";
@@ -53,7 +53,8 @@ export class Plots {
     const key = `${color.x}:${color.y}:${color.z}:${color.w}:${marker}:${shaded}:${horizontal}`;
     let style = this.styles.get(key);
     if (style) return style;
-    style = pv_plot_spec();
+    style = ImPlotSpec_ImPlotSpec() ?? undefined;
+    if (!style) throw new Error("Cannot create a plot style");
     if (horizontal)
       ImPlotSpec_SetProp_S32(
         style,
