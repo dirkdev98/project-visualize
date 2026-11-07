@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-07 caller-owned capture acceptance
+
+- Accept the caller-owned capture checkpoint for lower peak memory on larger exports.
+  Five interleaved fresh-process samples per build on AC preserve exact PNG and PDF
+  bytes. A process observer found no compiler contention during the complete pass.
+- Median peak RSS falls from 214.6 to 172.6 MiB for the dense table, 190.0 to 160.9 MiB
+  for the 2x notebook, and 137.6 to 126.7 MiB for the dashboard. The small control and
+  1x notebook remain effectively unchanged. These indicative laptop measurements are
+  sufficient to retain the change; they measure export peak RSS, not idle footprint.
+- Make no material speed claim. Median export times change from 996 to 984 ms for
+  the dense table, 697 to 695 ms for the 2x notebook, 412 to 402 ms for the dashboard,
+  344 to 341 ms for the notebook, and 121 to 114 ms for the control. The no-render
+  startup control remains about 20 ms and 28 MiB.
+
 ## 2026-11-07 Markdown section boundaries
 
 - Keep Markdown headings with the first following body line in PDF pagination.
@@ -71,11 +85,6 @@ Keep track of;
 - Preserve production builds before and after this change for a matched comparison.
   The self-compilation benchmark running in another session prevents an uncontended
   timing pass. Treat this as a functional checkpoint without a performance claim.
-
-Keep track of;
-
-- Complete the frozen-build export and startup comparison when the compiler is idle.
-  Keep measured acceptance separate from the source proof that temporary copies were removed.
 
 ## 2026-11-07 chart-driven linked selection
 
