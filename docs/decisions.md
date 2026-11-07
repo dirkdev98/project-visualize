@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-11-07 macOS command shortcuts
+
+- Use ImGui's Control modifier for application command shortcuts. Its macOS input
+  behavior swaps physical Command and Control, so the previous Super bindings
+  responded to Control despite advertising Command.
+- Verify Command+K search and repeated Command+Shift+L theme changes in the native
+  viewer after reproducing the prior Control behavior. The hide/restore presentation
+  check also passes again with one retained UI frame. Keep pointer-based chart
+  acceptance separate from keyboard and offscreen input checks.
+
 ## 2026-11-07 linked document heatmaps
 
 - Render heatmaps as JS-owned native tables with a restrained sequential palette,
@@ -111,10 +121,6 @@ Keep track of;
 
 Keep track of;
 
-- Verify on-screen theme switching and shortcuts when native window capture is usable.
-  Offscreen light/dark rendering and repeated syntax-theme switching work. The native
-  hide/restore check passed earlier, then could not acquire a visible surface again;
-  closing the other viewer did not resolve that later limitation.
 - Recheck nested-arrow property values when updating Maligator's TypeScript parser.
 
 ## 2026-11-07 deferred native presentation

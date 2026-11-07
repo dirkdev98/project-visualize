@@ -3,8 +3,8 @@ import {
   ImGuiInputFlags_RouteGlobal,
   ImGuiKey_K,
   ImGuiKey_L,
+  ImGuiMod_Ctrl,
   ImGuiMod_Shift,
-  ImGuiMod_Super,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImGuiWindowFlags_NoDecoration,
   ImGuiWindowFlags_NoSavedSettings,
@@ -163,8 +163,9 @@ export function openViewer(root: string, options: Options) {
       "Visualize",
       ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings,
     );
+    // ImGui maps Command to Ctrl when its macOS behavior is enabled.
     const focusSearch = igShortcut_Nil(
-      ImGuiMod_Super | ImGuiKey_K,
+      ImGuiMod_Ctrl | ImGuiKey_K,
       ImGuiInputFlags_RouteGlobal,
     );
     igBeginChild_Str("library", { x: 244, y: 0 }, ImGuiChildFlags_Borders, 0);
@@ -177,7 +178,7 @@ export function openViewer(root: string, options: Options) {
         y: 0,
       }) ||
       igShortcut_Nil(
-        ImGuiMod_Super | ImGuiMod_Shift | ImGuiKey_L,
+        ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_L,
         ImGuiInputFlags_RouteGlobal,
       )
     ) {
