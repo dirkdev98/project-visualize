@@ -3,15 +3,18 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const scratch = mkdtempSync(join(tmpdir(), "visualize-readback-"));
+const name = process.argv[2];
+if (!["readback", "images"].includes(name))
+  throw new Error("Choose a native probe: readback or images");
+const scratch = mkdtempSync(join(tmpdir(), `visualize-${name}-`));
 const compiler = resolve("node_modules/.bin/maligator");
-const entry = "tests/native/readback.js";
+const entry = `tests/native/${name}.js`;
 function run(file, args, mode) {
   const output = join(scratch, `${mode}.png`);
   execFileSync(file, args, {
     stdio: "inherit",
     timeout: 300_000,
-    env: { ...process.env, VISUALIZE_READBACK_OUTPUT: output },
+    env: { ...process.env, VISUALIZE_NATIVE_CHECK_OUTPUT: output },
   });
   if (!mode) return;
   const png = readFileSync(output);

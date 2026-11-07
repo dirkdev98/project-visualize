@@ -469,6 +469,62 @@ test("image assets survive source deletion and can be exported from another dire
   assert.equal(readFileSync(output).readUInt32BE(16), 1920);
 });
 
+test("image frames distinguish contain and cover while preserving saved assets", (t) => {
+  const { root, render, ok } = workspace(t);
+  const image = join(root, "station.png");
+  writeFileSync(
+    image,
+    Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  );
+  const document = {
+    ...minimal(),
+    assets: { station: image },
+    body: [{ type: "image", asset: "station", height: 120 }],
+  };
+  const contain = render(document);
+  const cover = render({
+    ...document,
+    body: [{ ...document.body[0], fit: "cover" }],
+  });
+  assert.notEqual(digest(contain.png), digest(cover.png));
+  rmSync(image);
+  const output = join(root, "saved-frame.png");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--version",
+    cover.version,
+    "--format",
+    "png",
+    "--out",
+    output,
+  ]);
+  assert.equal(digest(output), digest(cover.png));
+});
+
+test("invalid image fit and empty frames fail before publishing a version", (t) => {
+  const { run, ok } = workspace(t);
+  for (const option of [{ fit: "stretch" }, { height: 0 }, { height: -1 }]) {
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      {
+        ...minimal(),
+        assets: { station: "absent.png" },
+        body: [{ type: "image", asset: "station", ...option }],
+      },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /body\[0\]\.(fit|height)/);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 test("exporting a saved snapshot does not create a revision", (t) => {
   const { root, render, ok } = workspace(t);
   const entry = render();

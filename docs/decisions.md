@@ -1,5 +1,22 @@
 # Decisions
 
+## 2026-11-07 framed image layouts
+
+- Keep natural image sizing and add full-width frames with contained or centered
+  cropped content. Own frame geometry, UV coordinates, layout advancement and theme
+  colors in JS; keep the native operation limited to drawing a rounded textured quad.
+- Preserve the complete source in letterboxed frames. Disable rounding on tiny quads
+  because the pinned path builder subtracts an inset after its radius clamp. Reserve
+  antialiasing padding inside the image's layout bounds so PDF cuts leave no edge on
+  the preceding page or pull neighboring panels into the protected region.
+- Keep image resources alive through drawing and capture, then release them before
+  GPU teardown. Reuse the native probe runner for sampling and borrowed readback checks.
+
+Keep track of;
+
+- Recheck FFI documentation association upstream. Generated declarations attach the
+  capture buffer comment to unrelated functions; their signatures remain correct.
+
 ## 2026-11-07 macOS command shortcuts
 
 - Use ImGui's Control modifier for application command shortcuts. Its macOS input

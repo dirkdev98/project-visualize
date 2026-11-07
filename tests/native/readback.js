@@ -90,6 +90,11 @@ try {
   pv_surface_close();
 }
 checked(
-  pv_png_write(process.env.VISUALIZE_READBACK_OUTPUT, width, height, pixels),
+  pv_png_write(
+    process.env.VISUALIZE_NATIVE_CHECK_OUTPUT,
+    width,
+    height,
+    pixels,
+  ),
 );
 console.log(JSON.stringify({ ok: true, width, height, offset: guard }));

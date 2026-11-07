@@ -1,5 +1,6 @@
 export type Tone = "neutral" | "positive" | "warning" | "negative";
 export type Theme = "light" | "dark";
+export type ImageFit = "contain" | "cover";
 export type Cell = string | number | boolean | null;
 export type DataRow = Record<string, Cell>;
 export type Aggregate = "sum" | "mean" | "count" | "min" | "max";
@@ -130,7 +131,7 @@ export type Block = BlockStyle &
         nodes: DiagramNode[];
         edges?: { from: string; to: string; label?: string }[];
       }
-    | { type: "image"; asset: string }
+    | { type: "image"; asset: string; fit?: ImageFit }
     | { type: "divider" | "spacer" }
   );
 
@@ -749,6 +750,14 @@ export function validate(input: unknown): Artifact {
         break;
       }
       case "image":
+        if (block.height !== undefined)
+          number(block.height, field("height"), 1, 1600);
+        if (
+          block.fit !== undefined &&
+          block.fit !== "contain" &&
+          block.fit !== "cover"
+        )
+          fail(field("fit"), "expected contain or cover");
         if (
           typeof block.asset !== "string" ||
           !Object.hasOwn(assets, block.asset)

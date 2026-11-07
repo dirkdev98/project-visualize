@@ -40,7 +40,8 @@ PVSize pv_font_metrics(ImFont *font, float size);
 PVTextLine pv_text_line(const char *text, float wrap_width);
 PVImage *pv_image_load(const char *file);
 PVSize pv_image_size(PVImage *image);
-void pv_image_draw(PVImage *image, PVSize size);
+void pv_image_draw(PVImage *image, PVSize position, PVSize size,
+                   PVSize uv0, PVSize uv1, float rounding);
 void pv_image_destroy(PVImage *image);
 PVSortSpec pv_table_sort(int index);
 void pv_plot_tick(int axis, double value, const char *label);

@@ -139,8 +139,12 @@ extern "C" PVSize pv_image_size(PVImage *image) {
   return {static_cast<float>(image->image->width), static_cast<float>(image->image->height)};
 }
 
-extern "C" void pv_image_draw(PVImage *image, PVSize size) {
-  ImGui::Image(static_cast<ImTextureID>(reinterpret_cast<intptr_t>(image->image->view)), {size.x, size.y});
+extern "C" void pv_image_draw(PVImage *image, PVSize position, PVSize size,
+                              PVSize uv0, PVSize uv1, float rounding) {
+  ImGui::GetWindowDrawList()->AddImageRounded(
+      ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<intptr_t>(image->image->view))),
+      {position.x, position.y}, {position.x + size.x, position.y + size.y},
+      {uv0.x, uv0.y}, {uv1.x, uv1.y}, IM_COL32_WHITE, rounding);
 }
 
 extern "C" void pv_image_destroy(PVImage *image) { delete image; }

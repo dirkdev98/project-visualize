@@ -240,6 +240,11 @@ Markdown images use `asset:NAME` references. Network images are not fetched. Use
 new `render` invocation to revise an artifact; preserve returned version IDs when
 referring to particular evidence.
 
+Images keep their natural proportions and shrink to the available width without
+upscaling. Set an image block's `height` to create a full-width frame. The default
+`fit: "contain"` centers the whole image inside it; `fit: "cover"` fills the frame
+by cropping equally from the long axis. Captions remain selectable in PDF exports.
+
 ## Exports
 
 Documents default to a light theme. Set `"theme": "dark"` for a matching dark canvas,

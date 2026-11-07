@@ -113,10 +113,12 @@ import type {
   Block,
   Cell,
   ControlBlock,
+  ImageFit,
   ParameterValue,
   Tone,
 } from "../model.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
+import { layoutImage } from "./image-layout.ts";
 import { captureTable, currentCapture, keepTogether } from "./layout.ts";
 import {
   available,
@@ -228,7 +230,12 @@ export class DocumentRenderer {
     this.searches.clear();
     this.rich.dispose();
   }
-  private image(asset: string, width = available()): number {
+  private image(
+    asset: string,
+    width = available(),
+    frameHeight?: number,
+    fit?: ImageFit,
+  ): number {
     const file = this.document.assets?.[asset];
     if (!file) throw new Error(`Unknown image asset: ${asset}`);
     let image = this.images.get(file);
@@ -238,10 +245,46 @@ export class DocumentRenderer {
       this.images.set(file, image);
     }
     const size = pv_image_size(image);
-    const w = Math.min(width, size.x);
-    const height = (w * size.y) / size.x;
-    pv_image_draw(image, { x: w, y: height });
-    return height;
+    const layout = layoutImage(size.x, size.y, width, frameHeight, fit);
+    const cursor = igGetCursorScreenPos();
+    // Leave antialiased edges inside the recorded block bounds.
+    const start = { x: cursor.x, y: cursor.y + 1 };
+    const end = { x: start.x + layout.width, y: start.y + layout.height };
+    const draw = igGetWindowDrawList();
+    if (!draw) throw new Error("Cannot access the image canvas");
+    if (frameHeight !== undefined)
+      ImDrawList_AddRectFilled(
+        draw,
+        start,
+        end,
+        packed(palette.paper),
+        layout.rounding,
+        0,
+      );
+    const fillsFrame =
+      layout.image.width === layout.width &&
+      layout.image.height === layout.height;
+    pv_image_draw(
+      image,
+      { x: start.x + layout.image.x, y: start.y + layout.image.y },
+      { x: layout.image.width, y: layout.image.height },
+      layout.uv0,
+      layout.uv1,
+      fillsFrame ? layout.rounding : 0,
+    );
+    if (frameHeight !== undefined)
+      ImDrawList_AddRect(
+        draw,
+        start,
+        end,
+        packed(palette.border),
+        layout.rounding,
+        1,
+        0,
+      );
+    keepTogether(cursor.y, end.y + 1);
+    igDummy({ x: layout.width, y: layout.height + 2 });
+    return layout.height + 2;
   }
   hasControls(): boolean {
     return controls(this.document).length > 0;
@@ -453,7 +496,7 @@ export class DocumentRenderer {
         this.diagram(value, exporting);
         break;
       case "image":
-        this.image(value.asset);
+        this.image(value.asset, available(), value.height, value.fit);
         break;
     }
     if (value.caption) text(value.caption, 15, "regular", palette.muted);
