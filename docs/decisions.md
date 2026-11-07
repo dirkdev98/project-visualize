@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-11-07 export resource lifetime
+
+- Dispose the GPU surface, document images and syntax caches after copying captured
+  pixels, before PNG/PDF encoding. The copied bytes own their storage, so encoding
+  does not need to overlap those rendering resources.
+- Keep this as a lifetime correction without claiming a material speedup. Five
+  interleaved fresh-process samples per build on AC produced byte-identical PNGs and
+  PDFs. Median peak RSS changed from 47.2 to 46.6 MiB for the control, 100.9 to
+  99.7 MiB for the dashboard, and 90.4 to 88.6 MiB for the notebook. Median elapsed
+  times stayed within roughly 2 ms. These are indicative peak-RSS measurements,
+  distinct from idle physical footprint.
+
 ## 2026-11-07 linked snapshot controls
 
 - Bind tables, aggregate metrics and charts to named scalar datasets. Keep filtering,

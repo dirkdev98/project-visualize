@@ -112,11 +112,12 @@ export function renderArtifact(
   const state = documentState(document, parameters);
   checked(pv_surface_open(0));
   let renderer: DocumentRenderer | undefined;
+  let height = 0;
+  let pixels: Uint8Array;
   try {
     initializeTheme();
     renderer = new DocumentRenderer(document, state);
     const limit = pv_surface_limit();
-    let height = 0;
     for (let pass = 0; pass < 2; pass++) {
       checked(pv_surface_begin(width, limit / scale, scale));
       pushTheme();
@@ -134,19 +135,20 @@ export function renderArtifact(
     canvas(renderer, width, height);
     popTheme();
     igRender();
-    const pixels = pv_surface_pixels(width * scale, height * scale);
-    if (!pixels)
+    const captured = pv_surface_pixels(width * scale, height * scale);
+    if (!captured)
       throw new Error(pv_error() ?? "GPU screenshot readback failed");
-    for (const file of typeof output === "string" ? [output] : output) {
-      if (file.toLowerCase().endsWith(".pdf"))
-        pdf(file, width * scale, height * scale, pixels);
-      else checked(pv_png_write(file, width * scale, height * scale, pixels));
-    }
-    return height;
+    pixels = captured;
   } finally {
     renderer?.dispose();
     for (const key of Object.keys(fonts))
       delete fonts[key as keyof typeof fonts];
     pv_surface_close();
   }
+  for (const file of typeof output === "string" ? [output] : output) {
+    if (file.toLowerCase().endsWith(".pdf"))
+      pdf(file, width * scale, height * scale, pixels);
+    else checked(pv_png_write(file, width * scale, height * scale, pixels));
+  }
+  return height;
 }
