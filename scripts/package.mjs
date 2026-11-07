@@ -97,6 +97,18 @@ writeFileSync(
 </dict></plist>\n`,
 );
 const notices = join(release, "licenses");
+for (const [directory, executable] of [
+  [join(release, "agent-skill"), "../bin/visualize"],
+  [join(app, "Resources", "agent-skill"), "../../MacOS/visualize"],
+]) {
+  cpSync(join(root, ".cache/resources/workflow"), directory, {
+    recursive: true,
+  });
+  writeFileSync(
+    join(directory, "bundle.json"),
+    `${JSON.stringify({ package: "project-visualize", executable, guide: "docs/artifacts.md", examples: "examples" }, null, 2)}\n`,
+  );
+}
 mkdirSync(notices, { recursive: true });
 for (const component of ["imgui", "implot", "cimgui", "cimplot", "wgpu"]) {
   const directory = join(root, ".cache/deps", component);

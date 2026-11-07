@@ -5,6 +5,11 @@ export default defineBuild({
   outputName: "visualize",
   surface: { node: true },
   assets: {
+    workflow: {
+      type: "directory",
+      path: ".cache/resources/workflow",
+      include: ["**/*"],
+    },
     fonts: {
       type: "directory",
       path: "assets/fonts",

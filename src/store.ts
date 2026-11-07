@@ -27,6 +27,39 @@ export interface Entry {
   scale: number;
   mobile?: { width: number; height: number };
   directory: string;
+  presentedAt?: string;
+  currentPresentation?: boolean;
+}
+
+interface Presentation {
+  version: string;
+  versions: Record<string, string>;
+}
+function presentation(parent: string): Presentation | undefined {
+  const file = join(parent, "presented.json");
+  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : undefined;
+}
+export function present(
+  root: string,
+  project: string,
+  artifact: string,
+  version: string,
+): Entry {
+  const entry = find(root, project, artifact, version);
+  const parent = dirname(entry.directory);
+  const previous = presentation(parent);
+  const presentedAt = new Date().toISOString();
+  const temporary = join(parent, `.presented-${randomUUID()}.json`);
+  try {
+    writeFileSync(
+      temporary,
+      `${JSON.stringify({ version, versions: { ...previous?.versions, [version]: presentedAt } }, null, 2)}\n`,
+    );
+    renameSync(temporary, join(parent, "presented.json"));
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return { ...entry, presentedAt, currentPresentation: true };
 }
 
 export function storeRoot(override?: string) {
@@ -57,11 +90,18 @@ export function list(
     if (project && p !== project) continue;
     for (const a of directories(join(projects, p))) {
       if (artifact && a !== artifact) continue;
+      const presented = presentation(join(projects, p, a));
       for (const v of directories(join(projects, p, a))) {
         const directory = join(projects, p, a, v);
         entries.push({
           ...JSON.parse(readFileSync(join(directory, "metadata.json"), "utf8")),
           directory,
+          ...(presented?.versions[v]
+            ? {
+                presentedAt: presented.versions[v],
+                currentPresentation: presented.version === v,
+              }
+            : {}),
         });
       }
     }

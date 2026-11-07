@@ -7,20 +7,30 @@ description: Create, revise and export saved dashboards, rich documents and diag
 Use the CLI to save a versioned artifact and return its screenshot to the conversation.
 The native viewer adds chart navigation, sortable tables and retained context.
 
-This skill lives at `skills/project-visualize` inside the application checkout. Its
-reported directory may be a symlink. Set `skill_directory` to the directory supplied
-with this skill, then resolve the physical directory before locating the checkout:
+The reported skill directory may be a symlink. Set `skill_directory` to the directory
+supplied with this skill, then resolve it physically:
 
 ```sh
 skill_real=$(CDPATH= cd -P -- "$skill_directory" && pwd)
-visualize_root=$(CDPATH= cd -- "$skill_real/../.." && pwd)
-"$visualize_root/bin/visualize" --help
 ```
 
-Read `$visualize_root/docs/artifacts.md` before authoring a document, and adapt the
-examples in `$visualize_root/examples/`. If the application has not been built,
-follow `$visualize_root/README.md`. Keep the current project's working directory
-when running the absolute CLI path so relative input and output paths resolve there.
+If `$skill_real/bundle.json` exists, read it. Resolve its `executable`, `guide` and
+`examples` paths relative to `skill_real`; absolute paths stay absolute. Set
+`visualize_cli` to the executable path. This copy is bundled with the application.
+
+Otherwise, this skill lives at `skills/project-visualize` inside the checkout:
+
+```sh
+visualize_root=$(CDPATH= cd -- "$skill_real/../.." && pwd)
+visualize_cli="$visualize_root/bin/visualize"
+```
+
+For a checkout, read `$visualize_root/docs/artifacts.md` and use
+`$visualize_root/examples/`; follow its README if the application has not been built.
+For a bundled copy, read the manifest's guide and examples. An installed
+`visualize skill` also reports these resource paths. Use `--help` for command syntax.
+Keep the current project's working directory when invoking `visualize_cli` so
+relative input and output paths resolve there.
 
 Write the artifact as JSON. Choose a project ID that matches the user's workspace and
 keep the same artifact ID when revising it. Preserve the actual data, units, source
@@ -30,8 +40,8 @@ URLs in `assets`, and refer to them by asset ID. Remote images use a shared cach
 each saved revision retains its chosen bytes for offline viewing and export.
 
 ```sh
-"$visualize_root/bin/visualize" validate --file document.json
-"$visualize_root/bin/visualize" render --project orbital --artifact station-review \
+"$visualize_cli" validate --file document.json
+"$visualize_cli" render --project orbital --artifact station-review \
   --file document.json --mobile-width 390
 ```
 
@@ -42,6 +52,12 @@ poor composition by rendering a revision.
 Return the screenshot using the conversation host's supported image mechanism, with
 the artifact's project, ID and version available when useful. A path alone does not
 display an image on every host.
+
+Once you have chosen the revision and screenshot to deliver, run `present --project
+ID --artifact ID --version ID` with that exact saved version, then return its image.
+This marks the selected delivery, not every rendering attempt or a receipt that the
+person opened it. Later drafts leave that marker in place, and earlier delivered
+versions keep their history.
 
 Use `inspect` to read an existing saved document before revising it. `render` always
 creates a new version. Export with an explicit `--version` when the request refers to

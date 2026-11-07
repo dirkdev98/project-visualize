@@ -2,9 +2,14 @@ import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createParameters, resolveView } from "./data.ts";
 import { slug, validate } from "./model.ts";
-import { find, list, load, save, storeRoot } from "./store.ts";
+import { find, list, load, present, save, storeRoot } from "./store.ts";
 import { renderArtifact as render } from "./ui/export.ts";
 import { openViewer } from "./viewer.ts";
+import {
+  executablePath,
+  linkInstallation,
+  skillResources,
+} from "./workflow.ts";
 
 const help = `Project Visualize
 
@@ -14,6 +19,9 @@ visualize inspect --project ID --artifact ID [--version ID]
 visualize export --project ID --artifact ID --format png|pdf --out FILE
 visualize open [--project ID] [--artifact ID] [--version ID]
 visualize validate --file document.json
+visualize present --project ID --artifact ID --version ID
+visualize skill [--out DIRECTORY]
+visualize install --cli PATH | --skill PATH
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
 render and export accept --width 320..2560 and --scale 1|2. New renders default to 2x.
@@ -63,6 +71,9 @@ async function main() {
     ],
     open: ["project", "artifact", "version", "store", "params", "theme"],
     validate: ["file", "store"],
+    present: ["project", "artifact", "version", "store"],
+    skill: ["out", "store"],
+    install: ["cli", "skill", "store"],
   };
   if (!command || !Object.hasOwn(permitted, command))
     throw new Error(`Unknown command ${command}; use --help`);
@@ -144,6 +155,24 @@ async function main() {
         },
       };
     }
+  } else if (command === "present") {
+    result = present(
+      root,
+      required("project"),
+      required("artifact"),
+      required("version"),
+    );
+  } else if (command === "skill") {
+    result = skillResources(root, options.out);
+  } else if (command === "install") {
+    if (Boolean(options.cli) === Boolean(options.skill))
+      throw new Error(
+        "Choose exactly one installation: --cli PATH or --skill PATH",
+      );
+    result = linkInstallation(
+      options.cli ? executablePath : skillResources(root).directory,
+      options.cli ?? required("skill"),
+    );
   } else if (command === "list")
     result = {
       store: root,
@@ -220,7 +249,13 @@ async function main() {
       if (!options.project || !options.artifact)
         throw new Error("--params requires --project and --artifact");
       createParameters(
-        load(find(root, options.project, options.artifact, options.version)),
+        load(
+          options.version
+            ? find(root, options.project, options.artifact, options.version)
+            : (list(root, options.project, options.artifact).find(
+                (entry) => entry.currentPresentation,
+              ) ?? find(root, options.project, options.artifact)),
+        ),
         parameters,
       );
     }

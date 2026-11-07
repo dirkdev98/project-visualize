@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-11-07 presented artifact versions
+
+- Mark the exact saved revision selected for delivery rather than every rendering
+  attempt. Keep the current presentation and prior delivery timestamps in an atomic
+  artifact-level sidecar, outside immutable revision directories.
+- Expose presentation state through the CLI and revision menu. Follow the current
+  presentation by default, retain an explicit latest-draft mode, and include marker
+  changes in viewer refresh detection even when no new revision was created.
+- Teach the shared skill to inspect both captures, mark its selected revision and
+  then return its screenshot. This records declared delivery rather than a receipt
+  that the person read it.
+
+## 2026-11-07 bundled agent workflow
+
+- Embed the skill, guide and fictional examples in the executable and include a
+  readable bundle alongside the packaged CLI and desktop application. Describe the
+  executable and resource locations in a bundle manifest so linked installations
+  resolve physical paths without assuming the checkout layout.
+- Expose extraction and non-destructive CLI and skill linking through the CLI.
+  Preserve occupied destinations, make identical links idempotent, and quote copied
+  shell commands. Settings can use the same operations with visible destinations.
+- Keep resource bundling independent of platform. Native packaging remains macOS
+  only; embedded resources do not establish another platform's runtime compatibility.
+
 ## 2026-11-07 desktop and phone captures
 
 - Default new screenshots to 2x density, retaining explicit single-density rendering.

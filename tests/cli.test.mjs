@@ -186,6 +186,137 @@ test("explicit single-density screenshots retain logical dimensions", (t) => {
   assert.equal(entry.scale, 1);
 });
 
+test("presenting a version preserves every revision and survives later drafts", (t) => {
+  const { render, ok } = workspace(t);
+  const first = render(minimal(12)),
+    second = render(minimal(24));
+  const files = [
+    first.document,
+    first.png,
+    first.pdf,
+    second.document,
+    second.png,
+    second.pdf,
+  ];
+  const before = files.map(digest);
+  const marked = ok([
+    "present",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--version",
+    first.version,
+  ]);
+  assert.ok(marked.presentedAt);
+  render(minimal(36));
+  const versions = ok([
+    "list",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+  ]).versions;
+  assert.equal(
+    versions.find((entry) => entry.currentPresentation).version,
+    first.version,
+  );
+  ok([
+    "present",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--version",
+    second.version,
+  ]);
+  const history = ok([
+    "list",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+  ]).versions;
+  assert.ok(
+    history.find((entry) => entry.version === first.version).presentedAt,
+  );
+  assert.equal(
+    history.find((entry) => entry.currentPresentation).version,
+    second.version,
+  );
+  assert.deepEqual(files.map(digest), before);
+});
+
+test("a missing presentation version cannot replace the selected delivery", (t) => {
+  const { render, ok, run } = workspace(t);
+  const entry = render();
+  ok([
+    "present",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--version",
+    entry.version,
+  ]);
+  const failed = run([
+    "present",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--version",
+    "missing",
+  ]);
+  assert.equal(failed.status, 1);
+  assert.equal(
+    ok(["list"]).versions.find((entry) => entry.currentPresentation).version,
+    entry.version,
+  );
+});
+
+test("the CLI exposes its bundled skill and extracts a self-contained workflow", (t) => {
+  const { root, ok } = workspace(t);
+  const bundled = ok(["skill"]);
+  assert.ok(existsSync(bundled.skill));
+  assert.ok(existsSync(bundled.guide));
+  assert.ok(existsSync(bundled.examples));
+  const extracted = ok(["skill", "--out", join(root, "workflow")]);
+  const manifest = JSON.parse(
+    readFileSync(join(extracted.directory, "bundle.json"), "utf8"),
+  );
+  assert.equal(manifest.executable, extracted.executable);
+  assert.equal(
+    readFileSync(extracted.skill, "utf8"),
+    readFileSync(resolve("skills/project-visualize/SKILL.md"), "utf8"),
+  );
+  assert.equal(
+    readFileSync(extracted.guide, "utf8"),
+    readFileSync(resolve("docs/artifacts.md"), "utf8"),
+  );
+});
+
+test("installation creates working links and preserves occupied destinations", (t) => {
+  const { root, ok, run } = workspace(t);
+  const cli = join(root, "command links", "visualize");
+  assert.equal(ok(["install", "--cli", cli]).status, "linked");
+  const launched = spawnSync(cli, ["--version"], { encoding: "utf8" });
+  assert.equal(launched.status, 0, launched.stderr);
+  assert.equal(ok(["install", "--cli", cli]).status, "already-linked");
+  const occupied = join(root, "user-command");
+  writeFileSync(occupied, "User-owned contents");
+  assert.equal(run(["install", "--cli", occupied]).status, 1);
+  assert.equal(readFileSync(occupied, "utf8"), "User-owned contents");
+  const destination = join(root, "skill links", "project-visualize");
+  const linked = ok(["install", "--skill", destination]);
+  assert.ok(existsSync(join(destination, "SKILL.md")));
+  assert.equal(
+    JSON.parse(readFileSync(join(destination, "bundle.json"), "utf8")).package,
+    "project-visualize",
+  );
+  assert.equal(ok(["install", "--skill", destination]).source, linked.source);
+});
+
 test("PDF paper and orientation follow the saved document", async (t) => {
   const { render } = workspace(t);
   for (const [paper, portrait] of [

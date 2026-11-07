@@ -59,6 +59,15 @@ or link it into your agent's skill directory. The skill resolves that link to fi
 the CLI, guide and examples in this checkout. The `bin/visualize` wrapper also resolves
 its own links, so it can be linked into a directory on PATH.
 
+The binary embeds the skill, artifact guide and examples. `visualize skill` reports
+their paths; `visualize skill --out DIRECTORY` extracts a self-contained bundle.
+Its `bundle.json` identifies the executable and resources for linked installations.
+
+After inspecting revisions, mark the one selected for delivery with
+`visualize present --project ID --artifact ID --version ID`. The viewer follows the
+presented version by default and offers Follow latest for inspecting newer drafts.
+Earlier presented versions keep their delivery history.
+
 The viewer supports linked dataset controls, chart zoom, table sorting and filtering,
 expandable sections and links. Use `--params` with `inspect`, `export` or `open` to
 reproduce a linked selection. PNG/PDF exports capture the saved document with details

@@ -155,12 +155,28 @@ export function openViewer(root: string, options: Options) {
       (!options.artifact || entry.artifact === options.artifact) &&
       (!options.version || entry.version === options.version),
   );
+  if (!options.version)
+    selected =
+      entries.find(
+        (entry) =>
+          entry.currentPresentation &&
+          (!options.project || entry.project === options.project) &&
+          (!options.artifact || entry.artifact === options.artifact),
+      ) ?? selected;
   const initialDirectory = selected?.directory;
   let followLatest = options.version === undefined;
+  let followPresented = options.version === undefined;
   let loaded = "",
     error = "";
   let renderer: DocumentRenderer | undefined;
-  let previous = entries.map((entry) => entry.directory).join("\n");
+  const signatureOf = (values: Entry[]) =>
+    values
+      .map(
+        (entry) =>
+          `${entry.directory}:${entry.presentedAt ?? ""}:${entry.currentPresentation ?? false}`,
+      )
+      .join("\n");
+  let previous = signatureOf(entries);
   let refreshed = Date.now();
   let pending = 2,
     animateUntil = 0,
@@ -170,9 +186,14 @@ export function openViewer(root: string, options: Options) {
   let requestedTheme: Theme | undefined;
   const search = inputBuffer();
   const states = new Map<string, DocumentState>();
-  function select(entry: Entry | undefined, follow: boolean) {
+  function select(
+    entry: Entry | undefined,
+    follow: boolean,
+    presented = false,
+  ) {
     selected = entry;
     followLatest = follow;
+    followPresented = presented;
     if (!entry || entry.directory !== loaded || !renderer) {
       renderer?.dispose();
       renderer = undefined;
@@ -208,19 +229,22 @@ export function openViewer(root: string, options: Options) {
     try {
       const current = selected;
       entries = list(root);
-      const signature = entries.map((entry) => entry.directory).join("\n");
+      const signature = signatureOf(entries);
       if (signature !== previous) {
-        const entry = followLatest
-          ? entries.find((entry) =>
-              current
-                ? entry.project === current.project &&
-                  entry.artifact === current.artifact
-                : (!options.project || entry.project === options.project) &&
-                  (!options.artifact || entry.artifact === options.artifact),
-            )
-          : entries.find((entry) => entry.directory === current?.directory);
+        const matching = entries.filter((entry) =>
+          current
+            ? entry.project === current.project &&
+              entry.artifact === current.artifact
+            : (!options.project || entry.project === options.project) &&
+              (!options.artifact || entry.artifact === options.artifact),
+        );
+        const entry = followPresented
+          ? (matching.find((entry) => entry.currentPresentation) ?? matching[0])
+          : followLatest
+            ? matching[0]
+            : entries.find((entry) => entry.directory === current?.directory);
         previous = signature;
-        select(entry, followLatest);
+        select(entry, followLatest, followPresented);
       }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -274,7 +298,8 @@ export function openViewer(root: string, options: Options) {
         group = new Map();
         groups.set(entry.project, group);
       }
-      if (!group.has(entry.artifact)) group.set(entry.artifact, entry);
+      if (!group.has(entry.artifact) || entry.currentPresentation)
+        group.set(entry.artifact, entry);
     }
     let matches = 0;
     for (const project of [...groups.keys()].sort()) {
@@ -335,7 +360,7 @@ export function openViewer(root: string, options: Options) {
           0,
         );
         if (hovered) tooltip(`${entry.title}\n${project} / ${artifact}`);
-        if (clicked) select(entry, true);
+        if (clicked) select(entry, true, true);
       }
     }
     if (!entries.length)
@@ -374,17 +399,39 @@ export function openViewer(root: string, options: Options) {
           entry.artifact === selected?.artifact,
       );
       const shortVersion = selected.version.slice(-8);
-      const preview = followLatest
-        ? `Latest · ${revisionDate(selected)}`
-        : `${revisionDate(selected)} · ${shortVersion}`;
+      const delivered = entries.find(
+        (entry) =>
+          entry.project === selected?.project &&
+          entry.artifact === selected?.artifact &&
+          entry.currentPresentation,
+      );
+      const preview =
+        followPresented && selected.currentPresentation
+          ? `Presented · ${revisionDate(selected)}`
+          : followLatest
+            ? `Latest · ${revisionDate(selected)}`
+            : `${revisionDate(selected)} · ${shortVersion}`;
       igSetNextItemWidth(versionWidth);
       const versionsOpen = igBeginCombo("##version", preview, 0);
       if (!versionsOpen && igIsItemHovered(0))
         tooltip(`${revisionDate(selected, true)}\n${selected.version}`);
       if (versionsOpen) {
         if (
+          delivered &&
+          igSelectable_Bool("Follow presented", followPresented, 0, {
+            x: 0,
+            y: 0,
+          })
+        )
+          select(delivered, true, true);
+        if (
           latest &&
-          igSelectable_Bool("Follow latest", followLatest, 0, { x: 0, y: 0 })
+          igSelectable_Bool(
+            "Follow latest",
+            followLatest && !followPresented,
+            0,
+            { x: 0, y: 0 },
+          )
         )
           select(latest, true);
         for (const entry of entries) {
@@ -395,7 +442,7 @@ export function openViewer(root: string, options: Options) {
             continue;
           if (
             igSelectable_Bool(
-              `${revisionDate(entry, true)} · ${entry.version.slice(-8)}##${entry.version}`,
+              `${entry.presentedAt ? "Presented · " : ""}${revisionDate(entry, true)} · ${entry.version.slice(-8)}##${entry.version}`,
               !followLatest && entry.directory === selected.directory,
               0,
               { x: 0, y: 0 },
@@ -556,7 +603,7 @@ export function openViewer(root: string, options: Options) {
   checked(pv_surface_open(1));
   try {
     initializeTheme(options.theme ?? "light");
-    select(selected, followLatest);
+    select(selected, followLatest, followPresented);
     while (true) {
       const inputState = pv_surface_input();
       const animating = Date.now() < animateUntil || (inputState & 1) !== 0;

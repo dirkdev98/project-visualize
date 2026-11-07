@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import {
+  copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -34,3 +36,16 @@ for (const language of Object.keys(languages)) {
 }
 writeFileSync(join(output, "github-light.json"), JSON.stringify(light));
 writeFileSync(join(output, "github-dark.json"), JSON.stringify(dark));
+
+const workflow = join(root, ".cache/resources/workflow");
+rmSync(workflow, { recursive: true, force: true });
+mkdirSync(join(workflow, "docs"), { recursive: true });
+copyFileSync(
+  join(root, "skills/project-visualize/SKILL.md"),
+  join(workflow, "SKILL.md"),
+);
+copyFileSync(
+  join(root, "docs/artifacts.md"),
+  join(workflow, "docs/artifacts.md"),
+);
+cpSync(join(root, "examples"), join(workflow, "examples"), { recursive: true });

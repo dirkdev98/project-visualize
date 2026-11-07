@@ -308,6 +308,18 @@ Note that revalidation never changes a saved revision. Use a new `render` invoca
 to revise an artifact; preserve returned version IDs when referring to evidence.
 Remove `STORE/cache/images` to force fresh downloads. Each image is limited to 20 MiB.
 
+## Delivery
+
+Inspect a revision's screenshots before selecting it for delivery. Mark that exact
+saved version with `visualize present --project ID --artifact ID --version ID`, then
+return its image. The marker records an agent-selected delivery, without claiming
+that a person opened it.
+
+Later rendering attempts leave the current presentation in place. `list` and
+`inspect` expose `presentedAt` and `currentPresentation`; the viewer follows the
+current presentation unless you choose Follow latest or pin a revision. Earlier
+presentations retain their history, and marking never changes saved source or exports.
+
 Images keep their natural proportions and shrink to the available width without
 upscaling. Set an image block's `height` to create a full-width frame. The default
 `fit: "contain"` centers the whole image inside it; `fit: "cover"` fills the frame
