@@ -21,6 +21,8 @@ typedef struct ImFont ImFont;
 int pv_surface_open(int viewer);
 int pv_surface_wait(int timeout_ms);
 int pv_surface_input(void);
+/* Consume an application menu command: 0 for none, 1 for Settings. */
+int pv_surface_command(void);
 int pv_surface_input_policy(float wheel_scale, int zoom_modifier);
 /* Consume accumulated relative pinch scale once per frame. */
 float pv_surface_pinch(void);
@@ -36,6 +38,8 @@ int pv_png_write(const char *file, int width, int height,
                  const unsigned char *bytes, int byte_count);
 void pv_surface_close(void);
 const char *pv_error(void);
+/* Resolve the physical executable independently of its invocation name. */
+const char *pv_executable_path(void);
 ImFontAtlas *pv_font_atlas(void);
 PVSize pv_font_metrics(ImFont *font, float size);
 /* The wrap API requires an end pointer into text; FFI copies the returned suffix. */

@@ -17,6 +17,8 @@ npm run build
 The build pins Maligator's alpha package and verifies downloaded native dependencies.
 It produces `dist/bin/visualize` and `dist/Project Visualize.app`. These contain the
 native libraries needed at runtime; Node.js and Homebrew are build dependencies.
+For Linux x64 builds, tarballs and Debian packages, use the
+[Linux packaging guide](docs/linux.md).
 
 ## Create an artifact
 
@@ -48,12 +50,16 @@ when a single-density image is preferable.
 Exports render the saved document with the current layout engine, preserving its
 creation theme and leaving the original snapshots unchanged.
 Use `--theme dark` with `render`, `export` or `open` for an explicit dark appearance.
-The viewer follows system appearance by default. **Settings** can force light or dark
+The viewer follows system appearance by default. Open **Settings…** from the Mac
+application menu or press Cmd+,. Linux uses the sidebar Settings button or Ctrl+,.
+Settings can force light or dark
 mode and adjust scroll speed. New captures inherit that preference unless the document
 or command supplies a theme. Cmd+K focuses library search; Cmd+Shift+L toggles appearance.
 
 Artifacts live in `~/Library/Application Support/Project Visualize`. Set
 `VISUALIZE_HOME` or pass `--store` for a separate library.
+Linux uses `$XDG_DATA_HOME/project-visualize`, defaulting to
+`~/.local/share/project-visualize`.
 
 ## Authoring
 
@@ -91,7 +97,10 @@ platforms). Ordinary scrolling moves the document. **Reset view** fits visible s
 double-clicking a graph also fits it. Mac scrolling defaults to 20 percent of the raw
 wheel input and can be adjusted in Settings.
 
-The library shows artifact IDs beneath their titles. Choose a revision in the viewer's
+The sidebar groups artifacts by project and marks presented revisions. Drag its right
+edge to resize it; the width is saved with library settings. The footer identifies
+the current library. Artifact IDs appear beneath their titles. Choose a revision in
+the viewer's
 version menu to keep that snapshot open, or choose **Follow latest** to display new
 revisions as agents save them. Context stacks below the canvas in a narrow window.
 Use **Copy view** to share the exact library, revision, theme and linked-control
@@ -121,11 +130,16 @@ Run `npm run check:navigation` after graph input changes to verify ordinary scro
 modified zoom, fitting and SDL pinch accumulation in both modes. This offscreen check
 does not establish physical trackpad delivery. The native bridge requires SDL 3.4.18
 or newer.
+Run `npm run check:menu` on macOS after changing application commands. It verifies the
+native Settings menu and Command-comma dispatch.
+Use `-- --production` with a native probe to isolate its production profile.
 
 Run `npm run check:viewer` in an unlocked Mac session to verify surface recovery.
 It hides a test window, restores it and presents the retained UI frame. Exit code 3
 means the graphics driver did not expose a deferred presentation, so that check is
 inconclusive.
+Pass `-- --visible` to check initial window presentation without hiding it. Linux can
+run this mode under Xvfb or a headless Wayland compositor.
 
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings

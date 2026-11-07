@@ -1,5 +1,70 @@
 # Decisions
 
+## 2026-11-07 native settings access
+
+- Move Mac settings access to the native application menu with Command-comma,
+  replacing the sidebar button introduced with viewer settings. Reuse SDL's
+  disabled preferences item so the menu has one settings command.
+- Send native menu actions through a consumed application command and wake the
+  event loop. Keep settings state and controls in Maligator JS. Retain Ctrl-comma
+  and a sidebar Settings button on Linux.
+
+Keep track of;
+
+- A separate settings window needs multiple rendering surfaces; the native menu
+  opens the existing settings view for now.
+
+## 2026-11-07 compact artifact sidebar
+
+- Replace the large branding block with a compact title and search, quiet project
+  groups and rounded artifact rows. Keep presented indicators beside artifact IDs
+  and keep revision selection in the document toolbar.
+- Use native child-window resizing with bounded width. Save the width after
+  pointer release to avoid disk writes while dragging, and keep the library path
+  in a fixed footer below the scrollable artifact list.
+- Retain the event-driven redraw policy. These changes establish layout and input
+  behavior without claiming an accepted CPU or memory improvement.
+
+## 2026-11-07 Linux distributions
+
+- Replace the macOS-only packaging limit recorded in bundled agent workflow and
+  viewer settings with a Linux x64 tarball and Debian package. Build against a
+  Debian desktop-library baseline in an isolated container so platform-specific
+  dependencies and compiler caches cannot overwrite the Mac build.
+- Use SDL's Wayland and X11 handles for native wgpu surfaces. Bundle the app,
+  pinned SDL and wgpu libraries with relative ELF search paths; leave glibc, the
+  Vulkan loader and GPU drivers to the host. Derive Debian library dependencies
+  from installed package files and normalize distribution file permissions.
+- Install the Debian bundle under a stable application directory with a CLI link,
+  desktop entry, icon, workflow resources and notices. Keep tarballs relocatable
+  while preserving the executable's relative library and resource layout.
+- Follow XDG data paths on Linux and query the desktop settings portal for capture
+  appearance. Fall back to light when no dark preference is available, with
+  explicit themes and saved preferences available independently of the portal.
+- Include Rust and GNU time in the minimal Linux build image. The compiler's C
+  job driver invokes `/usr/bin/time`, so omitting it fails after earlier build
+  phases have already completed.
+- Prepare a private graphics runtime directory for headless invocations when XDG
+  runtime storage is absent. Set the native process environment through SDL before
+  graphics workers start; the runtime's JS environment object is a snapshot.
+- Resolve the physical executable through platform APIs so PATH aliases can find
+  bundled libraries and resources. The runtime's executable path can contain only
+  the invocation name, which cannot be resolved as a file in the caller's directory.
+- Use Mesa software Vulkan and isolated X11/Wayland sessions for Linux rendering
+  verification. This does not establish physical GPU compatibility or performance.
+
+Keep track of;
+
+- Expose GNU time as a checked native-build prerequisite upstream.
+- Resolve the operating-system executable path and support live process environment
+  updates upstream.
+- Investigate development-runner startup under emulated Linux x64. A console-only
+  entry stalls after readiness with unchanged FFI configuration; production builds
+  complete and can be verified independently.
+- Verify Linux ARM64 releases before distributing that architecture.
+- Adapt stable CLI and skill installation paths before adding AppImage or Flatpak.
+- Verify desktop interactions on physical Linux GPUs.
+
 ## 2026-11-07 viewer settings
 
 - Add persistent System, Light and Dark appearance choices and a scroll-speed

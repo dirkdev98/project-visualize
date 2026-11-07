@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
-import { execFile, spawnSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { PDFArray, PDFDict, PDFDocument, PDFName } from "pdf-lib";
@@ -54,6 +55,29 @@ function workspace(t) {
   }
   return { root, store, run, ok, render };
 }
+
+test("Linux default storage follows XDG while explicit library overrides take precedence", {
+  skip: process.platform !== "linux",
+}, (t) => {
+  const { root } = workspace(t);
+  const environment = { ...process.env, XDG_DATA_HOME: join(root, "data") };
+  delete environment.VISUALIZE_HOME;
+  const listing = (args = [], env = environment) =>
+    JSON.parse(
+      execFileSync(executable, ["list", ...args], {
+        env,
+        encoding: "utf8",
+        timeout: 60_000,
+      }),
+    );
+  assert.equal(listing().store, join(root, "data", "project-visualize"));
+  const selected = join(root, "selected");
+  assert.equal(
+    listing([], { ...environment, VISUALIZE_HOME: selected }).store,
+    selected,
+  );
+  assert.equal(listing(["--store", selected]).store, selected);
+});
 
 test("render returns saved documents and actual PNG/PDF files as JSON", async (t) => {
   const { render } = workspace(t);
@@ -315,6 +339,22 @@ test("installation creates working links and preserves occupied destinations", (
     "project-visualize",
   );
   assert.equal(ok(["install", "--skill", destination]).source, linked.source);
+});
+
+test("an installed CLI finds its executable and skill when invoked by name on PATH", (t) => {
+  const { root, store, ok } = workspace(t);
+  const link = join(root, "command links", "visualize");
+  ok(["install", "--cli", link]);
+  const result = spawnSync("visualize", ["skill", "--store", store], {
+    cwd: root,
+    env: { ...process.env, PATH: `${dirname(link)}:${process.env.PATH}` },
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const resources = JSON.parse(result.stdout);
+  assert.equal(resources.executable, realpathSync(executable));
+  assert.ok(existsSync(resources.skill));
 });
 
 test("appearance settings persist while saved captures retain their creation theme", (t) => {

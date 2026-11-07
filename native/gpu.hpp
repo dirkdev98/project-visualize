@@ -3,7 +3,9 @@
 #include "webgpu/webgpu.h"
 #include "webgpu/wgpu.h"
 #include <SDL3/SDL.h>
+#ifdef __APPLE__
 #include <SDL3/SDL_metal.h>
+#endif
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -27,7 +29,9 @@ public:
   WGPUSurfaceConfiguration configuration{};
   WGPUColor background{1, 1, 1, 1};
   SDL_Window *window = nullptr;
+#ifdef __APPLE__
   SDL_MetalView metal_view = nullptr;
+#endif
   bool imgui = false, sdl = false, renderer = false, platform = false;
   int max_dimension = 8192;
   float wheel_scale = 1, pinch_scale = 1;

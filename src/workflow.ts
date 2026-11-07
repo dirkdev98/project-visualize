@@ -1,3 +1,4 @@
+import { pv_error, pv_executable_path } from "maligator:ffi/visualize";
 import { randomUUID } from "node:crypto";
 import {
   copyFileSync,
@@ -7,7 +8,6 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
-  realpathSync,
   renameSync,
   rmSync,
   type Stats,
@@ -24,7 +24,10 @@ interface Bundle {
   guide: string;
   examples: string;
 }
-export const executablePath = realpathSync(process.execPath);
+const executable = pv_executable_path();
+if (!executable)
+  throw new Error(pv_error() ?? "Cannot locate the application executable");
+export const executablePath = executable;
 export function userPath(value: string) {
   return resolve(
     value === "~"

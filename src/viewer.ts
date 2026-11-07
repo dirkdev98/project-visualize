@@ -1,12 +1,21 @@
 import {
   ImDrawList_AddText_FontPtr,
   ImGuiChildFlags_Borders,
+  ImGuiChildFlags_ResizeX,
+  ImGuiCol_Button,
+  ImGuiCol_ButtonActive,
+  ImGuiCol_ButtonHovered,
+  ImGuiCol_Header,
+  ImGuiCol_HeaderActive,
+  ImGuiCol_HeaderHovered,
   ImGuiInputFlags_RouteGlobal,
+  ImGuiKey_Comma,
   ImGuiKey_K,
   ImGuiKey_L,
   ImGuiMod_Ctrl,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
+  ImGuiStyleVar_WindowPadding,
   ImGuiTableFlags_SizingStretchSame,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImGuiWindowFlags_NoDecoration,
@@ -29,12 +38,16 @@ import {
   igGetCursorScreenPos,
   igGetItemRectMax,
   igGetWindowDrawList,
+  igGetWindowWidth,
   igIsItemHovered,
+  igIsMouseDown_Nil,
   igPopFont,
   igPopID,
+  igPopStyleColor,
   igPopStyleVar,
   igPushFont,
   igPushID_Str,
+  igPushStyleColor_Vec4,
   igPushStyleVar_Vec2,
   igRender,
   igSameLine,
@@ -44,12 +57,14 @@ import {
   igSetNextItemWidth,
   igSetNextWindowPos,
   igSetNextWindowSize,
+  igSetNextWindowSizeConstraints,
   igShortcut_Nil,
   igSpacing,
   igTableNextColumn,
   igTableNextRow,
   pv_surface_begin,
   pv_surface_close,
+  pv_surface_command,
   pv_surface_input,
   pv_surface_input_policy,
   pv_surface_open,
@@ -293,25 +308,45 @@ export function openViewer(root: string, options: Options) {
     const size = pv_surface_size();
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize(size, 0);
+    igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding, { x: 16, y: 16 });
     igBegin(
       "Visualize",
       ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings,
     );
+    igPopStyleVar(1);
     // ImGui maps Command to Ctrl when its macOS behavior is enabled.
     const focusSearch = igShortcut_Nil(
       ImGuiMod_Ctrl | ImGuiKey_K,
       ImGuiInputFlags_RouteGlobal,
     );
-    igBeginChild_Str("library", { x: 244, y: 0 }, ImGuiChildFlags_Borders, 0);
-    text("PROJECT", 11, "bold", palette.accent);
-    text("Visualize", 32, "bold");
-    text("Your artifact library", 14, "regular", palette.muted);
-    if (igButton("Settings", { x: 0, y: 0 })) {
-      showSettings = !showSettings;
+    if (
+      igShortcut_Nil(
+        ImGuiMod_Ctrl | ImGuiKey_Comma,
+        ImGuiInputFlags_RouteGlobal,
+      )
+    ) {
+      showSettings = true;
       pending = 2;
     }
+    const maxSidebar = Math.min(420, Math.max(200, size.x * 0.4));
+    igSetNextWindowSizeConstraints(
+      { x: 200, y: 0 },
+      { x: maxSidebar, y: 100000 },
+    );
+    igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding, { x: 16, y: 18 });
+    igBeginChild_Str(
+      "library",
+      { x: Math.min(preferences.sidebarWidth, maxSidebar), y: 0 },
+      ImGuiChildFlags_ResizeX,
+      0,
+    );
+    igPopStyleVar(1);
+    const sidebarWidth = Math.round(igGetWindowWidth());
+    if (sidebarWidth !== preferences.sidebarWidth && !igIsMouseDown_Nil(0))
+      applyPreferences({ sidebarWidth });
+    text("Visualize", 22, "bold");
     if (
       igShortcut_Nil(
         ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_L,
@@ -325,8 +360,18 @@ export function openViewer(root: string, options: Options) {
     igSpacing();
     igSetNextItemWidth(-1);
     if (focusSearch) igSetKeyboardFocusHere(0);
-    input("##find", "Find an artifact…", search);
+    input("##find", "Search artifacts", search);
+    if (igIsItemHovered(0))
+      tooltip(
+        process.platform === "darwin" ? "Search · Cmd+K" : "Search · Ctrl+K",
+      );
     igSpacing();
+    igBeginChild_Str(
+      "library-items",
+      { x: 0, y: process.platform === "darwin" ? -62 : -106 },
+      0,
+      0,
+    );
     const query = inputValue(search).trim().toLowerCase();
     const groups = new Map<string, Map<string, Entry>>();
     for (const entry of entries) {
@@ -354,13 +399,24 @@ export function openViewer(root: string, options: Options) {
       });
       if (!visible.length) continue;
       matches += visible.length;
-      if (
-        !igCollapsingHeader_TreeNodeFlags(
-          project,
-          ImGuiTreeNodeFlags_DefaultOpen,
-        )
-      )
-        continue;
+      if (!fonts.bold) throw new Error("Fonts are not initialized");
+      igPushFont(fonts.bold, 13);
+      igPushStyleColor_Vec4(ImGuiCol_Header, { ...palette.accent, w: 0 });
+      igPushStyleColor_Vec4(ImGuiCol_HeaderHovered, {
+        ...palette.accent,
+        w: 0.06,
+      });
+      igPushStyleColor_Vec4(ImGuiCol_HeaderActive, {
+        ...palette.accent,
+        w: 0.1,
+      });
+      const expanded = igCollapsingHeader_TreeNodeFlags(
+        project,
+        ImGuiTreeNodeFlags_DefaultOpen,
+      );
+      igPopStyleColor(3);
+      igPopFont();
+      if (!expanded) continue;
       for (const artifact of visible) {
         const entry = artifacts.get(artifact);
         if (!entry) continue;
@@ -368,12 +424,23 @@ export function openViewer(root: string, options: Options) {
           selected?.project === project && selected?.artifact === artifact;
         const start = igGetCursorScreenPos(),
           width = available();
-        const clicked = igSelectable_Bool(
-          `##${project}/${artifact}`,
-          active,
-          0,
-          { x: 0, y: 52 },
-        );
+        igPushStyleColor_Vec4(ImGuiCol_Button, {
+          ...palette.accent,
+          w: active ? 0.14 : 0,
+        });
+        igPushStyleColor_Vec4(ImGuiCol_ButtonHovered, {
+          ...palette.accent,
+          w: active ? 0.2 : 0.08,
+        });
+        igPushStyleColor_Vec4(ImGuiCol_ButtonActive, {
+          ...palette.accent,
+          w: 0.24,
+        });
+        const clicked = igButton(`##${project}/${artifact}`, {
+          x: width,
+          y: 50,
+        });
+        igPopStyleColor(3);
         const hovered = igIsItemHovered(0),
           draw = igGetWindowDrawList();
         if (!draw || !fonts.bold || !fonts.regular)
@@ -381,21 +448,36 @@ export function openViewer(root: string, options: Options) {
         ImDrawList_AddText_FontPtr(
           draw,
           fonts.bold,
-          16,
-          { x: start.x + 8, y: start.y + 5 },
+          15,
+          { x: start.x + 10, y: start.y + 7 },
           packed(palette.ink),
-          compactLabel(entry.title, width - 16, 16, "bold"),
+          compactLabel(entry.title, width - 20, 15, "bold"),
           0,
         );
         ImDrawList_AddText_FontPtr(
           draw,
           fonts.regular,
-          13,
-          { x: start.x + 8, y: start.y + 29 },
+          12,
+          { x: start.x + 10, y: start.y + 29 },
           packed(palette.muted),
-          compactLabel(artifact, width - 16, 13, "regular"),
+          compactLabel(
+            artifact,
+            width - (entry.currentPresentation ? 84 : 20),
+            12,
+            "regular",
+          ),
           0,
         );
+        if (entry.currentPresentation)
+          ImDrawList_AddText_FontPtr(
+            draw,
+            fonts.regular,
+            11,
+            { x: start.x + width - 67, y: start.y + 29 },
+            packed(palette.accent),
+            "Presented",
+            0,
+          );
         if (hovered) tooltip(`${entry.title}\n${project} / ${artifact}`);
         if (clicked) {
           showSettings = false;
@@ -417,6 +499,21 @@ export function openViewer(root: string, options: Options) {
         pending = 2;
       }
     }
+    igEndChild();
+    if (process.platform !== "darwin") {
+      if (igButton("Settings", { x: -1, y: 0 })) {
+        showSettings = true;
+        pending = 2;
+      }
+    }
+    text("LIBRARY", 10, "bold", palette.muted);
+    text(
+      compactLabel(root, available(), 12, "regular"),
+      12,
+      "regular",
+      palette.muted,
+    );
+    if (igIsItemHovered(0)) tooltip(resolve(root));
     igEndChild();
     igSameLine(0, -1);
     igBeginGroup();
@@ -659,6 +756,10 @@ export function openViewer(root: string, options: Options) {
         ),
       );
       if (status === 0) break;
+      if (pv_surface_command() === 1) {
+        showSettings = true;
+        pending = 2;
+      }
       if (status === 2) {
         pending = 2;
         animateUntil = Date.now() + 500;

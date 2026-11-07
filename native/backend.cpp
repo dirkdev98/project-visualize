@@ -5,10 +5,17 @@
 #include "implot_internal.h"
 #include "cimplot.h"
 #include "visualize.h"
+#ifdef __APPLE__
+#include "macos.hpp"
+#endif
 #include <algorithm>
 #include <cstring>
 #include <memory>
 #include <cmath>
+#include <cstdlib>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 struct PVImage { std::unique_ptr<pv::Image> image; };
 
@@ -31,6 +38,27 @@ extern "C" int pv_surface_open(int viewer) {
   } catch (const std::exception &error) {
     last_error = error.what(); context.reset(); return -1;
   }
+}
+
+extern "C" const char *pv_executable_path(void) {
+  try {
+    static const std::string path = [] {
+#ifdef __APPLE__
+      uint32_t size = 0;
+      _NSGetExecutablePath(nullptr, &size);
+      std::string buffer(size, '\0');
+      if (_NSGetExecutablePath(buffer.data(), &size) != 0)
+        throw std::runtime_error("Cannot locate the application executable");
+      const char *source = buffer.c_str();
+#else
+      const char *source = "/proc/self/exe";
+#endif
+      std::unique_ptr<char, decltype(&std::free)> resolved(realpath(source, nullptr), std::free);
+      if (!resolved) throw std::runtime_error("Cannot resolve the application executable");
+      return std::string(resolved.get());
+    }();
+    return path.c_str();
+  } catch (const std::exception &error) { last_error = error.what(); return nullptr; }
 }
 
 extern "C" int pv_surface_wait(int timeout_ms) {
@@ -66,6 +94,14 @@ extern "C" int pv_surface_input(void) {
   bool held = SDL_GetMouseState(nullptr, nullptr) != 0 ||
     std::any_of(keys, keys + count, [](bool down) { return down; });
   return (held ? 1 : 0) | (ImGui::GetIO().WantTextInput ? 2 : 0);
+}
+
+extern "C" int pv_surface_command(void) {
+#ifdef __APPLE__
+  return pv::take_menu_command();
+#else
+  return 0;
+#endif
 }
 
 extern "C" int pv_surface_input_policy(float wheel_scale, int zoom_modifier) {

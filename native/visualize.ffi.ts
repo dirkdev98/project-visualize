@@ -80,6 +80,12 @@ export default defineLibrary({
     igCheckbox: { params: { v: { inout: true } } },
     pv_slider_double: { params: { value: { inout: true } } },
     igBegin: { params: { p_open: { constant: "NULL" } } },
+    igSetNextWindowSizeConstraints: {
+      params: {
+        custom_callback: { constant: "NULL" },
+        custom_callback_data: { constant: "NULL" },
+      },
+    },
     igTextUnformatted: { params: { text_end: { constant: "NULL" } } },
     igCalcTextSize: { params: { text_end: { constant: "NULL" } } },
     igGetIO_Nil: { returns: { borrowed: true } },

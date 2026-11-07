@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { ImageCache } from "./images.ts";
 import type { Artifact, Theme } from "./model.ts";
 import { slug } from "./model.ts";
@@ -67,7 +67,19 @@ export function storeRoot(override?: string) {
   return resolve(
     override ??
       process.env.VISUALIZE_HOME ??
-      join(homedir(), "Library", "Application Support", "Project Visualize"),
+      (process.platform === "linux"
+        ? join(
+            process.env.XDG_DATA_HOME && isAbsolute(process.env.XDG_DATA_HOME)
+              ? process.env.XDG_DATA_HOME
+              : join(homedir(), ".local", "share"),
+            "project-visualize",
+          )
+        : join(
+            homedir(),
+            "Library",
+            "Application Support",
+            "Project Visualize",
+          )),
   );
 }
 

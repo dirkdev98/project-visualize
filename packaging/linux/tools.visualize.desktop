@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Project Visualize
+Comment=Inspect saved dashboards, documents and diagrams
+Exec=visualize
+Icon=tools.visualize
+Terminal=false
+Categories=Graphics;

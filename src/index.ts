@@ -1,4 +1,6 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { SDL_setenv_unsafe } from "maligator:ffi/visualize";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createParameters, resolveView } from "./data.ts";
 import { slug, validate } from "./model.ts";
@@ -40,6 +42,7 @@ Commands return JSON. open (the default) runs the native desktop viewer.
 inspect, export and open accept --params JSON to override declared controls.
 `;
 
+let runtimeDirectory: string | undefined;
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes("--help") || args.includes("-h") || args[0] === "help") {
@@ -116,6 +119,17 @@ async function main() {
     return value;
   };
   const root = storeRoot(options.store);
+  if (
+    process.platform === "linux" &&
+    !process.env.XDG_RUNTIME_DIR &&
+    ["render", "export", "open"].includes(command)
+  ) {
+    runtimeDirectory = mkdtempSync(join(tmpdir(), "visualize-runtime-"));
+    // Set this before native graphics workers start reading the process environment.
+    if (SDL_setenv_unsafe("XDG_RUNTIME_DIR", runtimeDirectory, 1) !== 0)
+      throw new Error("Cannot prepare the graphics runtime directory");
+    process.env.XDG_RUNTIME_DIR = runtimeDirectory;
+  }
   const parameters =
     options.params === undefined ? undefined : JSON.parse(options.params);
   const theme = options.theme;
@@ -290,9 +304,14 @@ async function main() {
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-main().catch((error) => {
-  process.stderr.write(
-    `${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`,
-  );
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    process.stderr.write(
+      `${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`,
+    );
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    if (runtimeDirectory)
+      rmSync(runtimeDirectory, { recursive: true, force: true });
+  });

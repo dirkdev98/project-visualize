@@ -13,18 +13,37 @@ const compiler = resolve("node_modules/.bin/maligator");
 const entry = `tests/native/${name}.js`;
 function run(file, args, mode) {
   const output = join(scratch, `${mode}.png`);
-  execFileSync(file, args, {
-    stdio: "inherit",
-    timeout: 300_000,
-    env: { ...process.env, VISUALIZE_NATIVE_CHECK_OUTPUT: output },
-  });
+  try {
+    execFileSync(file, args, {
+      stdio: "inherit",
+      timeout: 300_000,
+      env: {
+        ...process.env,
+        VISUALIZE_NATIVE_CHECK_OUTPUT: output,
+        ...(process.platform === "linux" && !process.env.XDG_RUNTIME_DIR
+          ? { XDG_RUNTIME_DIR: scratch }
+          : {}),
+      },
+      killSignal: "SIGKILL",
+      detached: true,
+    });
+  } catch (error) {
+    // The compiler launcher has children that must stop with a timed-out check.
+    if (error.pid) {
+      try {
+        process.kill(-error.pid, "SIGKILL");
+      } catch {}
+    }
+    throw error;
+  }
   if (!mode) return;
   const png = readFileSync(output);
   if (png.readUInt32BE(16) !== 481 || png.readUInt32BE(20) !== 160)
     throw new Error("The encoded PNG did not retain the captured dimensions");
 }
 try {
-  run(compiler, ["run", entry], "development");
+  if (!process.argv.includes("--production"))
+    run(compiler, ["run", entry], "development");
   run(compiler, [
     "build",
     entry,

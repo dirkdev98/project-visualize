@@ -13,7 +13,7 @@ template<typename T> T symbol(void *library, const char *name) {
   return result;
 }
 int main(int argc, char **argv) {
-  if (argc != 2) return 2;
+  if (argc != 2 && !(argc == 3 && std::string(argv[2]) == "--visible")) return 2;
   auto library = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
   if (!library) {std::cerr << dlerror(); return 2;}
 #define LOAD(name) auto call_##name = symbol<decltype(&name)>(library, #name)
@@ -34,6 +34,17 @@ int main(int argc, char **argv) {
     call_igTextUnformatted("Retain this frame while the surface is unavailable",nullptr);
     call_igEnd(); call_igRender();
     const int frame = call_igGetFrameCount();
+    if (argc == 3) {
+      int status = 1;
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+      while (status == 1 && std::chrono::steady_clock::now() < deadline) {
+        call_pv_surface_wait(100);
+        status = call_pv_surface_present();
+      }
+      if (status != 0) throw std::runtime_error(status < 0 ? call_pv_error() : "Visible surface never presented");
+      std::cout << "{\"visible\":true,\"presented\":true,\"ui_frames\":1}\n";
+      call_pv_surface_close(); dlclose(library); return 0;
+    }
     call_SDL_HideWindow(window);
     const auto hiddenUntil = std::chrono::steady_clock::now()+std::chrono::milliseconds(500);
     while (std::chrono::steady_clock::now()<hiddenUntil) call_pv_surface_wait(50);

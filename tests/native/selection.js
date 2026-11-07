@@ -4,6 +4,7 @@ import {
   ImGuiIO_AddMousePosEvent,
   ImGuiKey_A,
   ImGuiKey_C,
+  ImGuiMod_Ctrl,
   ImGuiMod_Super,
   ImGuiWindowFlags_NoDecoration,
   ImGuiWindowFlags_NoMove,
@@ -80,12 +81,14 @@ try {
     frame();
   }
   function chord(key) {
-    ImGuiIO_AddKeyEvent(io, ImGuiMod_Super, true);
+    const modifier =
+      process.platform === "darwin" ? ImGuiMod_Super : ImGuiMod_Ctrl;
+    ImGuiIO_AddKeyEvent(io, modifier, true);
     ImGuiIO_AddKeyEvent(io, key, true);
     frame();
     frame();
     ImGuiIO_AddKeyEvent(io, key, false);
-    ImGuiIO_AddKeyEvent(io, ImGuiMod_Super, false);
+    ImGuiIO_AddKeyEvent(io, modifier, false);
     frame();
     frame();
   }

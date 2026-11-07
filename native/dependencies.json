@@ -1,4 +1,9 @@
 {
+  "sdl": {
+    "url": "https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz",
+    "sha256": "9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3",
+    "kind": "tar"
+  },
   "imgui": {
     "url": "https://codeload.github.com/ocornut/imgui/tar.gz/6d32174508fb8c518e7a832cc1d571fadd5cba76",
     "sha256": "6e5d20682444ab1a88a2eb2f6343113e085384976af2b41861498ab6b7839ab8",

@@ -2,6 +2,9 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_wgpu.h"
 #include "implot.h"
+#ifdef __APPLE__
+#include "macos.hpp"
+#endif
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -28,7 +31,10 @@ Gpu::~Gpu() {
   if (device) wgpuDeviceRelease(device);
   if (adapter) wgpuAdapterRelease(adapter);
   if (instance) wgpuInstanceRelease(instance);
+#ifdef __APPLE__
+  if (sdl) remove_app_menu();
   if (metal_view) SDL_Metal_DestroyView(metal_view);
+#endif
   if (window) SDL_DestroyWindow(window);
   if (sdl) SDL_Quit();
 }
@@ -46,16 +52,24 @@ void Gpu::check() {
 void Gpu::init(bool viewer) {
   wgpuSetLogLevel(WGPULogLevel_Error);
   if (viewer) {
+    SDL_SetAppMetadata("Project Visualize", nullptr, "tools.visualize");
     if (!SDL_Init(SDL_INIT_VIDEO)) throw std::runtime_error(SDL_GetError());
     sdl = true;
     SDL_EnableScreenSaver();
-    window = SDL_CreateWindow("Project Visualize", 1440, 960,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WINDOW_METAL);
+    auto flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#ifdef __APPLE__
+    flags |= SDL_WINDOW_METAL;
+#endif
+    window = SDL_CreateWindow("Project Visualize", 1440, 960, flags);
     if (!window) throw std::runtime_error(SDL_GetError());
+#ifdef __APPLE__
+    install_app_menu();
+#endif
   }
   instance = wgpuCreateInstance(nullptr);
   if (!instance) throw std::runtime_error("Cannot create a WebGPU instance");
   if (viewer) {
+#ifdef __APPLE__
     metal_view = SDL_Metal_CreateView(window);
     if (!metal_view) throw std::runtime_error(SDL_GetError());
     WGPUSurfaceSourceMetalLayer layer{};
@@ -64,6 +78,24 @@ void Gpu::init(bool viewer) {
     WGPUSurfaceDescriptor descriptor{};
     descriptor.nextInChain = &layer.chain;
     surface = wgpuInstanceCreateSurface(instance, &descriptor);
+#else
+    const auto properties = SDL_GetWindowProperties(window);
+    WGPUSurfaceDescriptor descriptor{};
+    WGPUSurfaceSourceWaylandSurface wayland{};
+    WGPUSurfaceSourceXlibWindow x11{};
+    if (SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr)) {
+      wayland.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+      wayland.display = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER, nullptr);
+      wayland.surface = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER, nullptr);
+      descriptor.nextInChain = &wayland.chain;
+    } else if (SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr)) {
+      x11.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
+      x11.display = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
+      x11.window = SDL_GetNumberProperty(properties, SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0);
+      descriptor.nextInChain = &x11.chain;
+    } else throw std::runtime_error("A Wayland or X11 window is required");
+    surface = wgpuInstanceCreateSurface(instance, &descriptor);
+#endif
     if (!surface) throw std::runtime_error("Cannot create a native window surface");
   }
   WGPURequestAdapterOptions options{};

@@ -15,6 +15,7 @@ export type Appearance = "system" | Theme;
 export interface Settings {
   appearance: Appearance;
   wheelScale: number;
+  sidebarWidth: number;
   cliDestination?: string;
   skillDestination?: string;
 }
@@ -27,6 +28,12 @@ function validateSettings(settings: Settings) {
     settings.wheelScale > 1
   )
     throw new Error("Scroll speed must be between 5 and 100 percent");
+  if (
+    !Number.isInteger(settings.sidebarWidth) ||
+    settings.sidebarWidth < 200 ||
+    settings.sidebarWidth > 420
+  )
+    throw new Error("Sidebar width must be between 200 and 420");
   return settings;
 }
 export function readSettings(root: string): Settings {
@@ -34,6 +41,7 @@ export function readSettings(root: string): Settings {
   return validateSettings({
     appearance: "system",
     wheelScale: process.platform === "darwin" ? 0.2 : 1,
+    sidebarWidth: 260,
     ...(existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}),
   });
 }
@@ -57,6 +65,25 @@ export function systemTheme(): Theme {
       { encoding: "utf8", timeout: 2000 },
     );
     if (result.status === 0 && result.stdout.trim().toLowerCase() === "dark")
+      return "dark";
+  } else if (process.platform === "linux") {
+    const result = spawnSync(
+      "gdbus",
+      [
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.portal.Desktop",
+        "--object-path",
+        "/org/freedesktop/portal/desktop",
+        "--method",
+        "org.freedesktop.portal.Settings.Read",
+        "org.freedesktop.appearance",
+        "color-scheme",
+      ],
+      { encoding: "utf8", timeout: 2000 },
+    );
+    if (result.status === 0 && /uint32\s+1\b/.test(result.stdout))
       return "dark";
   }
   return "light";

@@ -347,6 +347,9 @@ exports. `export --theme light|dark` changes an export without changing saved ev
 The viewer follows system appearance independently of a document's creation palette.
 Settings can force light or dark mode; Cmd+Shift+L saves a light/dark preference.
 `open --theme light|dark` overrides it for that window. Cmd+K focuses library search.
+Open Settings from the Mac application menu or press Cmd+,. Linux keeps Settings
+in the sidebar and uses Ctrl for these shortcuts. Drag the sidebar's right edge to
+resize it; project groups collapse independently and the footer identifies the library.
 The viewer's Saved PDF button opens the creation-time export.
 
 Drag across document text to select it, then press Cmd+C to copy. Double-click a word
