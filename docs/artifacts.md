@@ -94,6 +94,8 @@ numeric `x` coordinates, or both. Without `x`, each series has one value per lab
 With labels and `x`, coordinates index the labels and can leave categories absent.
 Axis labels should include units. The viewer supports zooming and panning; exports
 fit all the supplied data with space around its extrema.
+Short legends sit below the data. Keep series names concise; longer ordinary legends
+use an inset layout so the plot retains its width.
 
 Use `kind: "area"` for a line with restrained shading to zero. Each series overlaps
 independently, and the zero baseline participates in fitting. Supply ordered x

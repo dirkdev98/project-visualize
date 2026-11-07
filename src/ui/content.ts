@@ -43,6 +43,7 @@ import {
   ImPlotLegendFlags_NoMenus,
   ImPlotLegendFlags_Outside,
   ImPlotLocation_East,
+  ImPlotLocation_NorthWest,
   ImPlotLocation_South,
   ImPlotMarker_Circle,
   ImPlotMarker_None,
@@ -1005,20 +1006,22 @@ export class DocumentRenderer {
       return;
     if (refit && fitKey !== undefined) this.state.chartFits.set(key, fitKey);
     ImPlot_SetupAxes(value.xLabel ?? "", value.yLabel ?? "", 0, 0);
-    if (selection) {
-      const horizontal =
-        series.reduce(
-          (sum, item) => sum + igCalcTextSize(item.name, false, -1).x + 32,
-          0,
-        ) <
-        available() - 40;
-      ImPlot_SetupLegend(
-        horizontal ? ImPlotLocation_South : ImPlotLocation_East,
-        ImPlotLegendFlags_Outside |
-          ImPlotLegendFlags_NoMenus |
-          (horizontal ? ImPlotLegendFlags_Horizontal : 0),
-      );
-    }
+    const horizontal =
+      series.reduce(
+        (sum, item) => sum + igCalcTextSize(item.name, false, -1).x + 32,
+        0,
+      ) <
+      available() - 40;
+    ImPlot_SetupLegend(
+      horizontal
+        ? ImPlotLocation_South
+        : selection
+          ? ImPlotLocation_East
+          : ImPlotLocation_NorthWest,
+      ImPlotLegendFlags_NoMenus |
+        (horizontal || selection ? ImPlotLegendFlags_Outside : 0) |
+        (horizontal ? ImPlotLegendFlags_Horizontal : 0),
+    );
     if (value.labels)
       for (let i = 0; i < value.labels.length; i++)
         pv_plot_tick(0, i, value.labels[i]);

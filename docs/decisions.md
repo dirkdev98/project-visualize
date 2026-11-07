@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-11-07 responsive chart legends
+
+- Place short ordinary legends beneath the plot using measured label widths. Keep
+  data visible through line and area charts, while retaining the inset fallback for
+  long ordinary legends so they cannot squeeze away the plot.
+- Preserve outside legends for linked selection charts. Own placement in the shared
+  layout, keep series visibility interactive, and disable legend placement menus that
+  would conflict with the responsive position on the next frame.
+- Verify native legend hide/show, pan, zoom and refit alongside typed bar selection
+  and drag cancellation. Inspect the light, dark, narrow and long-label exports;
+  this changes chart composition without a performance-win claim.
+
 ## 2026-11-07 empty table recovery
 
 - Explain whether a table's current view has no rows or its local search has no

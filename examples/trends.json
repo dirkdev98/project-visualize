@@ -139,6 +139,7 @@
           "type": "chart",
           "kind": "area",
           "height": 210,
+          "xLabel": "Day",
           "yLabel": "Accepted observations",
           "source": {
             "dataset": "observations",
