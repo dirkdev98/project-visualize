@@ -187,6 +187,38 @@ counts, widget values and typed `chartSelections` keyed by block path. Parameter
 exports rerender the view even at the saved width
 and scale. They preserve the source, default snapshots and version history.
 
+## Heatmaps
+
+Use a `heatmap` for values across two categorical axes. Its static form has typed
+`x` and `y` categories and a row-major `values` matrix. Each row matches a `y` category;
+each cell matches an `x` category. Use `null` for missing evidence. Zero remains a real
+observation. Categories must be unique by type and value.
+
+```json
+{
+  "type": "heatmap",
+  "x": ["Mon", "Tue"],
+  "y": ["North", "South"],
+  "values": [[93, 96], [null, 88]],
+  "min": 0,
+  "max": 100,
+  "suffix": "%"
+}
+```
+
+A heatmap `source` names a dataset, categorical `x` and `y` fields, a numeric `field`
+and an optional `aggregate`. Mean is the default; count needs no numeric field.
+Only populated numeric buckets aggregate, so an empty sum stays missing. Controls
+filter the observations while axes and inferred color bounds retain their original
+order and scale. Nonnumeric measure values remain missing rather than becoming zero.
+
+Supply both `min` and `max` to fix the scale across documents. Set `decimals` and
+`suffix` for the cell labels. Equal bounds use one midpoint color. Empty selections
+keep the grid and its missing-cell labels. Narrow layouts split columns into bands
+with repeated row labels. PDF continuation pages repeat the column headings, and
+labels and values remain selectable. The [heatmap example](../examples/heatmap.json)
+combines the grid with linked controls and a selectable bar chart.
+
 ## Images
 
 Declare local PNG/JPEG files in `assets`. Paths resolve relative to the source JSON,
@@ -235,7 +267,8 @@ and page numbers. Set the document's `pdf` options for a different paper or orie
 ```
 
 PDF page breaks preserve blocks when they fit and split oversized content at recorded
-text-line and table-row boundaries. Tables, including Markdown tables, repeat their
+text-line and table-row boundaries. Trailing blank canvas does not create another
+page. Tables, including Markdown tables, repeat their
 headings on continuation pages. Side-by-side tables share a header band; an unusually
 tall heading can be omitted when it leaves no room for body text. If parallel content
 has no safe text boundary, stack it vertically. Document text is searchable and selectable, and

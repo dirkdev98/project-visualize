@@ -253,6 +253,77 @@ function chart(
     },
   };
 }
+function heatmap(
+  block: Extract<Block, { type: "heatmap" }>,
+  original: DataRow[],
+  selected: DataRow[],
+): Block {
+  let x = block.x ?? [],
+    y = block.y ?? [],
+    values = block.values ?? [];
+  let reference = values;
+  const source = block.source;
+  if (source) {
+    const xs = new Map<string, Cell>(),
+      ys = new Map<string, Cell>();
+    for (const row of original) {
+      const column = dataCell(row, source.x),
+        group = dataCell(row, source.y);
+      xs.set(key(column), column);
+      ys.set(key(group), group);
+    }
+    x = [...xs.values()];
+    y = [...ys.values()];
+    const columns = new Map([...xs.keys()].map((name, i) => [name, i]));
+    const groups = new Map([...ys.keys()].map((name, i) => [name, i]));
+    const xField = source.x,
+      yField = source.y,
+      measure = source.field;
+    const kind = source.aggregate ?? "mean";
+    function matrix(rows: DataRow[]): (number | null)[][] {
+      const buckets = new Map<number, DataRow[]>();
+      for (const row of rows) {
+        if (
+          kind !== "count" &&
+          (measure === undefined || typeof dataCell(row, measure) !== "number")
+        )
+          continue;
+        const column = columns.get(key(dataCell(row, xField))),
+          group = groups.get(key(dataCell(row, yField)));
+        if (column === undefined || group === undefined) continue;
+        const index = group * x.length + column;
+        let bucket = buckets.get(index);
+        if (!bucket) {
+          bucket = [];
+          buckets.set(index, bucket);
+        }
+        bucket.push(row);
+      }
+      return y.map((_, group) =>
+        x.map((_, column) => {
+          const bucket = buckets.get(group * x.length + column);
+          return bucket ? aggregate(bucket, measure, kind) : null;
+        }),
+      );
+    }
+    reference = matrix(original);
+    values = selected === original ? reference : matrix(selected);
+  }
+  const observed = reference
+    .flat()
+    .filter((value): value is number => value !== null);
+  const { source: _, ...rest } = block;
+  return {
+    ...rest,
+    x,
+    y,
+    values,
+    xLabel: block.xLabel ?? source?.x,
+    yLabel: block.yLabel ?? source?.y,
+    min: block.min ?? (observed.length ? Math.min(...observed) : 0),
+    max: block.max ?? (observed.length ? Math.max(...observed) : 0),
+  };
+}
 export function resolveView(
   document: Artifact,
   parameters: Parameters,
@@ -294,6 +365,12 @@ export function resolveView(
             "N/A",
         };
       }
+      if (block.type === "heatmap")
+        return heatmap(
+          block,
+          block.source ? datasetRows(document, block.source.dataset) : [],
+          block.source ? rows(block.source.dataset) : [],
+        );
       if (block.type === "chart" && block.source) {
         boundCharts.add(path);
         const prepared = chart(block, rows(block.source.dataset));

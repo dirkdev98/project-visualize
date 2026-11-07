@@ -8,6 +8,8 @@ import {
   ImGuiCol_PlotHistogram,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
+  ImGuiTableBgTarget_CellBg,
+  ImGuiTableColumnFlags_WidthFixed,
   ImGuiTableColumnFlags_WidthStretch,
   ImGuiTableFlags_BordersInnerH,
   ImGuiTableFlags_RowBg,
@@ -79,6 +81,7 @@ import {
   igTableHeadersRow,
   igTableNextColumn,
   igTableNextRow,
+  igTableSetBgColor,
   igTableSetupColumn,
   igUnindent,
   type PVImage,
@@ -127,7 +130,15 @@ import {
   tooltip,
 } from "./primitives.ts";
 import { RichText } from "./richtext.ts";
-import { type Color, fonts, packed, palette, seriesColors } from "./theme.ts";
+import {
+  type Color,
+  color,
+  currentTheme,
+  fonts,
+  packed,
+  palette,
+  seriesColors,
+} from "./theme.ts";
 
 export interface DocumentState {
   tables: Record<string, { query: string }>;
@@ -153,6 +164,38 @@ type TableBlock = Extract<Block, { type: "table" }>;
 type ChartBlock = Extract<Block, { type: "chart" }>;
 type DiagramBlock = Extract<Block, { type: "diagram" }>;
 
+const heatRamps = {
+  light: [color("#edf5f6"), color("#7bbfc6"), color("#087f8c")],
+  dark: [color("#203548"), color("#2f7985"), color("#62c6ca")],
+};
+const heatInk = color("#172033"),
+  heatWhite = color("#ffffff");
+function heatColor(value: number, min: number, max: number): Color {
+  const position =
+    min === max ? 0.5 : Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const stops = heatRamps[currentTheme()];
+  const a = stops[position <= 0.5 ? 0 : 1],
+    b = stops[position <= 0.5 ? 1 : 2];
+  const t = position <= 0.5 ? position * 2 : (position - 0.5) * 2;
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    z: a.z + (b.z - a.z) * t,
+    w: 1,
+  };
+}
+function heatText(fill: Color): Color {
+  function luminance(c: Color) {
+    const linear = (v: number) =>
+      v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    return linear(c.x) * 0.2126 + linear(c.y) * 0.7152 + linear(c.z) * 0.0722;
+  }
+  const background = luminance(fill),
+    dark = luminance(heatInk);
+  const contrast =
+    (Math.max(background, dark) + 0.05) / (Math.min(background, dark) + 0.05);
+  return contrast >= 1.05 / (background + 0.05) ? heatInk : heatWhite;
+}
 export class DocumentRenderer {
   readonly document: Artifact;
   readonly state: DocumentState;
@@ -403,6 +446,9 @@ export class DocumentRenderer {
       case "chart":
         this.chart(value, exporting, key);
         break;
+      case "heatmap":
+        this.heatmap(value, exporting);
+        break;
       case "diagram":
         this.diagram(value, exporting);
         break;
@@ -411,7 +457,7 @@ export class DocumentRenderer {
         break;
     }
     if (value.caption) text(value.caption, 15, "regular", palette.muted);
-    if (value.type !== "spacer" && value.type !== "divider") {
+    if (value.type !== "spacer") {
       const bottom = igGetCursorScreenPos().y;
       keepTogether(top, bottom);
       keepTogether(top, Math.min(top + 48, bottom));
@@ -648,6 +694,128 @@ export class DocumentRenderer {
           textEnd,
         );
       }
+    }
+  }
+  private heatmap(
+    value: Extract<Block, { type: "heatmap" }>,
+    exporting: boolean,
+  ) {
+    const xs = value.x ?? [],
+      ys = value.y ?? [],
+      values = value.values ?? [];
+    if (!xs.length || !ys.length) {
+      text("No observations in this dataset.", 16, "regular", palette.muted);
+      return;
+    }
+    const xLabels = labels(xs),
+      yLabels = labels(ys);
+    const width = available(),
+      labelWidth = Math.min(180, Math.max(72, width * 0.24));
+    const bandSize = Math.max(1, Math.floor((width - labelWidth) / 72));
+    const min = value.min ?? 0,
+      max = value.max ?? 0;
+    const format = (number: number) =>
+      `${value.decimals === undefined ? number : number.toFixed(value.decimals)}${value.suffix ?? ""}`;
+    if (value.xLabel) text(value.xLabel, 13, "bold", palette.muted);
+    igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 8, y: 7 });
+    for (let first = 0; first < xs.length; first += bandSize) {
+      const count = Math.min(bandSize, xs.length - first);
+      const capture = currentCapture(),
+        textStart = capture?.text.length ?? 0;
+      const rowStarts: number[] = [];
+      const tableTop = igGetCursorScreenPos().y;
+      igPushID_Int(first);
+      if (
+        igBeginTable(
+          "heatmap",
+          count + 1,
+          ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_BordersInnerH,
+          { x: 0, y: 0 },
+          0,
+        )
+      ) {
+        igTableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, labelWidth, 0);
+        for (let column = 0; column < count; column++)
+          igTableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 1, 0);
+        igTableNextRow(ImGuiTableRowFlags_Headers, 0);
+        igTableNextColumn();
+        text(value.yLabel ?? "", 14, "bold");
+        for (let column = first; column < first + count; column++) {
+          igTableNextColumn();
+          text(xLabels[column], 14, "bold");
+        }
+        const textEnd = capture?.text.length ?? 0;
+        for (let row = 0; row < ys.length; row++) {
+          igTableNextRow(0, 0);
+          if (capture) rowStarts.push(igGetCursorScreenPos().y);
+          igTableNextColumn();
+          text(yLabels[row], 15, "bold");
+          for (let column = first; column < first + count; column++) {
+            igTableNextColumn();
+            const cell = values[row][column];
+            const fill =
+              cell === null ? palette.code : heatColor(cell, min, max);
+            igTableSetBgColor(ImGuiTableBgTarget_CellBg, packed(fill), -1);
+            text(
+              cell === null ? "Missing" : format(cell),
+              15,
+              cell === null ? "regular" : "mono",
+              cell === null ? palette.muted : heatText(fill),
+            );
+            if (!exporting && igIsItemHovered(0))
+              tooltip(
+                `${yLabels[row]} / ${xLabels[column]}: ${cell === null ? "Missing" : format(cell)}`,
+              );
+          }
+        }
+        igEndTable();
+        if (capture) {
+          const low = igGetItemRectMin(),
+            high = igGetItemRectMax();
+          captureTable(
+            low.x,
+            high.x,
+            tableTop,
+            high.y,
+            rowStarts,
+            textStart,
+            textEnd,
+          );
+        }
+      }
+      igPopID();
+      if (first + count < xs.length) igSpacing();
+    }
+    igPopStyleVar(1);
+    const observed = values.some((row) => row.some((cell) => cell !== null));
+    if (!observed)
+      text(
+        "No numeric observations in this view.",
+        13,
+        "regular",
+        palette.muted,
+      );
+    else {
+      const origin = igGetCursorScreenPos(),
+        draw = igGetWindowDrawList();
+      if (!draw) throw new Error("Cannot access the heatmap scale");
+      const legendWidth = Math.min(160, width * 0.3);
+      for (let step = 0; step < 32; step++)
+        ImDrawList_AddRectFilled(
+          draw,
+          { x: origin.x + (step * legendWidth) / 32, y: origin.y + 4 },
+          { x: origin.x + ((step + 1) * legendWidth) / 32, y: origin.y + 14 },
+          packed(heatColor(min + ((max - min) * step) / 31, min, max)),
+          0,
+          0,
+        );
+      igSetCursorScreenPos({ x: origin.x + legendWidth + 12, y: origin.y });
+      text(
+        min === max ? format(min) : `${format(min)} to ${format(max)}`,
+        13,
+        "regular",
+        palette.muted,
+      );
     }
   }
   private chart(value: ChartBlock, exporting: boolean, key: string) {

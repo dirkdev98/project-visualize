@@ -137,28 +137,21 @@ async function main() {
     const document = JSON.parse(
       readFileSync(join(entry.directory, "document.json"), "utf8"),
     );
-    const view =
-      document.datasets || parameters !== undefined
-        ? resolveView(document, createParameters(document, parameters))
-        : undefined;
+    const view = resolveView(document, createParameters(document, parameters));
     result = {
       ...entry,
       document,
-      ...(view
-        ? {
-            view: {
-              parameters: view.parameters,
-              datasetRows: Object.fromEntries(
-                Object.entries(view.datasets).map(([name, rows]) => [
-                  name,
-                  rows.length,
-                ]),
-              ),
-              body: view.body,
-              chartSelections: Object.fromEntries(view.chartSelections),
-            },
-          }
-        : {}),
+      view: {
+        parameters: view.parameters,
+        datasetRows: Object.fromEntries(
+          Object.entries(view.datasets).map(([name, rows]) => [
+            name,
+            rows.length,
+          ]),
+        ),
+        body: view.body,
+        chartSelections: Object.fromEntries(view.chartSelections),
+      },
     };
   } else if (command === "export") {
     const entry = find(

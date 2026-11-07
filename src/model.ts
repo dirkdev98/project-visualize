@@ -22,6 +22,13 @@ export interface ChartSource {
   series?: string;
   aggregate?: Aggregate;
 }
+export interface HeatmapSource {
+  dataset: string;
+  x: string;
+  y: string;
+  field?: string;
+  aggregate?: Aggregate;
+}
 export interface ControlBlock extends BlockStyle {
   type: "control";
   id: string;
@@ -98,6 +105,18 @@ export type Block = BlockStyle &
       } & (
         | { series: Series[]; source?: never }
         | { source: ChartSource; series?: never }
+      ))
+    | ({
+        type: "heatmap";
+        xLabel?: string;
+        yLabel?: string;
+        decimals?: number;
+        suffix?: string;
+        min?: number;
+        max?: number;
+      } & (
+        | { x: Cell[]; y: Cell[]; values: (number | null)[][]; source?: never }
+        | { source: HeatmapSource; x?: never; y?: never; values?: never }
       ))
     | ({
         type: "table";
@@ -577,6 +596,91 @@ export function validate(input: unknown): Artifact {
             });
           }
         });
+        break;
+      }
+      case "heatmap": {
+        for (const name of ["xLabel", "yLabel", "suffix"])
+          if (block[name] !== undefined) string(block[name], field(name), 240);
+        if (block.decimals !== undefined) {
+          number(block.decimals, field("decimals"), 0, 8);
+          if (!Number.isInteger(block.decimals))
+            fail(field("decimals"), "expected an integer");
+        }
+        if ((block.min === undefined) !== (block.max === undefined))
+          fail(location, "supply both min and max for a fixed color scale");
+        if (block.min !== undefined) {
+          number(block.min, field("min"), -1e100, 1e100);
+          number(block.max, field("max"), Number(block.min), 1e100);
+        }
+        let width: number, height: number;
+        if (block.source !== undefined) {
+          if (
+            block.x !== undefined ||
+            block.y !== undefined ||
+            block.values !== undefined
+          )
+            fail(location, "supply either source or a static matrix");
+          const source = object(block.source, field("source"));
+          const rows = dataset(source.dataset, field("source.dataset"));
+          const dimensions: number[] = [];
+          for (const axis of ["x", "y"]) {
+            const name = dataField(rows, source[axis], field(`source.${axis}`));
+            const categories = new Set<string>();
+            for (const row of rows) {
+              const value = Object.hasOwn(row, name) ? row[name] : null;
+              if (typeof value === "string")
+                string(value, field(`source.${axis}`), 120);
+              categories.add(JSON.stringify([typeof value, value]));
+            }
+            if (categories.size > 64)
+              fail(
+                field(`source.${axis}`),
+                "heatmap axis exceeds the category limit",
+              );
+            dimensions.push(categories.size);
+          }
+          [width, height] = dimensions;
+          if (source.aggregate !== undefined)
+            aggregate(source.aggregate, field("source.aggregate"));
+          if (source.aggregate !== "count" || source.field !== undefined)
+            dataField(rows, source.field, field("source.field"));
+        } else {
+          const dimensions: number[] = [];
+          for (const axis of ["x", "y"]) {
+            const values = array(block[axis], field(axis), 1, 64);
+            const unique = new Set<string>();
+            for (const value of values) {
+              scalar(value, field(axis));
+              if (typeof value === "string") string(value, field(axis), 120);
+              unique.add(JSON.stringify([typeof value, value]));
+            }
+            if (unique.size !== values.length)
+              fail(
+                field(axis),
+                "heatmap categories must be unique by type and value",
+              );
+            dimensions.push(values.length);
+          }
+          [width, height] = dimensions;
+          array(block.values, field("values"), height, height).forEach(
+            (input, row) => {
+              array(input, `${field("values")}[${row}]`, width, width).forEach(
+                (value, column) => {
+                  if (value !== null)
+                    number(
+                      value,
+                      `${field("values")}[${row}][${column}]`,
+                      -1e100,
+                      1e100,
+                    );
+                },
+              );
+            },
+          );
+        }
+        points += width * height;
+        if (points > 250_000)
+          fail(location, "artifact exceeds the visualization value limit");
         break;
       }
       case "table": {

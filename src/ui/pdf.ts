@@ -35,8 +35,14 @@ export function pdfPages(
     ...layout.tables.flatMap((table) => table.rows),
   ];
   const slices: PageSlice[] = [];
+  let contentBottom = 0;
+  for (const region of layout.regions)
+    contentBottom = Math.max(contentBottom, region.bottom);
+  for (const line of layout.lines)
+    contentBottom = Math.max(contentBottom, line.bottom);
+  if (!contentBottom) contentBottom = height;
   let top = 0;
-  while (top < height) {
+  while (top < height && top < contentBottom) {
     let repeats = layout.tables
       .filter(
         (table) =>

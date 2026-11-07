@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "title": "Patterns across the field",
+  "subtitle": "Completeness by station and day, with missing evidence kept visible",
+  "category": "Dataset study",
+  "context": {
+    "source": "Fictional demonstration data",
+    "question": "Which station and day combinations need attention?",
+    "method": "Numeric observations are averaged within each station and day. Filtering preserves the original axes and color scale."
+  },
+  "datasets": {
+    "readings": [
+      {
+        "day": "Mon",
+        "station": "North",
+        "completeness": 91,
+        "calibrated": true
+      },
+      {
+        "day": "Mon",
+        "station": "North",
+        "completeness": 95,
+        "calibrated": true
+      },
+      {
+        "day": "Tue",
+        "station": "North",
+        "completeness": 96,
+        "calibrated": true
+      },
+      {
+        "day": "Wed",
+        "station": "North",
+        "completeness": 84,
+        "calibrated": true
+      },
+      {
+        "day": "Thu",
+        "station": "North",
+        "completeness": 98,
+        "calibrated": true
+      },
+      {
+        "day": "Fri",
+        "station": "North",
+        "completeness": 94,
+        "calibrated": true
+      },
+      {
+        "day": "Mon",
+        "station": "East",
+        "completeness": 88,
+        "calibrated": true
+      },
+      {
+        "day": "Tue",
+        "station": "East",
+        "completeness": 95,
+        "calibrated": true
+      },
+      {
+        "day": "Wed",
+        "station": "East",
+        "completeness": 0,
+        "calibrated": true
+      },
+      {
+        "day": "Thu",
+        "station": "East",
+        "completeness": 89,
+        "calibrated": true
+      },
+      {
+        "day": "Fri",
+        "station": "East",
+        "completeness": 92,
+        "calibrated": true
+      },
+      {
+        "day": "Mon",
+        "station": "West",
+        "completeness": 90,
+        "calibrated": true
+      },
+      {
+        "day": "Tue",
+        "station": "West",
+        "completeness": 82,
+        "calibrated": false
+      },
+      {
+        "day": "Wed",
+        "station": "West",
+        "completeness": 97,
+        "calibrated": true
+      },
+      {
+        "day": "Fri",
+        "station": "West",
+        "completeness": 95,
+        "calibrated": true
+      }
+    ]
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Mean completeness",
+          "source": {
+            "dataset": "readings",
+            "field": "completeness",
+            "aggregate": "mean"
+          },
+          "decimals": 1,
+          "suffix": "%",
+          "detail": "Across the selected observations"
+        },
+        {
+          "type": "metric",
+          "label": "Matching observations",
+          "source": {
+            "dataset": "readings",
+            "aggregate": "count"
+          },
+          "decimals": 0,
+          "detail": "Rows selected from the saved snapshot"
+        }
+      ]
+    },
+    {
+      "type": "card",
+      "title": "Explore the observations",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "control",
+              "id": "station",
+              "kind": "select",
+              "label": "Station",
+              "dataset": "readings",
+              "field": "station"
+            },
+            {
+              "type": "control",
+              "id": "calibrated",
+              "kind": "toggle",
+              "label": "Calibrated observations only",
+              "dataset": "readings",
+              "field": "calibrated"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "card",
+      "title": "Mean completeness",
+      "caption": "A fixed 0% to 100% scale keeps different selections comparable.",
+      "children": [
+        {
+          "type": "heatmap",
+          "id": "completeness",
+          "source": {
+            "dataset": "readings",
+            "x": "day",
+            "y": "station",
+            "field": "completeness",
+            "aggregate": "mean"
+          },
+          "xLabel": "Observation day",
+          "yLabel": "Station",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "suffix": "%"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "weights": [1, 1],
+      "children": [
+        {
+          "type": "card",
+          "title": "By station",
+          "children": [
+            {
+              "type": "chart",
+              "kind": "bar",
+              "select": "station",
+              "height": 260,
+              "yLabel": "Mean completeness (%)",
+              "source": {
+                "dataset": "readings",
+                "x": "station",
+                "y": "completeness",
+                "aggregate": "mean"
+              }
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "Read the evidence",
+          "children": [
+            {
+              "type": "markdown",
+              "content": "A **zero** is a recorded observation. **Missing** means no numeric observation is available for that station and day in the current view.\n\nThe repeated North/Mon observations are averaged. Choose a station or Shift-click its bar to filter every linked view. Clear the selection to return to the full grid."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "details",
+      "title": "Observations behind the pattern",
+      "children": [
+        {
+          "type": "table",
+          "dataset": "readings",
+          "columns": [
+            {
+              "key": "day",
+              "label": "Day"
+            },
+            {
+              "key": "station",
+              "label": "Station"
+            },
+            {
+              "key": "completeness",
+              "label": "Completeness (%)"
+            },
+            {
+              "key": "calibrated",
+              "label": "Calibrated"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

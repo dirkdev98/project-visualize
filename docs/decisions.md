@@ -1,5 +1,28 @@
 # Decisions
 
+## 2026-11-07 linked document heatmaps
+
+- Render heatmaps as JS-owned native tables with a restrained sequential palette,
+  contrasting numeric text and explicit missing-cell labels. Preserve real zeros,
+  typed categories and absent pairs. Keep axes and inferred color bounds tied to the
+  original snapshot while controls filter the observations.
+- Support static matrices and dataset aggregates. Split wide grids into column bands
+  on narrow canvases, repeat row labels in each band, and reuse table capture for
+  selectable PDF values and continued headings. Keep this document widget passive;
+  dense pannable plots and cell-driven selection can use a separate interaction design.
+- Return a resolved view for static documents as well as linked ones, so inspection
+  exposes inferred heatmap bounds consistently with rendering.
+- Omit trailing PDF pages that contain only blank canvas. Preserve visible dividers
+  in the recorded bounds. A narrow capture exposed the padding spill, and the public
+  regression fails on the prior build while the corrected page retains all content.
+
+## 2026-11-07 document font behavior
+
+- Retain fontkit's shaping and subsetting while profiling its cost. Disabling ligatures
+  and kerning still leaves composition and mark processing, so a precomputed codepoint
+  lookup would weaken the text contract. Baked fixture-only runs could bound the
+  potential benefit without qualifying as a replacement for general document text.
+
 ## 2026-11-07 caller-owned capture checkpoint
 
 - Fill a JS-owned writable byte view directly from mapped GPU rows. Remove the native

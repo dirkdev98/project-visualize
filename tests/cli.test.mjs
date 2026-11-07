@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { execFile, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  copyFileSync,
   existsSync,
   mkdtempSync,
   readdirSync,
@@ -614,24 +613,24 @@ test("artifact IDs cannot escape the selected project", (t) => {
   assert.match(JSON.parse(result.stderr).error, /project must use/);
 });
 
-test("a composed dashboard and rich notebook render through the CLI", (t) => {
-  const { root, ok } = workspace(t);
-  for (const name of ["observatory", "notebook"]) {
-    const file = join(root, `${name}.json`);
-    copyFileSync(resolve(`examples/${name}.json`), file);
+for (const name of readdirSync(resolve("examples")).filter((name) =>
+  name.endsWith(".json"),
+)) {
+  test(`the ${name} authoring example renders through the CLI`, (t) => {
+    const { ok } = workspace(t);
     const entry = ok([
       "render",
       "--project",
       "examples",
       "--artifact",
-      name,
+      name.slice(0, -5),
       "--file",
-      file,
+      resolve("examples", name),
     ]);
     assert.ok(existsSync(entry.png));
     assert.ok(existsSync(entry.pdf));
-  }
-});
+  });
+}
 
 test("an artifact larger than the export surface fails without truncating it", (t) => {
   const { run, ok } = workspace(t);
@@ -821,6 +820,250 @@ function inspectView(ok, params) {
     ...(params === undefined ? [] : ["--params", JSON.stringify(params)]),
   ]).view;
 }
+
+function heatmapDocument() {
+  return {
+    ...minimal(),
+    datasets: {
+      observations: [
+        { day: "Mon", station: "North", reading: 0 },
+        { day: "Mon", station: "North", reading: 10 },
+        { day: "Tue", station: "North", reading: 20 },
+        { day: "Mon", station: "South", reading: null },
+        { day: "Tue", station: "South", reading: -4 },
+      ],
+    },
+    body: [
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "observations",
+        field: "station",
+      },
+      {
+        type: "heatmap",
+        id: "readings",
+        source: {
+          dataset: "observations",
+          x: "day",
+          y: "station",
+          field: "reading",
+          aggregate: "mean",
+        },
+      },
+    ],
+  };
+}
+
+test("linked heatmaps aggregate populated cells and retain missing observations", (t) => {
+  const { render, ok } = workspace(t);
+  render(heatmapDocument());
+  const heatmap = inspectView(ok).body.find(
+    (block) => block.type === "heatmap",
+  );
+  assert.deepEqual(heatmap.x, ["Mon", "Tue"]);
+  assert.deepEqual(heatmap.y, ["North", "South"]);
+  assert.deepEqual(heatmap.values, [
+    [5, 20],
+    [null, -4],
+  ]);
+  const selected = inspectView(ok, { station: "North" }).body.find(
+    (block) => block.type === "heatmap",
+  );
+  assert.deepEqual(selected.x, heatmap.x);
+  assert.deepEqual(selected.y, heatmap.y);
+  assert.deepEqual(selected.values, [
+    [5, 20],
+    [null, null],
+  ]);
+  assert.deepEqual([selected.min, selected.max], [heatmap.min, heatmap.max]);
+});
+
+test("heatmap sum preserves observed zero while an absent pair stays missing", (t) => {
+  const { render, ok } = workspace(t);
+  const document = heatmapDocument();
+  document.datasets.observations = [
+    { day: "Mon", station: "North", reading: 0 },
+    { day: "Tue", station: "South", reading: 4 },
+  ];
+  document.body[1].source.aggregate = "sum";
+  render(document);
+  assert.deepEqual(inspectView(ok).body[1].values, [
+    [0, null],
+    [null, 4],
+  ]);
+});
+
+test("heatmap axes retain scalar types and count source rows without a measure", (t) => {
+  const { render, ok } = workspace(t);
+  const x = [1, "1", null],
+    y = [true, "true"];
+  render({
+    ...minimal(),
+    datasets: {
+      readings: [
+        { x: x[0], y: y[0] },
+        { x: x[0], y: y[0] },
+        { x: x[1], y: y[0] },
+        { x: x[2], y: y[1] },
+      ],
+    },
+    body: [
+      {
+        type: "heatmap",
+        source: { dataset: "readings", x: "x", y: "y", aggregate: "count" },
+      },
+    ],
+  });
+  const heatmap = inspectView(ok).body[0];
+  assert.deepEqual(heatmap.x, x);
+  assert.deepEqual(heatmap.y, y);
+  assert.deepEqual(heatmap.values, [
+    [2, 1, null],
+    [null, null, 1],
+  ]);
+});
+
+test("empty heatmap parameter exports retain axes and preserve saved evidence", (t) => {
+  const { render, ok, root } = workspace(t);
+  const entry = render(heatmapDocument());
+  const files = [entry.document, entry.png, entry.pdf],
+    before = files.map(digest);
+  const empty = inspectView(ok, { station: "Absent" }).body[1];
+  assert.ok(empty.values.flat().every((value) => value === null));
+  const output = join(root, "empty.pdf");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--format",
+    "pdf",
+    "--out",
+    output,
+    "--params",
+    JSON.stringify({ station: "Absent" }),
+  ]);
+  const text = pdfTextPages(output).join(" ");
+  for (const label of [...empty.x, ...empty.y, "Missing"])
+    assert.ok(text.includes(label));
+  assert.deepEqual(files.map(digest), before);
+  assert.equal(ok(["list"]).versions.length, 1);
+});
+
+test("heatmap column bands keep labels and values readable in a narrow PDF", (t) => {
+  const { ok } = workspace(t);
+  const x = ["Morning", "Midday", "Afternoon", "Evening", "Night", "Dawn"],
+    y = ["North", "South"];
+  const values = [
+    [11, 22, null, 44, 45, 46],
+    [55, 66, 77, 88, 89, 90],
+  ];
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--width",
+      "480",
+    ],
+    {
+      ...minimal(),
+      theme: "dark",
+      body: [{ type: "heatmap", x, y, values, suffix: "%" }],
+    },
+  );
+  const text = pdfTextPages(entry.pdf).join(" ");
+  for (const label of [
+    ...x,
+    ...y,
+    "Missing",
+    ...values
+      .flat()
+      .filter((value) => value !== null)
+      .map((value) => `${value}%`),
+  ])
+    assert.ok(text.includes(label), label);
+});
+
+test("trailing canvas padding does not create a contentless PDF page", (t) => {
+  const { ok } = workspace(t);
+  const x = ["Morning", "Midday", "Afternoon", "Evening"],
+    y = ["North", "South"];
+  const values = [
+    [11, 22, null, 44],
+    [55, 66, 77, 88],
+  ];
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--width",
+      "480",
+    ],
+    {
+      ...minimal(),
+      title: "Fictional heatmap study: narrow",
+      body: [{ type: "heatmap", x, y, values, suffix: "%" }],
+    },
+  );
+  for (const page of pdfTextPages(entry.pdf))
+    assert.ok(
+      [...x, ...y].some((label) => page.includes(label)),
+      "A PDF page contains only canvas padding",
+    );
+});
+
+test("paginated heatmaps repeat headings while retaining every row", (t) => {
+  const { render } = workspace(t);
+  const x = ["Morning", "Midday", "Evening"];
+  const y = Array.from(
+    { length: 48 },
+    (_, i) => `SITE_${String(i).padStart(3, "0")}`,
+  );
+  const entry = render({
+    ...minimal(),
+    body: [
+      { type: "heatmap", x, y, values: y.map((_, i) => [i, i + 1, i + 2]) },
+    ],
+  });
+  const pages = pdfTextPages(entry.pdf);
+  assertTableContinuation(pages, x[0], y);
+  for (const page of pages.filter((page) =>
+    y.some((label) => page.includes(label)),
+  ))
+    for (const label of x) assert.ok(page.includes(label));
+});
+
+test("invalid heatmap matrices fail before publishing", (t) => {
+  const { run, ok } = workspace(t);
+  for (const matrix of [
+    { x: ["Mon", "Tue"], y: ["North"], values: [[1]] },
+    { x: ["Mon"], y: ["North"], values: [["1"]] },
+    { x: [1, 1], y: ["North"], values: [[1, 2]] },
+    { x: ["Mon"], y: ["North"], values: [[1]], min: 0 },
+  ]) {
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      { ...minimal(), body: [{ type: "heatmap", ...matrix }] },
+    );
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error, /body\[0\]/);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
 
 test("bar selection exposes typed categories and resolves the same linked control", (t) => {
   const { render, ok } = workspace(t);
