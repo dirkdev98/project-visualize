@@ -183,6 +183,115 @@ test("Markdown headings stay with the first following body line in a long report
   }
 });
 
+test("authored PDF sections start on fresh pages without changing the PNG", (t) => {
+  const { render } = workspace(t);
+  const body = [
+    {
+      type: "markdown",
+      content:
+        "## FINDING_SECTION\n\nA fictional station improved its accepted observations.",
+    },
+    {
+      type: "card",
+      title: "EVIDENCE_SECTION",
+      children: [
+        {
+          type: "text",
+          content: "Preserve the matched operating hours with this decision.",
+        },
+      ],
+    },
+  ];
+  const continuous = render({ ...minimal(), body });
+  const divided = render({
+    ...minimal(),
+    body: [body[0], { ...body[1], pageBreakBefore: true }],
+  });
+  const cover = render({
+    ...minimal(),
+    body: [{ ...body[0], pageBreakBefore: true }, body[1]],
+  });
+  const pages = pdfTextPages(divided.pdf);
+  assert.equal(pdfTextPages(continuous.pdf).length, 1);
+  assert.equal(pages.length, 2);
+  assert.ok(pages[0].includes("FINDING_SECTION"));
+  assert.ok(!pages[0].includes("EVIDENCE_SECTION"));
+  assert.ok(pages[1].includes("EVIDENCE_SECTION"));
+  const coverPages = pdfTextPages(cover.pdf);
+  assert.equal(coverPages.length, 2);
+  assert.ok(!coverPages[0].includes("FINDING_SECTION"));
+  assert.ok(coverPages[1].includes("FINDING_SECTION"));
+  assert.equal(digest(continuous.png), digest(divided.png));
+  assert.equal(digest(continuous.png), digest(cover.png));
+});
+
+test("an authored section follows a continued table without repeating its heading", (t) => {
+  const { render } = workspace(t);
+  const markers = Array.from(
+    { length: 70 },
+    (_, i) => `OBSERVATION_${String(i).padStart(3, "0")}`,
+  );
+  const entry = render({
+    ...minimal(),
+    body: [
+      {
+        type: "table",
+        columns: [{ key: "observation", label: "TABLE_EVIDENCE" }],
+        rows: markers.map((observation) => ({ observation })),
+      },
+      {
+        type: "markdown",
+        pageBreakBefore: true,
+        content:
+          "## APPENDIX_SECTION\n\nAPPENDIX_BODY preserves the original assumptions.",
+      },
+    ],
+  });
+  const pages = pdfTextPages(entry.pdf);
+  assertTableContinuation(pages, "TABLE_EVIDENCE", markers);
+  const appendix = pages.findIndex((page) => page.includes("APPENDIX_SECTION"));
+  assert.equal(appendix, pages.length - 1);
+  assert.ok(pages[appendix].includes("APPENDIX_BODY"));
+  assert.ok(!pages[appendix].includes("TABLE_EVIDENCE"));
+  assert.ok(!markers.some((marker) => pages[appendix].includes(marker)));
+});
+
+test("a break before trailing padding does not create a blank PDF page", (t) => {
+  const { render } = workspace(t);
+  const entry = render({
+    ...minimal(),
+    body: [
+      { type: "text", content: "The final evidence remains on one page." },
+      { type: "spacer", height: 300, pageBreakBefore: true },
+    ],
+  });
+  assert.equal(pdfTextPages(entry.pdf).length, 1);
+});
+
+test("nested and nonboolean page breaks fail before publishing", (t) => {
+  const { run, ok } = workspace(t);
+  for (const body of [
+    [{ type: "text", pageBreakBefore: "true", content: "Evidence" }],
+    [
+      {
+        type: "row",
+        children: [
+          { type: "text", pageBreakBefore: true, content: "Evidence" },
+          { type: "text", content: "Comparison" },
+        ],
+      },
+    ],
+  ]) {
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      { ...minimal(), body },
+    );
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error, /pageBreakBefore/);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 function assertTableContinuation(pages, header, markers) {
   for (const marker of markers)
     assert.equal(pages.join(" ").split(marker).length - 1, 1, marker);

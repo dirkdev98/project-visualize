@@ -121,6 +121,7 @@
     {
       "type": "card",
       "title": "A calculation you can reuse",
+      "pageBreakBefore": true,
       "children": [
         {
           "type": "code",

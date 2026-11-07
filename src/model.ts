@@ -54,6 +54,7 @@ export interface ControlBlock extends BlockStyle {
 }
 interface BlockStyle {
   id?: string;
+  pageBreakBefore?: boolean;
   title?: string;
   caption?: string;
   height?: number;
@@ -350,6 +351,12 @@ export function validate(input: unknown): Artifact {
       fail(location, "artifact is too deeply nested or has too many blocks");
     const block = object(input, location);
     const field = (key: string) => `${location}.${key}`;
+    if (block.pageBreakBefore !== undefined) {
+      if (typeof block.pageBreakBefore !== "boolean")
+        fail(field("pageBreakBefore"), "expected a boolean");
+      if (block.pageBreakBefore && depth !== 0)
+        fail(field("pageBreakBefore"), "page breaks require a top-level block");
+    }
     if (block.id !== undefined) {
       const id = string(block.id, field("id"), 120);
       if (!/^[a-z][a-z0-9_-]{0,79}$/.test(id) || siblings.has(id))

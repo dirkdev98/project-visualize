@@ -52,6 +52,12 @@ Group blocks inside `row`, `column` or `card` children. A row's optional `weight
 sets relative column widths. Rows stack vertically in a narrow viewport. A `details`
 section is expandable in the viewer and expanded in exports.
 
+Set `pageBreakBefore: true` on a top-level block to start it on a fresh PDF page.
+Automatic pagination continues within each section. A break before the first body
+block leaves the document title on its own page. Trailing padding creates no extra
+page. The viewer and PNG remain continuous; nested blocks cannot request a break
+because a PDF page spans every column.
+
 Use a `badge` with a short `label` and `tone` for status. A `timeline` contains `events`
 with a `title`, optional `label`, Markdown `content` and `tone`. A `progress` block
 uses a value from zero to one and the same tone colors. The

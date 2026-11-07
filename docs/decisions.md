@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-07 authored PDF sections
+
+- Let a top-level block request a fresh PDF page with `pageBreakBefore`. Keep this
+  as capture metadata so viewer and PNG composition stay continuous and byte-identical.
+  Continue automatic pagination within sections and retain each table's continuation
+  heading only while that table has rows left.
+- Reject nested breaks because raster pagination cuts across every column. A break
+  before the first body block creates a title-only cover. Ignore boundaries with no
+  following content so trailing padding cannot become a blank final page.
+- Place boundaries just before the next block's antialiased edge. Keep that guard
+  separate from the content test; visual checks exposed a one-unit trailing page when
+  a flagged spacer followed the last evidence block.
+
 ## 2026-11-07 numeric table presentation
 
 - Align numeric columns to the right and allow an explicit alignment override.

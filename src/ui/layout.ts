@@ -10,6 +10,7 @@ export interface TableCapture {
   headerText: TextFragment[];
 }
 export interface LayoutCapture {
+  breaks: number[];
   regions: VerticalRange[];
   lines: VerticalRange[];
   tables: TableCapture[];
@@ -29,6 +30,7 @@ export interface TextFragment {
 let active: LayoutCapture | undefined;
 export function captureLayout(draw: () => void): LayoutCapture {
   const capture: LayoutCapture = {
+    breaks: [],
     regions: [],
     lines: [],
     tables: [],

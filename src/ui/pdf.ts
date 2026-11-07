@@ -41,8 +41,19 @@ export function pdfPages(
   for (const line of layout.lines)
     contentBottom = Math.max(contentBottom, line.bottom);
   if (!contentBottom) contentBottom = height;
+  // The antialiasing guard before a boundary must not turn trailing padding into a section.
+  const boundaries = layout.breaks.filter(
+    (boundary) =>
+      layout.regions.some((region) => region.top >= boundary) ||
+      layout.lines.some((line) => line.top >= boundary),
+  );
   let top = 0;
   while (top < height && top < contentBottom) {
+    const sectionBottom = boundaries.reduce(
+      (bottom, boundary) =>
+        boundary > top ? Math.min(bottom, boundary) : bottom,
+      height,
+    );
     let repeats = layout.tables
       .filter(
         (table) =>
@@ -68,7 +79,7 @@ export function pdfPages(
     try {
       bottom = pageBottom(
         top,
-        height,
+        sectionBottom,
         capacity - headerHeight,
         regions,
         layout.lines,
@@ -77,7 +88,7 @@ export function pdfPages(
       if (!headerHeight) throw error;
       repeats = [];
       headerHeight = 0;
-      bottom = pageBottom(top, height, capacity, regions, layout.lines);
+      bottom = pageBottom(top, sectionBottom, capacity, regions, layout.lines);
     }
     slices.push({ top, bottom, headerHeight, repeats });
     top = bottom;

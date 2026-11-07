@@ -352,6 +352,10 @@ export class DocumentRenderer {
   private blocks(children: Block[], exporting: boolean, parent: string) {
     for (let i = 0; i < children.length; i++) {
       const block = children[i];
+      if (parent === "body" && block.pageBreakBefore)
+        currentCapture()?.breaks.push(
+          Math.max(0, Math.floor(igGetCursorScreenPos().y) - 1),
+        );
       const key = `${parent}.${block.id ?? i}`;
       igPushID_Str(block.id ?? String(i));
       this.block(block, exporting, key);
