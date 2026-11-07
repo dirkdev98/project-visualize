@@ -280,7 +280,7 @@
             "dataset": "observations",
             "aggregate": "count"
           },
-          "detail": "The same rows drive every widget",
+          "detail": "Selected rows drive the totals",
           "decimals": 0
         }
       ]
@@ -334,7 +334,7 @@
     {
       "type": "callout",
       "title": "Read the linked view",
-      "content": "Choose a station, **Shift-click a bar**, search for a **matched shift**, or enable active stations. The charts, totals and rows use the same selected observations. Repeat a bar selection or use **All values** to clear it; Reset controls restores the saved defaults."
+      "content": "Choose a station, **Shift-click a bar**, search for a **matched shift**, or enable active stations. The line chart, totals and rows use the selected observations. Station bars retain comparison context and highlight the selection. Choose another bar to replace it, or repeat it to clear; Reset controls restores the saved defaults."
     },
     {
       "type": "card",

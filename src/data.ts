@@ -17,7 +17,7 @@ export interface ResolvedView {
   body: Block[];
   datasets: Record<string, DataRow[]>;
   parameters: Record<string, ParameterValue>;
-  boundCharts: Set<string>;
+  chartFitKeys: Map<string, string>;
   chartSelections: Map<string, { control: string; values: Cell[] }>;
 }
 export function dataCell(row: DataRow, key: string): Cell {
@@ -330,22 +330,27 @@ export function resolveView(
 ): ResolvedView {
   const definitions = controls(document);
   const datasets: Record<string, DataRow[]> = Object.create(null);
-  for (const [name, rows] of Object.entries(document.datasets ?? {})) {
-    const filters = definitions.filter((control) => control.dataset === name);
-    datasets[name] = filters.length
-      ? rows.filter((row) =>
+  function filteredRows(name: string, except?: string): DataRow[] {
+    const source = datasetRows(document, name);
+    const filters = definitions.filter(
+      (control) => control.dataset === name && control.id !== except,
+    );
+    return filters.length
+      ? source.filter((row) =>
           filters.every((control) =>
             matches(row, control, parameterValue(parameters, control.id)),
           ),
         )
-      : rows;
+      : source;
   }
+  for (const name of Object.keys(document.datasets ?? {}))
+    datasets[name] = filteredRows(name);
   function rows(name: string): DataRow[] {
     if (!Object.hasOwn(datasets, name))
       throw new Error(`Unknown dataset: ${name}`);
     return datasets[name];
   }
-  const boundCharts = new Set<string>();
+  const chartFitKeys: ResolvedView["chartFitKeys"] = new Map();
   const chartSelections: ResolvedView["chartSelections"] = new Map();
   function blocks(input: Block[], parent: string): Block[] {
     return input.map((block, index) => {
@@ -372,8 +377,26 @@ export function resolveView(
           block.source ? rows(block.source.dataset) : [],
         );
       if (block.type === "chart" && block.source) {
-        boundCharts.add(path);
-        const prepared = chart(block, rows(block.source.dataset));
+        const dataset = block.source.dataset;
+        chartFitKeys.set(
+          path,
+          JSON.stringify(
+            definitions
+              .filter(
+                (control) =>
+                  control.dataset === dataset && control.id !== block.select,
+              )
+              .map((control) => [
+                control.id,
+                parameterValue(parameters, control.id),
+              ]),
+          ),
+        );
+        const comparison =
+          block.select && !isAll(parameterValue(parameters, block.select))
+            ? filteredRows(dataset, block.select)
+            : rows(dataset);
+        const prepared = chart(block, comparison);
         if (block.select)
           chartSelections.set(path, {
             control: block.select,
@@ -388,7 +411,7 @@ export function resolveView(
     body: blocks(document.body, "body"),
     datasets,
     parameters: Object.fromEntries(parameters),
-    boundCharts,
+    chartFitKeys,
     chartSelections,
   };
 }

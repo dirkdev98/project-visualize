@@ -1219,7 +1219,8 @@ test("bar selection exposes typed categories and resolves the same linked contro
   assert.notEqual(all.body[0].labels[0], all.body[0].labels[1]);
   for (const [index, station] of values.entries()) {
     const view = inspectView(ok, { station });
-    assert.deepEqual(view.chartSelections["body.stations"].values, [station]);
+    assert.deepEqual(view.chartSelections["body.stations"].values, values);
+    assert.deepEqual(view.body[0].series, all.body[0].series);
     assert.equal(view.datasetRows.observations, 1);
     assert.equal(view.body[2].value, index + 1);
   }
@@ -1227,6 +1228,136 @@ test("bar selection exposes typed categories and resolves the same linked contro
     inspectView(ok, { station: { all: true } }).chartSelections,
     all.chartSelections,
   );
+});
+
+test("a driving chart ignores only its own control while linked evidence uses every filter", (t) => {
+  const { render, ok } = workspace(t);
+  const source = { dataset: "readings", x: "station", y: "accepted" };
+  render({
+    ...minimal(),
+    datasets: {
+      readings: [
+        { station: "North", shift: "Day", accepted: 4 },
+        { station: "South", shift: "Day", accepted: 8 },
+        { station: "North", shift: "Night", accepted: 3 },
+        { station: "South", shift: "Night", accepted: 9 },
+      ],
+    },
+    body: [
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "readings",
+        field: "station",
+      },
+      {
+        type: "control",
+        id: "peer",
+        kind: "select",
+        label: "Comparison station",
+        dataset: "readings",
+        field: "station",
+      },
+      {
+        type: "control",
+        id: "shift",
+        kind: "select",
+        label: "Shift",
+        dataset: "readings",
+        field: "shift",
+      },
+      { type: "chart", id: "driving", kind: "bar", select: "station", source },
+      { type: "chart", id: "evidence", kind: "bar", source },
+      {
+        type: "metric",
+        label: "Accepted",
+        source: { dataset: "readings", field: "accepted", aggregate: "sum" },
+      },
+      {
+        type: "table",
+        dataset: "readings",
+        columns: [{ key: "station", label: "Station" }],
+      },
+    ],
+  });
+  const selected = inspectView(ok, { station: "North", shift: "Night" });
+  assert.deepEqual(selected.body[3].labels, ["North", "South"]);
+  assert.deepEqual(selected.body[3].series[0].values, [3, 9]);
+  assert.deepEqual(selected.body[4].labels, ["North"]);
+  assert.deepEqual(selected.body[4].series[0].values, [3]);
+  assert.equal(selected.body[5].value, 3);
+  assert.equal(selected.body[6].rows.length, 1);
+  const conflicting = inspectView(ok, {
+    station: "North",
+    peer: "South",
+    shift: "Night",
+  });
+  assert.deepEqual(conflicting.chartSelections["body.driving"].values, [
+    "South",
+  ]);
+  assert.deepEqual(conflicting.body[3].series[0].values, [9]);
+  assert.deepEqual(conflicting.body[4].series, []);
+  assert.equal(conflicting.body[5].value, 0);
+  assert.deepEqual(conflicting.body[6].rows, []);
+});
+
+test("an absent chart selection retains comparison context and exports its empty evidence", (t) => {
+  const { root, render, ok } = workspace(t);
+  render({
+    ...minimal(),
+    datasets: {
+      readings: [
+        { station: "North", accepted: 4 },
+        { station: "South", accepted: 8 },
+      ],
+    },
+    body: [
+      {
+        type: "control",
+        id: "station",
+        kind: "select",
+        label: "Station",
+        dataset: "readings",
+        field: "station",
+      },
+      {
+        type: "chart",
+        id: "driving",
+        kind: "bar",
+        select: "station",
+        source: { dataset: "readings", x: "station", y: "accepted" },
+      },
+      {
+        type: "metric",
+        label: "Accepted",
+        source: { dataset: "readings", field: "accepted", aggregate: "sum" },
+      },
+    ],
+  });
+  const view = inspectView(ok, { station: "West" });
+  assert.deepEqual(view.chartSelections["body.driving"].values, [
+    "North",
+    "South",
+  ]);
+  assert.equal(view.datasetRows.readings, 0);
+  assert.equal(view.body[2].value, 0);
+  const output = join(root, "empty-selection.pdf");
+  ok([
+    "export",
+    "--project",
+    "orbital",
+    "--artifact",
+    "review",
+    "--params",
+    '{"station":"West"}',
+    "--format",
+    "pdf",
+    "--out",
+    output,
+  ]);
+  assert.ok(pdfTextPages(output).join(" ").includes("West"));
 });
 
 test("numeric selection categories remain separate even when their coordinates are close", (t) => {

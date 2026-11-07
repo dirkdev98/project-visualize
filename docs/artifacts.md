@@ -111,7 +111,7 @@ charts, tables and a diagram with their explanation.
 ## Linked views
 
 Put shared rows in a named `datasets` entry. A table's `dataset` uses those rows; a
-metric or chart's `source` derives values from them. Controls filter every widget
+metric or chart's `source` derives values from them. Controls filter linked evidence
 bound to the same dataset. See the [linked dashboard](../examples/linked-observatory.json)
 for a complete example.
 
@@ -172,7 +172,10 @@ and x field. Shift-click a visible bar to select that raw category across the li
 view; repeat to clear it. Dragging and wheel zoom retain their chart behavior. The
 legend remains outside the plot so toggling a series cannot select a bar underneath.
 Selection bars treat numeric values as separate categories and preserve scalar types.
-The control can appear anywhere in the document.
+The control can appear anywhere in the document. The driving chart retains its
+comparison bars and highlights the chosen category while the other linked widgets
+use the selection. Other controls still filter the driving chart, including another
+control on the same field. Changing only its own selection preserves pan and zoom.
 
 Inspect, export or open a reproducible selection with `--params`:
 
@@ -283,3 +286,5 @@ PDF pagination keeps Markdown headings with the first following body line when
 that group fits on a page. Parallel columns may require a break between complete
 text lines when their preferred section boundaries conflict.
 Reduce the layout `--width` when a report needs larger text on paper.
+For narrow canvases, use portrait paper or shorter explicit chart heights to keep
+figures with their surrounding titles and captions.

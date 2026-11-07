@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-11-07 linked comparison context
+
+- Replace the self-filtering behavior of chart-driven selection with comparison bars.
+  A driving chart ignores only its own control ID; every other control still applies,
+  including another control on the same field. Other widgets retain the complete
+  selected filter. Keep raw scalar categories and sparse series intact.
+- Draw a faint clipped band behind the chosen category and include a selection caption
+  in exports. An absent category leaves comparison data visible while linked evidence
+  is empty, with no false highlight. Repeating a bar clears it, and another bar replaces it.
+- Resolve chart fit signatures from their relevant parameters when the view changes.
+  Exclude the driving control so its selection preserves a user's pan and zoom.
+  Keep the plot and legend together separately from the caption when they fit a PDF page.
+
+Keep track of;
+
+- Consider print-specific figure fitting for narrow fixed-height layouts. A 310-unit
+  chart nearly fills a landscape PDF page at a 480-unit canvas width, so its card title
+  and caption can continue separately. Portrait paper or shorter figures avoid that case.
+
 ## 2026-11-07 caller-owned capture acceptance
 
 - Accept the caller-owned capture checkpoint for lower peak memory on larger exports.
@@ -105,8 +124,6 @@ Keep track of;
 
 - Verify Shift-click and legend interaction with the physical macOS pointer when the
   native window is available to automation.
-- Consider keeping other categories visible as context after selection. The shared
-  filter currently applies to its originating chart as well as the linked widgets.
 
 ## 2026-11-07 table continuation headings
 

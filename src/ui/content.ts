@@ -20,10 +20,16 @@ import {
   ImGuiTreeNodeFlags_DefaultOpen,
   ImPlot_BeginPlot,
   ImPlot_EndPlot,
+  ImPlot_GetPlotDrawList,
   ImPlot_GetPlotMousePos,
+  ImPlot_GetPlotPos,
+  ImPlot_GetPlotSize,
   ImPlot_IsItemHidden,
   ImPlot_IsPlotHovered,
   ImPlot_PixelsToPlot_Vec2,
+  ImPlot_PlotToPixels_double,
+  ImPlot_PopPlotClipRect,
+  ImPlot_PushPlotClipRect,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
   ImPlot_SetupLegend,
@@ -146,7 +152,7 @@ export interface DocumentState {
   tables: Record<string, { query: string }>;
   parameters: Parameters;
   revision: number;
-  chartFits: Map<string, number>;
+  chartFits: Map<string, string>;
 }
 export function documentState(
   document: Artifact,
@@ -870,15 +876,16 @@ export class DocumentRenderer {
       igDummy({ x: available(), y: value.height ?? 300 });
       return;
     }
+    const fitKey = this.view?.chartFitKeys.get(key);
     const refit =
-      this.view?.boundCharts.has(key) &&
-      this.state.chartFits.get(key) !== this.viewRevision;
+      fitKey !== undefined && this.state.chartFits.get(key) !== fitKey;
     if (exporting || refit) ImPlot_SetNextAxesToFit();
     let flags = ImPlotFlags_NoTitle | ImPlotFlags_Crosshairs;
     if (exporting) flags |= ImPlotFlags_NoInputs | ImPlotFlags_NoMenus;
+    const plotTop = igGetCursorScreenPos().y;
     if (!ImPlot_BeginPlot("##chart", { x: -1, y: value.height ?? 300 }, flags))
       return;
-    if (refit) this.state.chartFits.set(key, this.viewRevision);
+    if (refit && fitKey !== undefined) this.state.chartFits.set(key, fitKey);
     ImPlot_SetupAxes(value.xLabel ?? "", value.yLabel ?? "", 0, 0);
     const selection = this.view?.chartSelections.get(key);
     if (selection) {
@@ -898,6 +905,39 @@ export class DocumentRenderer {
     if (value.labels)
       for (let i = 0; i < value.labels.length; i++)
         pv_plot_tick(0, i, value.labels[i]);
+    const selected = selection
+      ? parameterValue(this.state.parameters, selection.control)
+      : ALL;
+    const selectedIndex =
+      selection && (selected === null || typeof selected !== "object")
+        ? selection.values.indexOf(selected)
+        : -1;
+    if (selectedIndex >= 0) {
+      const origin = ImPlot_GetPlotPos(),
+        size = ImPlot_GetPlotSize();
+      const left = ImPlot_PlotToPixels_double(selectedIndex - 0.4, 0, -1, -1).x;
+      const right = ImPlot_PlotToPixels_double(
+        selectedIndex + 0.4,
+        0,
+        -1,
+        -1,
+      ).x;
+      const draw = ImPlot_GetPlotDrawList();
+      if (!draw) throw new Error("Cannot access the chart canvas");
+      ImPlot_PushPlotClipRect(0);
+      ImDrawList_AddRectFilled(
+        draw,
+        { x: Math.min(left, right), y: origin.y },
+        { x: Math.max(left, right), y: origin.y + size.y },
+        packed({
+          ...palette.accent,
+          w: currentTheme() === "dark" ? 0.16 : 0.09,
+        }),
+        0,
+        0,
+      );
+      ImPlot_PopPlotClipRect();
+    }
     let data = this.plots.get(value);
     if (!data) {
       data = series.map((item, index) => {
@@ -1018,6 +1058,16 @@ export class DocumentRenderer {
       }
     }
     ImPlot_EndPlot();
+    keepTogether(plotTop, igGetCursorScreenPos().y);
+    if (selection && !isAll(selected))
+      text(
+        selectedIndex >= 0
+          ? `Selected: ${value.labels?.[selectedIndex] ?? scalar(selected)}. Other bars remain for comparison.`
+          : `Selected: ${scalar(selected)} (no matching category).`,
+        13,
+        "regular",
+        palette.accent,
+      );
     if (!exporting && selection) {
       text(
         "Shift-click a bar to filter; repeat to clear.",

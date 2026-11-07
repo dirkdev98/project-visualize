@@ -210,7 +210,7 @@
           "children": [
             {
               "type": "markdown",
-              "content": "A **zero** is a recorded observation. **Missing** means no numeric observation is available for that station and day in the current view.\n\nThe repeated North/Mon observations are averaged. Choose a station or Shift-click its bar to filter every linked view. Clear the selection to return to the full grid."
+              "content": "A **zero** is a recorded observation. **Missing** means no numeric observation is available for that station and day in the current view.\n\nThe repeated North/Mon observations are averaged. Choose a station or Shift-click its bar to filter the grid and evidence. The bars retain comparison context. Clear the selection to return to the full grid."
             }
           ]
         }
