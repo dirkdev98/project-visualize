@@ -42,7 +42,9 @@ import {
   ImGuiStyleVar_WindowBorderSize,
   ImGuiStyleVar_WindowPadding,
   ImPlot_PopStyleColor,
+  ImPlot_PopStyleVar,
   ImPlot_PushStyleColor_Vec4,
+  ImPlot_PushStyleVar_Vec2,
   ImPlot_StyleColorsLight,
   ImPlotCol_AxisGrid,
   ImPlotCol_AxisText,
@@ -53,6 +55,7 @@ import {
   ImPlotCol_LegendText,
   ImPlotCol_PlotBg,
   ImPlotCol_PlotBorder,
+  ImPlotStyleVar_FitPadding,
   type ImVec4_c,
   igPopStyleColor,
   igPopStyleVar,
@@ -230,8 +233,10 @@ export function pushTheme() {
   for (const [index, value] of scalars) igPushStyleVar_Float(index, value);
   for (const [index, value] of plotColors)
     ImPlot_PushStyleColor_Vec4(index, value);
+  ImPlot_PushStyleVar_Vec2(ImPlotStyleVar_FitPadding, { x: 0.06, y: 0.1 });
 }
 export function popTheme() {
+  ImPlot_PopStyleVar(1);
   ImPlot_PopStyleColor(plotColors.length);
   igPopStyleVar(vectors.length + scalars.length);
   igPopStyleColor(colors.length);

@@ -163,7 +163,8 @@ extern "C" void pv_plot_tick(int axis, double value, const char *label) {
 extern "C" void pv_plot_series(const char *label, const double *x, const double *y,
                                int count, int kind, PVPlotStyle style) {
   ImPlotSpec spec;
-  spec.LineColor = spec.FillColor = {style.color.x, style.color.y, style.color.z, style.color.w};
+  spec.LineColor = spec.FillColor = spec.MarkerLineColor = spec.MarkerFillColor =
+      {style.color.x, style.color.y, style.color.z, style.color.w};
   spec.LineWeight = style.line_weight;
   spec.Marker = style.marker;
   spec.MarkerSize = style.marker_size;

@@ -6,6 +6,7 @@ import {
   ImDrawList_AddText_FontPtr,
   ImDrawList_AddTriangleFilled,
   ImGuiCol_PlotHistogram,
+  ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
   ImGuiTableBgTarget_CellBg,
@@ -36,6 +37,7 @@ import {
   ImPlotFlags_Crosshairs,
   ImPlotFlags_NoInputs,
   ImPlotFlags_NoMenus,
+  ImPlotFlags_NoMouseText,
   ImPlotFlags_NoTitle,
   ImPlotLegendFlags_Horizontal,
   ImPlotLegendFlags_NoMenus,
@@ -67,7 +69,9 @@ import {
   igIsMouseClicked_Bool,
   igIsMouseDown_Nil,
   igIsMouseDragPastThreshold,
+  igIsMouseHoveringRect,
   igIsMouseReleased_Nil,
+  igIsWindowHovered,
   igPopFont,
   igPopID,
   igPopStyleColor,
@@ -880,14 +884,20 @@ export class DocumentRenderer {
     const refit =
       fitKey !== undefined && this.state.chartFits.get(key) !== fitKey;
     if (exporting || refit) ImPlot_SetNextAxesToFit();
-    let flags = ImPlotFlags_NoTitle | ImPlotFlags_Crosshairs;
-    if (exporting) flags |= ImPlotFlags_NoInputs | ImPlotFlags_NoMenus;
+    const selection = this.view?.chartSelections.get(key);
+    const choosing =
+      !exporting && selection !== undefined && igIsKeyDown_Nil(ImGuiMod_Shift);
+    let flags =
+      ImPlotFlags_NoTitle |
+      (choosing ? ImPlotFlags_NoMouseText : ImPlotFlags_Crosshairs);
+    // ImPlot fits on any double-click modifier, so Shift belongs to selection.
+    if (exporting || choosing) flags |= ImPlotFlags_NoInputs;
+    if (exporting || selection) flags |= ImPlotFlags_NoMenus;
     const plotTop = igGetCursorScreenPos().y;
     if (!ImPlot_BeginPlot("##chart", { x: -1, y: value.height ?? 300 }, flags))
       return;
     if (refit && fitKey !== undefined) this.state.chartFits.set(key, fitKey);
     ImPlot_SetupAxes(value.xLabel ?? "", value.yLabel ?? "", 0, 0);
-    const selection = this.view?.chartSelections.get(key);
     if (selection) {
       const horizontal =
         series.reduce(
@@ -968,7 +978,18 @@ export class DocumentRenderer {
         },
       );
     if (!exporting) {
-      const hovered = ImPlot_IsPlotHovered();
+      let hovered = ImPlot_IsPlotHovered();
+      if (choosing) {
+        const origin = ImPlot_GetPlotPos(),
+          size = ImPlot_GetPlotSize();
+        hovered =
+          igIsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
+          igIsMouseHoveringRect(
+            origin,
+            { x: origin.x + size.x, y: origin.y + size.y },
+            true,
+          );
+      }
       const hidden = hovered
         ? series.map((item) => ImPlot_IsItemHidden(item.name))
         : [];

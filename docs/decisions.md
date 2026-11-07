@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-07 chart fitting and selection gestures
+
+- Add modest fit padding in the shared theme so line endpoints and scatter markers
+  stay inside the plot. Apply the supplied series color to marker edges and faces as
+  well as lines and fills; ImPlot derives a scatter legend's identity from its marker
+  edge color, which previously fell back to the colormap.
+- Reserve Shift input for category selection. ImPlot fits on a double-click with any
+  modifier, which can move a panned bar between press and release and prevent clearing.
+  Suspend its plot input while Shift is held and use the clipped plot rectangle and
+  native window hover for selection. Keep plain pan, wheel zoom and double-click fit.
+- Keep selection-chart configuration agent-owned while the legend controls series
+  visibility. Verify rapid repeat selection after panning and native legend hide/show
+  separately, so a legend click cannot select the data underneath it.
+
 ## 2026-11-07 linked comparison context
 
 - Replace the self-filtering behavior of chart-driven selection with comparison bars.

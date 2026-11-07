@@ -82,7 +82,7 @@ Charts use named series with numeric `values`. Supply chart `labels`, a series'
 numeric `x` coordinates, or both. Without `x`, each series has one value per label.
 With labels and `x`, coordinates index the labels and can leave categories absent.
 Axis labels should include units. The viewer supports zooming and panning; exports
-fit all the supplied data.
+fit all the supplied data with space around its extrema.
 
 ```json
 {
@@ -169,7 +169,8 @@ category/series pair stays absent.
 
 Set a dataset-bound bar chart's `select` to a select-control ID for the same dataset
 and x field. Shift-click a visible bar to select that raw category across the linked
-view; repeat to clear it. Dragging and wheel zoom retain their chart behavior. The
+view; repeat to clear it. Plain dragging pans, the wheel zooms, and a plain
+double-click fits the data. Shift is reserved for category selection. The
 legend remains outside the plot so toggling a series cannot select a bar underneath.
 Selection bars treat numeric values as separate categories and preserve scalar types.
 The control can appear anywhere in the document. The driving chart retains its

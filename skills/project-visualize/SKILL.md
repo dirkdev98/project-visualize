@@ -33,6 +33,7 @@ creates a new version. Export with an explicit `--version` when the request refe
 particular evidence. PNG and PDF exports use the saved data; temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
 A dataset-bound bar chart can `select` its matching select control through Shift-click.
+Its comparison bars stay visible while the other linked widgets use the selection.
 Inspection exposes typed categories in `view.chartSelections`.
 Use `inspect --params` to check the selected rows and derived values, then export with
 the same parameters to deliver that view without revising the source. PDFs paginate
