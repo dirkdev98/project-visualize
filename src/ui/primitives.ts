@@ -34,7 +34,6 @@ import {
   igTextUnformatted,
   pv_error,
   pv_font_metrics,
-  pv_text_line,
 } from "maligator:ffi/visualize";
 import { currentCapture, keepLineTogether } from "./layout.ts";
 import {
@@ -43,6 +42,7 @@ import {
   selectionText,
   withoutTextSelection,
 } from "./selection.ts";
+import { textLine } from "./text-layout.ts";
 import { type Color, type Font, fonts, packed, palette } from "./theme.ts";
 
 export function checked(result: number): number {
@@ -113,30 +113,28 @@ export function captureWrappedText(
   if (!face) throw new Error("Fonts are not initialized");
   igPushFont(face, size);
   try {
-    let remaining = Buffer.from(value),
+    let remaining = value,
       y = point.y;
     while (remaining.length) {
-      const line = pv_text_line(remaining.toString("utf8"), width);
+      const line = textLine(remaining, width);
       if (line.consumed <= 0)
         throw new Error("Native text measurement made no progress");
       captureText(
-        remaining.subarray(0, line.length).toString("utf8"),
+        remaining.slice(0, line.length),
         font,
         size,
         { x: point.x, y },
         line.width,
       );
       selectionText(
-        remaining.subarray(0, line.length).toString("utf8"),
+        remaining.slice(0, line.length),
         font,
         size,
         { x: point.x, y },
         line.width,
       );
-      selectionBreak(
-        remaining.subarray(line.length, line.consumed).toString("utf8"),
-      );
-      remaining = remaining.subarray(line.consumed);
+      selectionBreak(remaining.slice(line.length, line.consumed));
+      remaining = remaining.slice(line.consumed);
       y += size;
     }
   } finally {

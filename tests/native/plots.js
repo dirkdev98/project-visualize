@@ -6,22 +6,20 @@ import {
   ImPlot_GetPlotLimits,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
-  ImPlotMarker_Circle,
-  ImPlotMarker_None,
   igBegin,
   igEnd,
   igRender,
   igSetNextWindowPos,
   igSetNextWindowSize,
   pv_error,
-  pv_plot_series,
-  pv_plot_shaded,
   pv_png_write,
   pv_surface_begin,
   pv_surface_capture,
   pv_surface_close,
   pv_surface_open,
 } from "maligator:ffi/visualize";
+import { Plots } from "../../src/ui/plots.ts";
+import { setTheme } from "../../src/ui/theme.ts";
 
 function expect(value, message) {
   if (!value) throw new Error(message);
@@ -36,9 +34,12 @@ const x = new Float64Array([0, 1, 2]),
   y = new Float64Array([3, 6, 12]);
 const pixels = new Uint8Array(width * height * 4);
 const kinds = ["line", "bar", "scatter", "area"];
+const themes = ["light", "dark", "light"];
 checked(pv_surface_open(0));
+const plots = new Plots();
 try {
-  for (const kind of kinds) {
+  for (const [index, kind] of kinds.entries()) {
+    setTheme(themes[index % themes.length]);
     for (let frame = 0; frame < 3; frame++) {
       checked(pv_surface_begin(width, height, 1));
       igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
@@ -50,21 +51,7 @@ try {
         "Plot did not begin",
       );
       ImPlot_SetupAxes("", "", 0, 0);
-      if (kind === "area")
-        pv_plot_shaded("Observed values", x, y, 0, { ...color, w: 0.13 });
-      pv_plot_series(
-        "Observed values",
-        x,
-        y,
-        kind === "bar" ? 1 : kind === "scatter" ? 2 : 0,
-        {
-          color,
-          line_weight: 2.5,
-          marker_size: 4,
-          marker: kind === "scatter" ? ImPlotMarker_Circle : ImPlotMarker_None,
-          bar_width: 0.8,
-        },
-      );
+      plots.draw("Observed values", x, y, kind, color);
       const legend = ImPlot_GetLastItemColor();
       expect(
         Object.keys(color).every(
@@ -84,6 +71,7 @@ try {
   }
   checked(pv_surface_capture(width, height, pixels));
 } finally {
+  plots.dispose();
   pv_surface_close();
 }
 checked(

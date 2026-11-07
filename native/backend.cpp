@@ -1,11 +1,13 @@
-#include "visualize.h"
 #include "gpu.hpp"
 #include "imgui_impl_sdl3.h"
 #include "implot.h"
+#include "imgui_internal.h"
+#include "implot_internal.h"
+#include "cimplot.h"
+#include "visualize.h"
 #include <algorithm>
 #include <cstring>
 #include <memory>
-#include <cfloat>
 
 struct PVImage { std::unique_ptr<pv::Image> image; };
 
@@ -69,28 +71,9 @@ extern "C" PVSize pv_font_metrics(ImFont *font, float size) {
   float scale = size / baked->Size;
   return {baked->Ascent * scale, baked->Descent * scale};
 }
-extern "C" PVTextLine pv_text_line(const char *text, float wrap_width) {
-  auto font = ImGui::GetFont();
-  float size = ImGui::GetFontSize();
-  const char *end = text + std::strlen(text);
-  const char *line = static_cast<const char *>(std::memchr(text, '\n', end - text));
-  if (!line) line = end;
-  if (wrap_width > 0) {
-    auto wrapped = font->CalcWordWrapPosition(size, text, end, wrap_width);
-    if (wrapped < line) line = wrapped;
-  }
-  if (line == text && line < end && *line != '\n') {
-    ++line;
-    while (line < end && (static_cast<unsigned char>(*line) & 0xc0) == 0x80) ++line;
-  }
-  const char *next = line;
-  if (next < end && *next == '\n') ++next;
-  else if (wrap_width > 0) {
-    while (next < end && (*next == ' ' || *next == '\t')) ++next;
-    if (next < end && *next == '\n') ++next;
-  }
-  return {static_cast<int>(line - text), static_cast<int>(next - text),
-          font->CalcTextSizeA(size, FLT_MAX, 0, text, line).x};
+extern "C" const char *pv_text_wrap(const char *text, float wrap_width) {
+  return ImGui::GetFont()->CalcWordWrapPosition(
+      ImGui::GetFontSize(), text, text + std::strlen(text), wrap_width);
 }
 
 extern "C" int pv_surface_begin(int width, int height, int scale) {
@@ -156,31 +139,20 @@ extern "C" PVSortSpec pv_table_sort(int index) {
   return {specs->SpecsCount, spec.ColumnIndex, static_cast<int>(spec.SortDirection)};
 }
 
+extern "C" PVPlotSpec pv_plot_spec(void) {
+  const ImPlotSpec s;
+  auto color = [](ImVec4 c) { return ImVec4_c{c.x, c.y, c.z, c.w}; };
+  return {color(s.LineColor), s.LineColors, s.LineWeight,
+          color(s.FillColor), s.FillColors, s.FillAlpha,
+          s.Marker, s.MarkerSize, s.MarkerSizes,
+          color(s.MarkerLineColor), s.MarkerLineColors,
+          color(s.MarkerFillColor), s.MarkerFillColors,
+          s.Size, s.Offset, s.Stride, s.Flags};
+}
+
 extern "C" void pv_plot_tick(int axis, double value, const char *label) {
   ImPlot::SetupAxisTicks(axis, &value, 1, &label, false);
 }
-
-extern "C" void pv_plot_series(const char *label, const double *x, const double *y,
-                               int count, int kind, PVPlotStyle style) {
-  ImPlotSpec spec;
-  spec.LineColor = spec.FillColor = spec.MarkerLineColor = spec.MarkerFillColor =
-      {style.color.x, style.color.y, style.color.z, style.color.w};
-  spec.LineWeight = style.line_weight;
-  spec.Marker = style.marker;
-  spec.MarkerSize = style.marker_size;
-  if (kind == 1) ImPlot::PlotBars(label, x, y, count, style.bar_width, spec);
-  else if (kind == 2) ImPlot::PlotScatter(label, x, y, count, spec);
-  else ImPlot::PlotLine(label, x, y, count, spec);
-}
-
-extern "C" void pv_plot_shaded(const char *label, const double *x, const double *y,
-                               int count, double reference, PVColor color) {
-  ImPlotSpec spec;
-  spec.FillColor = {color.x, color.y, color.z, color.w};
-  ImPlot::PlotShaded(label, x, y, count, reference, spec);
-}
-
-extern "C" void pv_open_url(const char *url) { SDL_OpenURL(url); }
 
 extern "C" int pv_slider_double(const char *label, double *value, double min, double max) {
   return ImGui::SliderScalar(label, ImGuiDataType_Double, value, &min, &max, "%.6g", ImGuiSliderFlags_AlwaysClamp);

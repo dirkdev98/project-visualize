@@ -15,6 +15,7 @@ import {
   igGetItemRectMax,
   igRender,
   igSetClipboardText,
+  igSetKeyboardFocusHere,
   igSetNextWindowPos,
   igSetNextWindowSize,
   igSetWindowFocus_Str,
@@ -24,7 +25,7 @@ import {
   pv_surface_close,
   pv_surface_open,
 } from "maligator:ffi/visualize";
-import { checked, text } from "../../src/ui/primitives.ts";
+import { checked, input, inputBuffer, text } from "../../src/ui/primitives.ts";
 import { RichText } from "../../src/ui/richtext.ts";
 import { TextSelection, withTextSelection } from "../../src/ui/selection.ts";
 import { initializeTheme, popTheme, pushTheme } from "../../src/ui/theme.ts";
@@ -38,6 +39,8 @@ try {
   const io = igGetIO_Nil();
   const selection = new TextSelection();
   const rich = new RichText(() => 0);
+  const query = inputBuffer("fictional query");
+  let focusInput = false;
   let first, last, lastEnd;
   function frame() {
     checked(pv_surface_begin(481, 160, 1));
@@ -61,6 +64,11 @@ try {
         "javascript",
         false,
       );
+      if (focusInput) {
+        igSetKeyboardFocusHere(0);
+        focusInput = false;
+      }
+      input("##query", "Find evidence", query);
     });
     igEnd();
     popTheme();
@@ -104,11 +112,31 @@ try {
       "café Ω and satellites\nA formatted sentence.\nFinal evidence",
     "Reverse selection did not preserve reading order",
   );
+  mouse(first);
+  mouse(first, true);
+  mouse(first, false);
+  mouse(first, true);
+  mouse(first, false);
+  igSetClipboardText("Before word selection");
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText() === "café",
+    "Double click did not select the Unicode word",
+  );
   chord(ImGuiKey_A);
   chord(ImGuiKey_C);
   expect(
     igGetClipboardText().endsWith('const label = "café Ω";\n\treturn label;\n'),
     `Select all copied ${JSON.stringify(igGetClipboardText())}`,
+  );
+  focusInput = true;
+  frame();
+  frame();
+  chord(ImGuiKey_A);
+  chord(ImGuiKey_C);
+  expect(
+    igGetClipboardText() === "fictional query",
+    "Document selection intercepted an editable control",
   );
   const pixels = new Uint8Array(481 * 160 * 4);
   checked(pv_surface_capture(481, 160, pixels));
@@ -122,6 +150,7 @@ try {
 console.log(
   JSON.stringify({
     ok: true,
-    selection: "forward, reverse, Unicode, formatted text, select all",
+    selection:
+      "forward, reverse, Unicode words, formatted text, highlighted code, select all, input ownership",
   }),
 );

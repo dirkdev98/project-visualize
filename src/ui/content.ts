@@ -45,8 +45,6 @@ import {
   ImPlotLocation_East,
   ImPlotLocation_NorthWest,
   ImPlotLocation_South,
-  ImPlotMarker_Circle,
-  ImPlotMarker_None,
   igBeginCombo,
   igBeginDisabled,
   igBeginTable,
@@ -100,8 +98,6 @@ import {
   pv_image_draw,
   pv_image_load,
   pv_image_size,
-  pv_plot_series,
-  pv_plot_shaded,
   pv_plot_tick,
   pv_slider_double,
   pv_table_sort,
@@ -138,6 +134,7 @@ import {
   keepTogether,
 } from "./layout.ts";
 import { formatNumber } from "./number-format.ts";
+import { Plots } from "./plots.ts";
 import {
   available,
   captureWrappedText,
@@ -229,6 +226,7 @@ export class DocumentRenderer {
   private cellWidths = new Map<string, number>();
   private orders = new Map<string, { key: string; indices: number[] }>();
   private plots = new Map<ChartBlock, PlotSeries[]>();
+  private plotDrawing = new Plots();
   private barPress: { key: string; revision: number; value: Cell } | undefined;
   private rich: RichText;
   private selection = new TextSelection();
@@ -251,6 +249,7 @@ export class DocumentRenderer {
     for (const image of this.images.values()) pv_image_destroy(image);
     this.images.clear();
     this.plots.clear();
+    this.plotDrawing.dispose();
     this.orders.clear();
     this.searches.clear();
     this.tableCells.clear();
@@ -1095,24 +1094,13 @@ export class DocumentRenderer {
       this.plots.set(value, data);
     }
     for (let i = 0; i < series.length; i++) {
-      if (value.kind === "area")
-        pv_plot_shaded(series[i].name, data[i].x, data[i].y, 0, {
-          ...seriesColors[i % seriesColors.length],
-          w: currentTheme() === "dark" ? 0.22 : 0.13,
-        });
-      pv_plot_series(
+      this.plotDrawing.draw(
         series[i].name,
         data[i].x,
         data[i].y,
-        value.kind === "bar" ? 1 : value.kind === "scatter" ? 2 : 0,
-        {
-          color: seriesColors[i % seriesColors.length],
-          line_weight: 2.5,
-          marker_size: 4,
-          marker:
-            value.kind === "scatter" ? ImPlotMarker_Circle : ImPlotMarker_None,
-          bar_width: 0.8 / series.length,
-        },
+        value.kind,
+        seriesColors[i % seriesColors.length],
+        0.8 / series.length,
       );
     }
     if (!exporting) {

@@ -35,7 +35,7 @@ import {
   igTableNextColumn,
   igTableNextRow,
   igUnindent,
-  pv_open_url,
+  SDL_OpenURL,
 } from "maligator:ffi/visualize";
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
@@ -269,7 +269,7 @@ export class RichText {
               !draggingText() &&
               /^(https?:|mailto:)/.test(run.link)
             )
-              pv_open_url(run.link);
+              SDL_OpenURL(run.link);
             if (igIsItemHovered(0)) {
               igSetMouseCursor(ImGuiMouseCursor_Hand);
               igBeginTooltip();

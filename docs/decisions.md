@@ -1,5 +1,38 @@
 # Decisions
 
+## 2026-11-07 direct plot and text bindings
+
+- Move chart dispatch, styling and line-break assembly out of C++. Call the generated
+  line, bar, scatter and shaded-series bindings directly from Maligator JS, and use
+  the native font measurement binding for exact advances. Open links through SDL's
+  generated binding rather than a project wrapper.
+- Cache copied plot styles per renderer and dispose them on theme changes or renderer
+  teardown. Keep a native default-value factory because the library's constructor
+  returns pointer storage while its plot APIs consume copied values. Do not pass
+  those copied values to the library's pointer-deleting destructor.
+- Retain a small wrap adapter for the required pointer to the end of the same input
+  string. Passing null to the direct native wrap API failed the differential check;
+  the bounded adapter preserves exact wrapping while JS handles line breaks,
+  whitespace and Unicode progress. The replacement matches the previous renderer's
+  advances and consumed text across the font and width matrix.
+- Keep GPU resource lifetime, foreign-thread errors, image decoding and platform
+  event delivery native. A complete migration needs explicit ownership for nested
+  descriptors and callbacks, plus binding support for the remaining pointer shapes.
+  This slice establishes behavior parity without an accepted performance-win claim.
+- Confirm the GPU boundary with the installed binding inspector: caller-owned
+  adapter and device callback records are pointers, while the corresponding WebGPU
+  request functions require records by value. Keep this as an upstream binding gap
+  rather than adding casts or exposing unowned callback storage.
+
+Keep track of;
+
+- Support an end pointer derived from an input string so the wrap adapter can go.
+- Support constructors returning pointer storage for types also passed by value,
+  eliminating the plot default-value factory.
+- Recheck typed views over scalar void pointers, pointer-record properties and
+  count expressions derived from dimensions before removing the slider, sort,
+  font/image and pixel-buffer adapters. Preserve main-thread resource teardown.
+
 ## 2026-11-07 remote image snapshots
 
 - Accept HTTP(S) image sources alongside local PNG/JPEG assets. Resolve them in

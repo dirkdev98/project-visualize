@@ -1,6 +1,11 @@
 #ifndef VISUALIZE_H
 #define VISUALIZE_H
 
+#ifdef CIMGUI_DEFINE_ENUMS_AND_STRUCTS
+#include "cimplot.h"
+#endif
+typedef struct ImPlotSpec_c PVPlotSpec;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,13 +13,6 @@ extern "C" {
 typedef struct { float x, y; } PVSize;
 typedef struct { float x, y, z, w; } PVColor;
 typedef struct { int count, column, direction; } PVSortSpec;
-typedef struct { int length, consumed; float width; } PVTextLine;
-typedef struct {
-  PVColor color;
-  float line_weight, marker_size;
-  int marker;
-  double bar_width;
-} PVPlotStyle;
 typedef struct PVImage PVImage;
 typedef struct ImFontAtlas ImFontAtlas;
 typedef struct ImFont ImFont;
@@ -37,7 +35,10 @@ void pv_surface_close(void);
 const char *pv_error(void);
 ImFontAtlas *pv_font_atlas(void);
 PVSize pv_font_metrics(ImFont *font, float size);
-PVTextLine pv_text_line(const char *text, float wrap_width);
+/* The wrap API requires an end pointer into text; FFI copies the returned suffix. */
+const char *pv_text_wrap(const char *text, float wrap_width);
+/* Return copied defaults because the library constructor returns pointer storage. */
+PVPlotSpec pv_plot_spec(void);
 PVImage *pv_image_load(const char *file);
 PVSize pv_image_size(PVImage *image);
 void pv_image_draw(PVImage *image, PVSize position, PVSize size,
@@ -45,11 +46,6 @@ void pv_image_draw(PVImage *image, PVSize position, PVSize size,
 void pv_image_destroy(PVImage *image);
 PVSortSpec pv_table_sort(int index);
 void pv_plot_tick(int axis, double value, const char *label);
-void pv_plot_series(const char *label, const double *x, const double *y,
-                    int count, int kind, PVPlotStyle style);
-void pv_plot_shaded(const char *label, const double *x, const double *y,
-                    int count, double reference, PVColor color);
-void pv_open_url(const char *url);
 int pv_slider_double(const char *label, double *value, double min, double max);
 
 #ifdef __cplusplus

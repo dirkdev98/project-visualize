@@ -48,7 +48,6 @@ import {
   igSpacing,
   igTableNextColumn,
   igTableNextRow,
-  pv_open_url,
   pv_surface_begin,
   pv_surface_close,
   pv_surface_input,
@@ -56,6 +55,7 @@ import {
   pv_surface_present,
   pv_surface_size,
   pv_surface_wait,
+  SDL_OpenURL,
 } from "maligator:ffi/visualize";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -410,7 +410,7 @@ export function openViewer(root: string, options: Options) {
         igSetClipboardText(join(selected.directory, "snapshot.png"));
       if (igIsItemHovered(0)) tooltip("Copy this revision's saved PNG path.");
       if (toolbarButton("Saved PDF"))
-        pv_open_url(
+        SDL_OpenURL(
           pathToFileURL(join(selected.directory, "snapshot.pdf")).href,
         );
       if (renderer) {

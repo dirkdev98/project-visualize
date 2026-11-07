@@ -9,7 +9,7 @@ assets and PNG/PDF snapshots together.
 Use macOS with Apple command-line tools, Node.js and Homebrew:
 
 ```sh
-brew install cmake sdl3
+brew install cmake pkgconf sdl3
 npm ci
 npm run build
 ```
@@ -95,7 +95,8 @@ inconclusive.
 
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings
-connect it to Dear ImGui and ImPlot. The small backend in
+connect it to Dear ImGui, ImPlot and SDL. Chart styles and line wrapping are composed
+in JS; the native adapters cover pointer-dependent operations. The small backend in
 [native/visualize.h](native/visualize.h) supplies window, font, image and GPU operations.
 The viewer and exports share the TS content renderer.
 

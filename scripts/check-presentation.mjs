@@ -22,6 +22,7 @@ try {
       "-std=c++20",
       `-I${join(root, "native")}`,
       `-I${join(root, ".cache/deps/cimgui")}`,
+      `-I${join(root, ".cache/deps/cimplot")}`,
       `-I${join(sdl, "include")}`,
       join(root, "tests/native/presentation.cpp"),
       "-o",

@@ -1,9 +1,10 @@
 import { defineLibrary } from "@maligator/cli";
 
 export default defineLibrary({
-  headers: ["visualize.h", "cimgui.h", "cimplot.h"],
+  headers: ["visualize.h", "cimgui.h", "cimplot.h", "SDL3/SDL_misc.h"],
   find: [
     {
+      pkgConfig: "sdl3",
       includeDirs: [".", "../.cache/deps/cimgui", "../.cache/deps/cimplot"],
       defines: { CIMGUI_DEFINE_ENUMS_AND_STRUCTS: "1" },
       libraryDirs: ["../.cache/native"],
@@ -16,9 +17,40 @@ export default defineLibrary({
     ImFontAtlas: { handle: {} },
     ImDrawList: { handle: {} },
     ImDrawListSplitter: { handle: { destroy: "ImDrawListSplitter_destroy" } },
+    ImPlotSpec_c: { handle: {} },
     PVImage: { handle: { destroy: "pv_image_destroy" } },
   },
   functions: {
+    ImPlot_PlotLine_doublePtrdoublePtr: {
+      params: {
+        xs: { array: { length: "count" } },
+        ys: { array: { length: "count" } },
+      },
+    },
+    ImPlot_PlotBars_doublePtrdoublePtr: {
+      params: {
+        xs: { array: { length: "count" } },
+        ys: { array: { length: "count" } },
+      },
+    },
+    ImPlot_PlotScatter_doublePtrdoublePtr: {
+      params: {
+        xs: { array: { length: "count" } },
+        ys: { array: { length: "count" } },
+      },
+    },
+    ImPlot_PlotShaded_doublePtrdoublePtrInt: {
+      params: {
+        xs: { array: { length: "count" } },
+        ys: { array: { length: "count" } },
+      },
+    },
+    ImFont_CalcTextSizeA: {
+      params: {
+        text_end: { constant: "NULL" },
+        out_remaining: { constant: "NULL" },
+      },
+    },
     igCheckbox: { params: { v: { inout: true } } },
     pv_slider_double: { params: { value: { inout: true } } },
     igBegin: { params: { p_open: { constant: "NULL" } } },
@@ -62,17 +94,5 @@ export default defineLibrary({
       params: { pixels: { bytes: { length: "byte_count" } } },
     },
     pv_png_write: { params: { bytes: { bytes: { length: "byte_count" } } } },
-    pv_plot_series: {
-      params: {
-        x: { array: { length: "count" } },
-        y: { array: { length: "count" } },
-      },
-    },
-    pv_plot_shaded: {
-      params: {
-        x: { array: { length: "count" } },
-        y: { array: { length: "count" } },
-      },
-    },
   },
 });
