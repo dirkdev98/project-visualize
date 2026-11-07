@@ -1,5 +1,21 @@
 # Decisions
 
+## 2026-11-07 numeric table presentation
+
+- Align numeric columns to the right and allow an explicit alignment override.
+  Share decimal, prefix and suffix formatting with metrics while retaining raw cell
+  types for sorting, linked calculations and saved data. Search both visible and raw
+  values so either representation finds the evidence.
+- Cache display strings and measured numeric widths for the current resolved view.
+  Clear them on parameter changes and renderer disposal, keeping formatting and
+  measurement out of repeated frames without retaining prior selections.
+- Retain this for readability without a speed claim. Five interleaved fresh-process
+  samples per build preserve document height and selectable PDF content; intentional
+  alignment changes the raster. Median dense-table export time is 936 versus 922 ms
+  and peak RSS is 172.3 versus 172.9 MiB, with the small control and notebook also
+  effectively unchanged. These indicative AC laptop measurements cover export cost,
+  not native idle footprint.
+
 ## 2026-11-07 viewer library and responsive controls
 
 - Show artifact IDs beneath compact titles so equally named artifacts remain distinct.

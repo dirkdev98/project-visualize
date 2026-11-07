@@ -98,6 +98,20 @@ Tables use `columns` with a `key` and `label`, plus rows keyed by those column n
 Cells hold text, numbers, booleans or null. Sort and filter in the viewer; exports
 include all source rows in their saved order.
 
+Numeric columns align to the right. Set a column's `align` to `left` or `right` to
+override this, and use `format` for decimal places, a prefix or a suffix:
+
+```json
+{
+  "key": "availability",
+  "label": "Availability",
+  "format": { "decimals": 1, "suffix": "%" }
+}
+```
+
+Formatting applies to numeric cells. Sorting and calculations use the original
+values; table search matches both the visible formatting and the original values.
+
 Metrics accept numeric or text values. Use `decimals`, `prefix` and `suffix` to format
 numeric values without changing the underlying data.
 

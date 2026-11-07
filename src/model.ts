@@ -30,6 +30,17 @@ export interface HeatmapSource {
   field?: string;
   aggregate?: Aggregate;
 }
+export interface NumberFormat {
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+}
+export interface TableColumn {
+  key: string;
+  label: string;
+  align?: "left" | "right";
+  format?: NumberFormat;
+}
 export interface ControlBlock extends BlockStyle {
   type: "control";
   id: string;
@@ -72,13 +83,11 @@ export type Block = BlockStyle &
         type: "metric";
         label: string;
         detail?: string;
-        decimals?: number;
-        prefix?: string;
-        suffix?: string;
-      } & (
-        | { value: string | number; source?: never }
-        | { source: MetricSource; value?: never }
-      ))
+      } & NumberFormat &
+        (
+          | { value: string | number; source?: never }
+          | { source: MetricSource; value?: never }
+        ))
     | ControlBlock
     | { type: "progress"; label: string; value: number; detail?: string }
     | { type: "badge"; label: string }
@@ -121,7 +130,7 @@ export type Block = BlockStyle &
       ))
     | ({
         type: "table";
-        columns: { key: string; label: string }[];
+        columns: TableColumn[];
       } & (
         | { rows: DataRow[]; dataset?: never }
         | { dataset: string; rows?: never }
@@ -197,6 +206,16 @@ function scalar(value: unknown, location: string) {
     !(typeof value === "number" && Number.isFinite(value))
   )
     fail(location, "expected text, a finite number, boolean or null");
+}
+
+function numberFormat(value: ObjectValue, location: string) {
+  if (value.decimals !== undefined) {
+    number(value.decimals, `${location}.decimals`, 0, 8);
+    if (!Number.isInteger(value.decimals))
+      fail(`${location}.decimals`, "expected an integer");
+  }
+  for (const key of ["prefix", "suffix"])
+    if (value[key] !== undefined) string(value[key], `${location}.${key}`, 80);
 }
 
 export function slug(value: string, label: string): string {
@@ -363,13 +382,7 @@ export function validate(input: unknown): Artifact {
         break;
       case "metric": {
         string(block.label, field("label"), 240);
-        if (block.decimals !== undefined) {
-          number(block.decimals, field("decimals"), 0, 8);
-          if (!Number.isInteger(block.decimals))
-            fail(field("decimals"), "expected an integer");
-        }
-        for (const key of ["prefix", "suffix"])
-          if (block[key] !== undefined) string(block[key], field(key), 80);
+        numberFormat(block, location);
         if ((block.value === undefined) === (block.source === undefined))
           fail(location, "supply either value or source");
         if (block.source !== undefined) {
@@ -694,6 +707,18 @@ export function validate(input: unknown): Artifact {
             fail(field("columns"), "column keys must be unique and nonempty");
           keys.add(key);
           string(column.label, field("column.label"), 240);
+          const columnLocation = `${field("columns")}[${index}]`;
+          if (
+            column.align !== undefined &&
+            column.align !== "left" &&
+            column.align !== "right"
+          )
+            fail(`${columnLocation}.align`, "expected left or right");
+          if (column.format !== undefined)
+            numberFormat(
+              object(column.format, `${columnLocation}.format`),
+              `${columnLocation}.format`,
+            );
         });
         if ((block.rows === undefined) === (block.dataset === undefined))
           fail(location, "supply either rows or dataset");

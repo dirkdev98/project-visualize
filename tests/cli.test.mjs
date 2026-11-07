@@ -761,6 +761,78 @@ test("an artifact larger than the export surface fails without truncating it", (
   assert.deepEqual(ok(["list"]).versions, []);
 });
 
+test("table number formats preserve raw values and nonnumeric cells", (t) => {
+  const { render, ok } = workspace(t);
+  const rows = [
+    { station: "North", amount: 1234.5 },
+    { station: "South", amount: -28 },
+    { station: "West", amount: "Pending" },
+    { station: "East", amount: null },
+    { station: "Central", amount: true },
+  ];
+  const document = {
+    ...minimal(),
+    body: [
+      {
+        type: "table",
+        columns: [
+          { key: "station", label: "Station" },
+          {
+            key: "amount",
+            label: "Amount",
+            align: "right",
+            format: { decimals: 2, prefix: "$", suffix: " credits" },
+          },
+        ],
+        rows,
+      },
+    ],
+  };
+  const entry = render(document);
+  const text = pdfTextPages(entry.pdf).join(" ");
+  for (const value of [
+    "$1,234.50 credits",
+    "$-28.00 credits",
+    "Pending",
+    "true",
+  ])
+    assert.ok(text.includes(value), value);
+  assert.ok(!text.includes("$Pending"));
+  assert.ok(!text.includes("$true"));
+  assert.ok(!text.includes("$null"));
+  assert.deepEqual(inspectView(ok).body[0].rows, rows);
+  assert.deepEqual(JSON.parse(readFileSync(entry.document, "utf8")), document);
+});
+
+test("invalid table presentation options fail before publishing", (t) => {
+  const { run, ok } = workspace(t);
+  for (const options of [
+    { align: "center" },
+    { format: null },
+    { format: { decimals: 1.5 } },
+    { format: { decimals: 9 } },
+    { format: { prefix: 1 } },
+    { format: { suffix: "x".repeat(81) } },
+  ]) {
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      {
+        ...minimal(),
+        body: [
+          {
+            type: "table",
+            columns: [{ key: "amount", label: "Amount", ...options }],
+            rows: [{ amount: 1 }],
+          },
+        ],
+      },
+    );
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error, /columns\[0\]/);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 test("missing table cells may use names shared with object methods", (t) => {
   const { render } = workspace(t);
   const document = {

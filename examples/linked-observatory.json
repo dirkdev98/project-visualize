@@ -355,11 +355,13 @@
             },
             {
               "key": "observations",
-              "label": "Accepted"
+              "label": "Accepted",
+              "format": { "decimals": 0 }
             },
             {
               "key": "availability",
-              "label": "Availability (%)"
+              "label": "Availability",
+              "format": { "decimals": 1, "suffix": "%" }
             },
             {
               "key": "active",

@@ -130,6 +130,7 @@ import type {
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import { layoutImage } from "./image-layout.ts";
 import { captureTable, currentCapture, keepTogether } from "./layout.ts";
+import { formatNumber } from "./number-format.ts";
 import {
   available,
   captureWrappedText,
@@ -213,6 +214,11 @@ export class DocumentRenderer {
   readonly state: DocumentState;
   private images = new Map<string, PVImage>();
   private searches = new Map<string, Int8Array>();
+  private tableCells = new Map<
+    TableBlock,
+    { values: string[][]; right: boolean[] }
+  >();
+  private cellWidths = new Map<string, number>();
   private orders = new Map<string, { key: string; indices: number[] }>();
   private plots = new Map<ChartBlock, PlotSeries[]>();
   private barPress: { key: string; revision: number; value: Cell } | undefined;
@@ -238,6 +244,8 @@ export class DocumentRenderer {
     this.plots.clear();
     this.orders.clear();
     this.searches.clear();
+    this.tableCells.clear();
+    this.cellWidths.clear();
     this.rich.dispose();
   }
   private image(
@@ -320,6 +328,8 @@ export class DocumentRenderer {
       this.viewRevision = this.state.revision;
       this.orders.clear();
       this.plots.clear();
+      this.tableCells.clear();
+      this.cellWidths.clear();
     }
     const headerTop = igGetCursorScreenPos().y;
     text(
@@ -371,14 +381,8 @@ export class DocumentRenderer {
         panel(() => {
           text(value.label, 13, "bold", palette.muted);
           let display = scalar(value.value);
-          if (typeof value.value === "number") {
-            const number =
-              value.decimals === undefined
-                ? String(value.value)
-                : value.value.toFixed(value.decimals);
-            const [integer, fraction] = number.split(".");
-            display = `${value.prefix ?? ""}${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction === undefined ? "" : `.${fraction}`}${value.suffix ?? ""}`;
-          }
+          if (typeof value.value === "number")
+            display = formatNumber(value.value, value);
           text(display, 36, "bold");
           text(value.detail ?? "", 15, "regular", tone(value.tone));
         });
@@ -654,6 +658,29 @@ export class DocumentRenderer {
     this.state.tables[key] ??= { query: "" };
     const state = this.state.tables[key];
     const rows = value.rows ?? [];
+    let cells = this.tableCells.get(value);
+    if (!cells) {
+      const values = rows.map((row) =>
+        value.columns.map((column) => {
+          const raw = cell(row, column.key);
+          return typeof raw === "number" && column.format
+            ? formatNumber(raw, column.format)
+            : scalar(raw);
+        }),
+      );
+      const right = value.columns.map((column) =>
+        column.align !== undefined
+          ? column.align === "right"
+          : rows.some((row) => typeof cell(row, column.key) === "number") &&
+            rows.every(
+              (row) =>
+                cell(row, column.key) === null ||
+                typeof cell(row, column.key) === "number",
+            ),
+      );
+      cells = { values, right };
+      this.tableCells.set(value, cells);
+    }
     let buffer = this.searches.get(key);
     if (!buffer) {
       buffer = inputBuffer(state.query);
@@ -697,11 +724,13 @@ export class DocumentRenderer {
       const signature = JSON.stringify([query, sort]);
       let cached = this.orders.get(key);
       if (!cached || cached.key !== signature) {
+        const formatted = cells.values;
         const indices = rows
           .map((_, i) => i)
           .filter(
             (i) =>
               !query ||
+              formatted[i].join(" ").toLowerCase().includes(query) ||
               value.columns
                 .map((c) => scalar(cell(rows[i], c.key)))
                 .join(" ")
@@ -728,9 +757,26 @@ export class DocumentRenderer {
       for (const index of cached.indices) {
         igTableNextRow(0, 0);
         if (capture) rowStarts.push(igGetCursorScreenPos().y);
-        for (const column of value.columns) {
+        for (let column = 0; column < value.columns.length; column++) {
           igTableNextColumn();
-          text(scalar(cell(rows[index], column.key)), 16);
+          const display = cells.values[index][column];
+          if (cells.right[column] && display) {
+            let width = this.cellWidths.get(display);
+            if (width === undefined) {
+              const face = fonts.regular;
+              if (!face) throw new Error("Fonts are not initialized");
+              igPushFont(face, 16);
+              width = igCalcTextSize(display, false, -1).x;
+              igPopFont();
+              this.cellWidths.set(display, width);
+            }
+            const position = igGetCursorScreenPos();
+            igSetCursorScreenPos({
+              x: position.x + Math.max(0, available() - width),
+              y: position.y,
+            });
+          }
+          text(display, 16);
         }
       }
       igEndTable();
