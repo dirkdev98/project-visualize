@@ -61,6 +61,10 @@ Native chart labels remain rasterized. Documents describe
 content and layout; arbitrary HTML, scripts and live data connectors are outside the
 artifact format.
 
+The library shows artifact IDs beneath their titles. Choose a revision in the viewer's
+version menu to keep that snapshot open, or choose **Follow latest** to display new
+revisions as agents save them. Context stacks below the canvas in a narrow window.
+
 ## Development
 
 ```sh

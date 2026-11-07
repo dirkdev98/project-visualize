@@ -151,10 +151,12 @@ function widgetColors(mode: Theme): [number, Color][] {
   ];
 }
 let colors = widgetColors("light");
+export const framePadding = { x: 10, y: 7 };
+export const itemSpacing = { x: 12, y: 12 };
 const vectors: [number, { x: number; y: number }][] = [
   [ImGuiStyleVar_WindowPadding, { x: 28, y: 28 }],
-  [ImGuiStyleVar_FramePadding, { x: 10, y: 7 }],
-  [ImGuiStyleVar_ItemSpacing, { x: 12, y: 12 }],
+  [ImGuiStyleVar_FramePadding, framePadding],
+  [ImGuiStyleVar_ItemSpacing, itemSpacing],
   [ImGuiStyleVar_CellPadding, { x: 12, y: 10 }],
 ];
 const scalars: [number, number][] = [

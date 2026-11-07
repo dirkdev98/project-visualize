@@ -1,4 +1,5 @@
 import {
+  ImDrawList_AddText_FontPtr,
   ImGuiChildFlags_Borders,
   ImGuiInputFlags_RouteGlobal,
   ImGuiKey_K,
@@ -13,12 +14,20 @@ import {
   igBeginCombo,
   igBeginGroup,
   igButton,
+  igCalcTextSize,
   igCollapsingHeader_TreeNodeFlags,
   igEnd,
   igEndChild,
   igEndCombo,
   igEndGroup,
+  igGetContentRegionAvail,
+  igGetCursorScreenPos,
+  igGetItemRectMax,
+  igGetWindowDrawList,
+  igIsItemHovered,
+  igPopFont,
   igPopID,
+  igPushFont,
   igPushID_Str,
   igRender,
   igSameLine,
@@ -56,16 +65,70 @@ import {
   inputValue,
   releasePanels,
   text,
+  tooltip,
 } from "./ui/primitives.ts";
 import {
   currentTheme,
+  type Font,
   fonts,
+  framePadding,
   initializeTheme,
+  itemSpacing,
+  packed,
   palette,
   popTheme,
   pushTheme,
   setTheme,
 } from "./ui/theme.ts";
+
+function compactLabel(
+  value: string,
+  width: number,
+  size: number,
+  font: Font,
+): string {
+  const face = fonts[font];
+  if (!face) throw new Error("Fonts are not initialized");
+  const label = value.replace(/\s+/g, " ");
+  igPushFont(face, size);
+  try {
+    if (igCalcTextSize(label, false, -1).x <= width) return label;
+    const room = width - igCalcTextSize("…", false, -1).x;
+    if (room < 0) return "";
+    const points = Array.from(label);
+    let low = 0,
+      high = points.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      if (igCalcTextSize(points.slice(0, mid).join(""), false, -1).x <= room)
+        low = mid;
+      else high = mid - 1;
+    }
+    return `${points.slice(0, low).join("")}…`;
+  } finally {
+    igPopFont();
+  }
+}
+function revisionDate(entry: Entry, full = false): string {
+  const date = new Date(entry.createdAt);
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const time = [date.getHours(), date.getMinutes()];
+  if (full) time.push(date.getSeconds());
+  return `${date.getDate()} ${months[date.getMonth()]}${full ? ` ${date.getFullYear()}` : ""} · ${time.map((part) => String(part).padStart(2, "0")).join(":")}`;
+}
 
 interface Options {
   project?: string;
@@ -191,7 +254,7 @@ export function openViewer(root: string, options: Options) {
     if (focusSearch) igSetKeyboardFocusHere(0);
     input("##find", "Find an artifact…", search);
     igSpacing();
-    const query = inputValue(search).toLowerCase();
+    const query = inputValue(search).trim().toLowerCase();
     const groups = new Map<string, Map<string, Entry>>();
     for (const entry of entries) {
       let group = groups.get(entry.project);
@@ -201,7 +264,22 @@ export function openViewer(root: string, options: Options) {
       }
       if (!group.has(entry.artifact)) group.set(entry.artifact, entry);
     }
+    let matches = 0;
     for (const project of [...groups.keys()].sort()) {
+      const artifacts = groups.get(project);
+      if (!artifacts) continue;
+      const visible = [...artifacts.keys()].sort().filter((artifact) => {
+        const entry = artifacts.get(artifact);
+        return (
+          entry &&
+          (!query ||
+            `${project} ${artifact} ${entry.title}`
+              .toLowerCase()
+              .includes(query))
+        );
+      });
+      if (!visible.length) continue;
+      matches += visible.length;
       if (
         !igCollapsingHeader_TreeNodeFlags(
           project,
@@ -209,29 +287,43 @@ export function openViewer(root: string, options: Options) {
         )
       )
         continue;
-      const artifacts = groups.get(project);
-      if (!artifacts) continue;
-      for (const artifact of [...artifacts.keys()].sort()) {
+      for (const artifact of visible) {
         const entry = artifacts.get(artifact);
-        if (
-          !entry ||
-          (query &&
-            !`${project} ${artifact} ${entry.title}`
-              .toLowerCase()
-              .includes(query))
-        )
-          continue;
+        if (!entry) continue;
         const active =
           selected?.project === project && selected?.artifact === artifact;
-        if (
-          igSelectable_Bool(
-            `${entry.title}##${project}/${artifact}`,
-            active,
-            0,
-            { x: 0, y: 0 },
-          )
-        )
-          select(entry, true);
+        const start = igGetCursorScreenPos(),
+          width = available();
+        const clicked = igSelectable_Bool(
+          `##${project}/${artifact}`,
+          active,
+          0,
+          { x: 0, y: 52 },
+        );
+        const hovered = igIsItemHovered(0),
+          draw = igGetWindowDrawList();
+        if (!draw || !fonts.bold || !fonts.regular)
+          throw new Error("Cannot access the library canvas");
+        ImDrawList_AddText_FontPtr(
+          draw,
+          fonts.bold,
+          16,
+          { x: start.x + 8, y: start.y + 5 },
+          packed(palette.ink),
+          compactLabel(entry.title, width - 16, 16, "bold"),
+          0,
+        );
+        ImDrawList_AddText_FontPtr(
+          draw,
+          fonts.regular,
+          13,
+          { x: start.x + 8, y: start.y + 29 },
+          packed(palette.muted),
+          compactLabel(artifact, width - 16, 13, "regular"),
+          0,
+        );
+        if (hovered) tooltip(`${entry.title}\n${project} / ${artifact}`);
+        if (clicked) select(entry, true);
       }
     }
     if (!entries.length)
@@ -241,12 +333,48 @@ export function openViewer(root: string, options: Options) {
         "regular",
         palette.muted,
       );
+    else if (!matches) {
+      text("No artifacts match this search.", 16, "regular", palette.muted);
+      if (igButton("Clear search", { x: 0, y: 0 })) {
+        search.fill(0);
+        pending = 2;
+      }
+    }
     igEndChild();
     igSameLine(0, -1);
     igBeginGroup();
     if (selected) {
-      igSetNextItemWidth(235);
-      if (igBeginCombo("##version", selected.createdAt, 0)) {
+      const toolbarStart = igGetCursorScreenPos(),
+        toolbarRight = toolbarStart.x + available();
+      const versionWidth = Math.max(1, Math.min(235, available()));
+      let toolbarEnd = toolbarStart.x + versionWidth;
+      function toolbarButton(label: string): boolean {
+        const width = igCalcTextSize(label, false, -1).x + framePadding.x * 2;
+        if (toolbarEnd + itemSpacing.x + width <= toolbarRight)
+          igSameLine(0, -1);
+        const clicked = igButton(label, { x: 0, y: 0 });
+        toolbarEnd = igGetItemRectMax().x;
+        return clicked;
+      }
+      const latest = entries.find(
+        (entry) =>
+          entry.project === selected?.project &&
+          entry.artifact === selected?.artifact,
+      );
+      const shortVersion = selected.version.slice(-8);
+      const preview = followLatest
+        ? `Latest · ${revisionDate(selected)}`
+        : `${revisionDate(selected)} · ${shortVersion}`;
+      igSetNextItemWidth(versionWidth);
+      const versionsOpen = igBeginCombo("##version", preview, 0);
+      if (!versionsOpen && igIsItemHovered(0))
+        tooltip(`${revisionDate(selected, true)}\n${selected.version}`);
+      if (versionsOpen) {
+        if (
+          latest &&
+          igSelectable_Bool("Follow latest", followLatest, 0, { x: 0, y: 0 })
+        )
+          select(latest, true);
         for (const entry of entries) {
           if (
             entry.project !== selected.project ||
@@ -255,8 +383,8 @@ export function openViewer(root: string, options: Options) {
             continue;
           if (
             igSelectable_Bool(
-              `${entry.createdAt}##${entry.version}`,
-              entry.directory === selected.directory,
+              `${revisionDate(entry, true)} · ${entry.version.slice(-8)}##${entry.version}`,
+              !followLatest && entry.directory === selected.directory,
               0,
               { x: 0, y: 0 },
             )
@@ -265,27 +393,32 @@ export function openViewer(root: string, options: Options) {
         }
         igEndCombo();
       }
-      igSameLine(0, -1);
-      if (igButton("Context", { x: 0, y: 0 })) showContext = !showContext;
-      igSameLine(0, -1);
-      if (igButton("Copy PNG path", { x: 0, y: 0 }))
+      if (toolbarButton("Context")) showContext = !showContext;
+      if (toolbarButton("Copy PNG path"))
         igSetClipboardText(join(selected.directory, "snapshot.png"));
-      igSameLine(0, -1);
-      if (igButton("Saved PDF", { x: 0, y: 0 }))
+      if (toolbarButton("Saved PDF"))
         pv_open_url(
           pathToFileURL(join(selected.directory, "snapshot.pdf")).href,
         );
       if (renderer) {
         if (renderer.hasControls()) {
-          igSameLine(0, -1);
-          if (igButton("Reset controls", { x: 0, y: 0 }))
-            renderer.resetControls();
+          if (toolbarButton("Reset controls")) renderer.resetControls();
         }
-        const width = Math.max(320, available() - (showContext ? 324 : 0));
+        const space = igGetContentRegionAvail();
+        const sideContext = showContext && space.x >= 760;
+        const contextHeight =
+          showContext && !sideContext ? Math.min(220, space.y * 0.35) : 0;
+        const width = Math.max(
+          1,
+          space.x - (sideContext ? 312 + itemSpacing.x : 0),
+        );
+        const height = contextHeight
+          ? Math.max(1, space.y - contextHeight - itemSpacing.y)
+          : 0;
         igPushID_Str(selected.directory);
         igBeginChild_Str(
           "canvas",
-          { x: width, y: 0 },
+          { x: width, y: height },
           ImGuiChildFlags_Borders,
           0,
         );
@@ -293,10 +426,10 @@ export function openViewer(root: string, options: Options) {
         igEndChild();
         igPopID();
         if (showContext) {
-          igSameLine(0, -1);
+          if (sideContext) igSameLine(0, -1);
           igBeginChild_Str(
             "context",
-            { x: 312, y: 0 },
+            { x: sideContext ? 312 : 0, y: 0 },
             ImGuiChildFlags_Borders,
             0,
           );
@@ -307,7 +440,13 @@ export function openViewer(root: string, options: Options) {
             "regular",
             palette.muted,
           );
-          text(selected.createdAt, 14, "regular", palette.muted);
+          text(revisionDate(selected, true), 14, "regular", palette.muted);
+          text(
+            `Revision ${selected.version.slice(-8)}`,
+            13,
+            "mono",
+            palette.muted,
+          );
           const context = renderer.document.context;
           if (context)
             for (const [key, value] of Object.entries(context)) {

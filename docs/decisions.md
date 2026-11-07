@@ -1,5 +1,27 @@
 # Decisions
 
+## 2026-11-07 viewer library and responsive controls
+
+- Show artifact IDs beneath compact titles so equally named artifacts remain distinct.
+  Keep user titles separate from native widget IDs, draw their text inside one reserved
+  selectable row, and expose the full title through a wrapping tooltip.
+- Wrap toolbar actions using the shared frame padding and item spacing. Stack Context
+  beneath the canvas when a side panel would crowd it, keeping both panes inside the
+  viewport and independently scrollable.
+- Show local revision dates and short IDs, and expose Follow latest in the version
+  menu. Choosing a specific revision freezes that snapshot; following selects new
+  immutable versions as the existing refresh loop discovers them. Hide empty project
+  groups during search and provide a clear-search action when nothing matches.
+- Verify composition and queued input with a private offscreen adapter around the
+  unchanged viewer draw, selection and refresh code. Check real-time refresh with new
+  CLI revisions in both build modes, and keep physical SDL input, window recovery and
+  idle measurements as separate acceptance work.
+
+Keep track of;
+
+- Consider a native accessibility bridge. Mac automation currently exposes window
+  controls while the artifact widgets are drawn by ImGui.
+
 ## 2026-11-07 chart fitting and selection gestures
 
 - Add modest fit padding in the shared theme so line endpoints and scatter markers

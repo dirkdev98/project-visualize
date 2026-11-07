@@ -204,6 +204,6 @@ export function panel(body: () => void, background: Color = palette.surface) {
 }
 export function tooltip(value: string) {
   igBeginTooltip();
-  text(value, 16, "regular", palette.ink, -1);
+  text(value, 16, "regular", palette.ink, 420);
   igEndTooltip();
 }
