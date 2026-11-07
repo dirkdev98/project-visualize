@@ -7,8 +7,10 @@ import {
   ImGuiTableFlags_BordersInnerH,
   ImGuiTableFlags_RowBg,
   ImGuiTableRowFlags_Headers,
+  igAlignTextToFramePadding,
   igBeginTable,
   igBeginTooltip,
+  igButton,
   igCalcTextSize,
   igDummy,
   igEndTable,
@@ -24,11 +26,11 @@ import {
   igPopID,
   igPushFont,
   igPushID_Int,
+  igSameLine,
   igSeparator,
   igSetClipboardText,
   igSetCursorScreenPos,
   igSetMouseCursor,
-  igSmallButton,
   igSpacing,
   igTableNextColumn,
   igTableNextRow,
@@ -46,7 +48,14 @@ import {
   keepTogether,
 } from "./layout.ts";
 import { available, captureText, panel, text } from "./primitives.ts";
-import { currentTheme, type Font, fonts, packed, palette } from "./theme.ts";
+import {
+  currentTheme,
+  type Font,
+  fonts,
+  framePadding,
+  packed,
+  palette,
+} from "./theme.ts";
 
 interface Run {
   value: string;
@@ -280,8 +289,29 @@ export class RichText {
       this.codeTokens.set(key, lines);
     }
     panel(() => {
-      if (language) text(language.toUpperCase(), 11, "bold", palette.muted);
-      if (!exporting && igSmallButton("Copy code")) igSetClipboardText(source);
+      if (exporting) {
+        if (language) text(language.toUpperCase(), 11, "bold", palette.muted);
+      } else {
+        const regular = fonts.regular;
+        if (!regular) throw new Error("Fonts are not initialized");
+        const width = available();
+        igPushFont(regular, 14);
+        const copyWidth =
+          igCalcTextSize("Copy code", false, -1).x + framePadding.x * 2;
+        igAlignTextToFramePadding();
+        text(
+          language ? language.toUpperCase() : "CODE",
+          11,
+          "bold",
+          palette.muted,
+        );
+        const labelWidth = igGetItemRectMax().x - igGetItemRectMin().x;
+        const gap = width - labelWidth - copyWidth;
+        if (gap >= 12) igSameLine(0, gap);
+        if (igButton("Copy code", { x: copyWidth, y: 0 }))
+          igSetClipboardText(source);
+        igPopFont();
+      }
       const face = fonts.mono;
       if (!face) throw new Error("Fonts are not initialized");
       const draw = igGetWindowDrawList();

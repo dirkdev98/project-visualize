@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-07 compact code actions
+
+- Align the viewer's language label and Copy code action on one header row when
+  their measured widths fit. Stack the action in narrow panels and use a regular
+  native button so the compact treatment retains a practical click target.
+- Keep the export header and code layout unchanged. Verify exact PNG/PDF parity
+  across examples and real queued copy actions in development and production,
+  preserving Unicode, tabs and CRLF from independent blocks.
+
 ## 2026-11-07 responsive diagram spacing
 
 - Place automatic nodes at full grid-cell centers. The earlier inset compressed
