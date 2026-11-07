@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "title": "Comparing observation sites",
+  "subtitle": "Fictional observations, with room for every category name.",
+  "datasets": {
+    "observations": [
+      { "station": "Cedar Observatory", "accepted": 138 },
+      { "station": "Amber Reservoir", "accepted": 76 },
+      { "station": "Copper Estuary", "accepted": 71 },
+      { "station": "Willow Crossing", "accepted": 69 },
+      { "station": "Silver Headland", "accepted": 67 },
+      { "station": "Juniper Meadows", "accepted": 67 },
+      { "station": "Sapphire Ridge", "accepted": 56 },
+      { "station": "Maple Peninsula", "accepted": 50 },
+      { "station": "Coral Lighthouse", "accepted": 48 },
+      { "station": "Linden Wetlands", "accepted": 46 },
+      { "station": "Birch Sanctuary", "accepted": 44 },
+      { "station": "Cobalt Causeway", "accepted": 43 },
+      { "station": "Orchid Valley", "accepted": 40 },
+      { "station": "Ivory Highlands", "accepted": 39 },
+      { "station": "Hazel Riverbank", "accepted": 35 },
+      { "station": "Jade Promontory", "accepted": 31 },
+      { "station": "Violet Woodland", "accepted": 29 }
+    ]
+  },
+  "body": [
+    {
+      "type": "control",
+      "kind": "select",
+      "id": "station",
+      "label": "Observation site",
+      "dataset": "observations",
+      "field": "station"
+    },
+    {
+      "type": "chart",
+      "id": "comparison",
+      "kind": "bar",
+      "select": "station",
+      "height": 340,
+      "xLabel": "Observation site",
+      "yLabel": "Accepted observations",
+      "source": { "dataset": "observations", "x": "station", "y": "accepted" },
+      "caption": "Shift-click a bar to inspect a site. All sites remain visible for comparison."
+    },
+    {
+      "type": "metric",
+      "label": "Accepted observations in this view",
+      "source": {
+        "dataset": "observations",
+        "field": "accepted",
+        "aggregate": "sum"
+      }
+    }
+  ]
+}

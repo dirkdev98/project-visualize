@@ -99,6 +99,12 @@ fit all the supplied data with space around its extrema.
 Short legends sit below the data. Keep series names concise; longer ordinary legends
 use an inset layout so the plot retains its width.
 
+Categorical bar charts switch to horizontal rows when adjacent labels would overlap.
+Their height grows to keep category names readable, and long names wrap in the label
+column. Wider layouts retain vertical bars when the labels fit. Very large category
+sets thin tick labels within the bounded chart height; use a table for the complete
+comparison. Hover and linked selections keep the original category values.
+
 Use `kind: "area"` for a line with restrained shading to zero. Each series overlaps
 independently, and the zero baseline participates in fitting. Supply ordered x
 coordinates for trends. The [trend example](../examples/trends.json) combines an

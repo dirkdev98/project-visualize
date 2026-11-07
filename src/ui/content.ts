@@ -1,4 +1,5 @@
 import {
+  ImAxis_Y1,
   ImDrawList_AddCircleFilled,
   ImDrawList_AddLine,
   ImDrawList_AddRect,
@@ -34,6 +35,7 @@ import {
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
   ImPlot_SetupLegend,
+  ImPlotAxisFlags_Invert,
   ImPlotFlags_Crosshairs,
   ImPlotFlags_NoInputs,
   ImPlotFlags_NoMenus,
@@ -126,6 +128,7 @@ import type {
   Tone,
 } from "../model.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
+import { crowdedCategories } from "./chart-layout.ts";
 import { layoutImage } from "./image-layout.ts";
 import {
   captureHeading,
@@ -148,6 +151,7 @@ import {
 } from "./primitives.ts";
 import { RichText } from "./richtext.ts";
 import { TextSelection, withTextSelection } from "./selection.ts";
+import { textLine } from "./text-layout.ts";
 import {
   type Color,
   color,
@@ -227,6 +231,16 @@ export class DocumentRenderer {
   private orders = new Map<string, { key: string; indices: number[] }>();
   private plots = new Map<ChartBlock, PlotSeries[]>();
   private plotDrawing = new Plots();
+  private categoryLayouts = new Map<
+    ChartBlock,
+    {
+      width: number;
+      horizontal: boolean;
+      height: number;
+      labels: string[];
+      stride: number;
+    }
+  >();
   private barPress: { key: string; revision: number; value: Cell } | undefined;
   private rich: RichText;
   private selection = new TextSelection();
@@ -250,6 +264,7 @@ export class DocumentRenderer {
     this.images.clear();
     this.plots.clear();
     this.plotDrawing.dispose();
+    this.categoryLayouts.clear();
     this.orders.clear();
     this.searches.clear();
     this.tableCells.clear();
@@ -342,6 +357,7 @@ export class DocumentRenderer {
       this.plots.clear();
       this.tableCells.clear();
       this.cellWidths.clear();
+      this.categoryLayouts.clear();
     }
     const headerTop = igGetCursorScreenPos().y;
     text(
@@ -1000,6 +1016,46 @@ export class DocumentRenderer {
       );
     }
   }
+  private categories(value: ChartBlock) {
+    if (value.kind !== "bar" || !value.labels) return;
+    const width = available();
+    const cached = this.categoryLayouts.get(value);
+    if (cached?.width === width) return cached;
+    const widths = value.labels.map(
+      (label) => igCalcTextSize(label, false, -1).x,
+    );
+    const horizontal = crowdedCategories(widths, Math.max(1, width - 100));
+    const labels = horizontal
+      ? value.labels.map((label) => {
+          const lines: string[] = [];
+          let remaining = label;
+          while (remaining) {
+            const line = textLine(
+              remaining,
+              Math.max(60, Math.min(260, width * 0.35)),
+            );
+            lines.push(remaining.slice(0, line.length).trimEnd());
+            remaining = remaining.slice(line.consumed);
+          }
+          return lines.join("\n");
+        })
+      : value.labels;
+    const rowHeight =
+      Math.max(...labels.map((label) => igCalcTextSize(label, false, -1).y)) +
+      10;
+    const height = horizontal
+      ? Math.max(
+          value.height ?? 300,
+          Math.min(1200, labels.length * rowHeight + 100),
+        )
+      : (value.height ?? 300);
+    const stride = horizontal
+      ? Math.max(1, Math.ceil((labels.length * rowHeight) / (height - 100)))
+      : 1;
+    const layout = { width, horizontal, height, labels, stride };
+    this.categoryLayouts.set(value, layout);
+    return layout;
+  }
   private chart(value: ChartBlock, exporting: boolean, key: string) {
     const series = value.series ?? [];
     if (!series.length) {
@@ -1009,9 +1065,13 @@ export class DocumentRenderer {
       igDummy({ x: available(), y: value.height ?? 300 });
       return;
     }
+    const categories = this.categories(value);
+    const horizontalBars = categories?.horizontal ?? false;
+    const interactionKey = horizontalBars ? `${key}.horizontal` : key;
     const fitKey = this.view?.chartFitKeys.get(key);
     const refit =
-      fitKey !== undefined && this.state.chartFits.get(key) !== fitKey;
+      fitKey !== undefined &&
+      this.state.chartFits.get(interactionKey) !== fitKey;
     if (exporting || refit) ImPlot_SetNextAxesToFit();
     const selection = this.view?.chartSelections.get(key);
     const choosing =
@@ -1023,10 +1083,22 @@ export class DocumentRenderer {
     if (exporting || choosing) flags |= ImPlotFlags_NoInputs;
     if (exporting || selection) flags |= ImPlotFlags_NoMenus;
     const plotTop = igGetCursorScreenPos().y;
-    if (!ImPlot_BeginPlot("##chart", { x: -1, y: value.height ?? 300 }, flags))
+    if (
+      !ImPlot_BeginPlot(
+        horizontalBars ? "##chart-horizontal" : "##chart",
+        { x: -1, y: categories?.height ?? value.height ?? 300 },
+        flags,
+      )
+    )
       return;
-    if (refit && fitKey !== undefined) this.state.chartFits.set(key, fitKey);
-    ImPlot_SetupAxes(value.xLabel ?? "", value.yLabel ?? "", 0, 0);
+    if (refit && fitKey !== undefined)
+      this.state.chartFits.set(interactionKey, fitKey);
+    ImPlot_SetupAxes(
+      horizontalBars ? (value.yLabel ?? "") : (value.xLabel ?? ""),
+      horizontalBars ? (value.xLabel ?? "") : (value.yLabel ?? ""),
+      0,
+      horizontalBars ? ImPlotAxisFlags_Invert : 0,
+    );
     const horizontal =
       series.reduce(
         (sum, item) => sum + igCalcTextSize(item.name, false, -1).x + 32,
@@ -1045,7 +1117,12 @@ export class DocumentRenderer {
     );
     if (value.labels)
       for (let i = 0; i < value.labels.length; i++)
-        pv_plot_tick(0, i, value.labels[i]);
+        if (i % (categories?.stride ?? 1) === 0)
+          pv_plot_tick(
+            horizontalBars ? ImAxis_Y1 : 0,
+            i,
+            categories?.labels[i] ?? value.labels[i],
+          );
     const selected = selection
       ? parameterValue(this.state.parameters, selection.control)
       : ALL;
@@ -1056,20 +1133,23 @@ export class DocumentRenderer {
     if (selectedIndex >= 0) {
       const origin = ImPlot_GetPlotPos(),
         size = ImPlot_GetPlotSize();
-      const left = ImPlot_PlotToPixels_double(selectedIndex - 0.4, 0, -1, -1).x;
-      const right = ImPlot_PlotToPixels_double(
-        selectedIndex + 0.4,
-        0,
-        -1,
-        -1,
-      ).x;
+      const left = horizontalBars
+        ? ImPlot_PlotToPixels_double(0, selectedIndex - 0.4, -1, -1).y
+        : ImPlot_PlotToPixels_double(selectedIndex - 0.4, 0, -1, -1).x;
+      const right = horizontalBars
+        ? ImPlot_PlotToPixels_double(0, selectedIndex + 0.4, -1, -1).y
+        : ImPlot_PlotToPixels_double(selectedIndex + 0.4, 0, -1, -1).x;
       const draw = ImPlot_GetPlotDrawList();
       if (!draw) throw new Error("Cannot access the chart canvas");
       ImPlot_PushPlotClipRect(0);
       ImDrawList_AddRectFilled(
         draw,
-        { x: Math.min(left, right), y: origin.y },
-        { x: Math.max(left, right), y: origin.y + size.y },
+        horizontalBars
+          ? { x: origin.x, y: Math.min(left, right) }
+          : { x: Math.min(left, right), y: origin.y },
+        horizontalBars
+          ? { x: origin.x + size.x, y: Math.max(left, right) }
+          : { x: Math.max(left, right), y: origin.y + size.y },
         packed({
           ...palette.accent,
           w: currentTheme() === "dark" ? 0.16 : 0.09,
@@ -1101,6 +1181,7 @@ export class DocumentRenderer {
         value.kind,
         seriesColors[i % seriesColors.length],
         0.8 / series.length,
+        horizontalBars,
       );
     }
     if (!exporting) {
@@ -1119,12 +1200,20 @@ export class DocumentRenderer {
       const hidden = hovered
         ? series.map((item) => ImPlot_IsItemHidden(item.name))
         : [];
-      const mouse = hovered ? ImPlot_GetPlotMousePos(-1, -1) : { x: 0, y: 0 };
+      const nativeMouse = hovered
+        ? ImPlot_GetPlotMousePos(-1, -1)
+        : { x: 0, y: 0 };
+      const mouse = horizontalBars
+        ? { x: nativeMouse.y, y: nativeMouse.x }
+        : nativeMouse;
       let category: number | undefined;
       if (selection && hovered) {
         const pixel = igGetMousePos();
         const near = ImPlot_PixelsToPlot_Vec2(
-          { x: pixel.x, y: pixel.y + 3 },
+          {
+            x: pixel.x + (horizontalBars ? 3 : 0),
+            y: pixel.y + (horizontalBars ? 0 : 3),
+          },
           -1,
           -1,
         );
@@ -1134,7 +1223,7 @@ export class DocumentRenderer {
           hidden,
           mouse,
           0.8 / series.length,
-          Math.abs(near.y - mouse.y),
+          Math.abs((horizontalBars ? near.x : near.y) - mouse.y),
         );
       }
       if (selection) {
@@ -1146,11 +1235,11 @@ export class DocumentRenderer {
           category !== undefined
         )
           this.barPress = {
-            key,
+            key: interactionKey,
             revision: this.viewRevision,
             value: selection.values[category],
           };
-        if (this.barPress?.key === key && igIsMouseReleased_Nil(0)) {
+        if (this.barPress?.key === interactionKey && igIsMouseReleased_Nil(0)) {
           const press = this.barPress;
           const delta = igGetMouseDragDelta(0, 0);
           // Include release-frame movement; native drag history also catches an out-and-back drag.
@@ -1200,6 +1289,10 @@ export class DocumentRenderer {
               if (Math.abs(x[j] - mouse.x) < Math.abs(x[nearest] - mouse.x))
                 nearest = j;
             lines.push(`${series[i].name}: ${y[nearest]}`);
+            if (value.labels && i === 0)
+              lines.unshift(
+                value.labels[series[i].x?.[nearest] ?? nearest] ?? "",
+              );
           }
         if (lines.length) tooltip(lines.join("\n"));
       }

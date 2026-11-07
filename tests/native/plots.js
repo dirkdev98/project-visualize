@@ -33,7 +33,7 @@ const color = { x: 0.2, y: 0.6, z: 0.4, w: 1 };
 const x = new Float64Array([0, 1, 2]),
   y = new Float64Array([3, 6, 12]);
 const pixels = new Uint8Array(width * height * 4);
-const kinds = ["line", "bar", "scatter", "area"];
+const kinds = ["line", "bar", "horizontal bars", "bar", "scatter", "area"];
 const themes = ["light", "dark", "light"];
 checked(pv_surface_open(0));
 const plots = new Plots();
@@ -51,7 +51,22 @@ try {
         "Plot did not begin",
       );
       ImPlot_SetupAxes("", "", 0, 0);
-      plots.draw("Observed values", x, y, kind, color);
+      plots.draw(
+        "Observed values",
+        x,
+        y,
+        kind === "horizontal bars" ? "bar" : kind,
+        color,
+        0.8,
+        kind === "horizontal bars",
+      );
+      if (kind === "horizontal bars" && frame === 2) {
+        const limits = ImPlot_GetPlotLimits(-1, -1);
+        expect(
+          limits.X.Max >= 12 && limits.Y.Max < 4,
+          "Horizontal bars did not exchange value and category axes",
+        );
+      }
       const legend = ImPlot_GetLastItemColor();
       expect(
         Object.keys(color).every(

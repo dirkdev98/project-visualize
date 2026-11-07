@@ -3,9 +3,11 @@ import {
   ImPlot_PlotLine_doublePtrdoublePtr,
   ImPlot_PlotScatter_doublePtrdoublePtr,
   ImPlot_PlotShaded_doublePtrdoublePtrInt,
+  ImPlotBarsFlags_Horizontal,
   ImPlotMarker_Circle,
   ImPlotMarker_None,
   ImPlotProp_FillColor,
+  ImPlotProp_Flags,
   ImPlotProp_LineColor,
   ImPlotProp_LineWeight,
   ImPlotProp_Marker,
@@ -27,15 +29,26 @@ export class Plots {
     for (const style of this.styles.values()) style[Symbol.dispose]();
     this.styles.clear();
   }
-  private style(color: Color, marker: number, shaded: boolean) {
+  private style(
+    color: Color,
+    marker: number,
+    shaded: boolean,
+    horizontal = false,
+  ) {
     if (this.theme !== currentTheme()) {
       this.dispose();
       this.theme = currentTheme();
     }
-    const key = `${color.x}:${color.y}:${color.z}:${color.w}:${marker}:${shaded}`;
+    const key = `${color.x}:${color.y}:${color.z}:${color.w}:${marker}:${shaded}:${horizontal}`;
     let style = this.styles.get(key);
     if (style) return style;
     style = pv_plot_spec();
+    if (horizontal)
+      ImPlotSpec_SetProp_S32(
+        style,
+        ImPlotProp_Flags,
+        ImPlotBarsFlags_Horizontal,
+      );
     ImPlotSpec_SetProp_Vec4(style, ImPlotProp_FillColor, color);
     if (!shaded) {
       ImPlotSpec_SetProp_Vec4(style, ImPlotProp_LineColor, color);
@@ -55,6 +68,7 @@ export class Plots {
     kind: "line" | "area" | "bar" | "scatter",
     color: Color,
     barWidth = 0.8,
+    horizontal = false,
   ) {
     if (kind === "area") {
       const fill = { ...color, w: currentTheme() === "dark" ? 0.22 : 0.13 };
@@ -70,9 +84,16 @@ export class Plots {
       color,
       kind === "scatter" ? ImPlotMarker_Circle : ImPlotMarker_None,
       false,
+      horizontal,
     );
     if (kind === "bar")
-      ImPlot_PlotBars_doublePtrdoublePtr(label, x, y, barWidth, style);
+      ImPlot_PlotBars_doublePtrdoublePtr(
+        label,
+        horizontal ? y : x,
+        horizontal ? x : y,
+        barWidth,
+        style,
+      );
     else if (kind === "scatter")
       ImPlot_PlotScatter_doublePtrdoublePtr(label, x, y, style);
     else ImPlot_PlotLine_doublePtrdoublePtr(label, x, y, style);

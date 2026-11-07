@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-07 responsive categorical bars
+
+- Use measured adjacent-label widths to switch crowded categorical bar charts to
+  horizontal rows. Swap display axes while keeping data and typed categories in
+  their original order. Let row height follow wrapped labels, with a bounded figure
+  height and thinned ticks for very large comparisons.
+- Keep plot identities and fitting state separate by orientation so responsive
+  changes cannot reuse ranges from exchanged axes. Transpose linked hit testing,
+  zero-value tolerance and selection bands with the display, and cancel a pending
+  selection if its orientation changes.
+- Keep the layout and plot styling in Maligator JS through existing ImPlot bindings.
+  Preserve saved revisions and use fictional observation sites for the shared
+  example. This improves readability without a performance-win claim.
+
 ## 2026-11-07 linked skill discovery
 
 - Resolve the physical shared-skill directory before deriving the application
