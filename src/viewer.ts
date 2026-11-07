@@ -46,6 +46,7 @@ import {
   input,
   inputBuffer,
   inputValue,
+  releasePanels,
   text,
 } from "./ui/primitives.ts";
 import {
@@ -336,6 +337,7 @@ export function openViewer(root: string, options: Options) {
     }
   } finally {
     renderer?.dispose();
+    releasePanels();
     for (const key of Object.keys(fonts))
       delete fonts[key as keyof typeof fonts];
     pv_surface_close();

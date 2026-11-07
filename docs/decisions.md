@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-11-07 rounded surfaces and document widgets
+
+- Keep table-based auto-height layout and draw rounded panel backgrounds through
+  independent native draw-list splitters. Pool one splitter per active nesting depth,
+  merge in reverse order, and release the handles before closing the rendering context.
+  This preserves measured content bounds without extra layout-settling frames.
+- Add status badges and timelines with Markdown event descriptions. Compose geometry,
+  typography and tone colors in JS through the existing FFI, and keep the text available
+  in PDF exports. Use the same restrained colors for progress and callouts.
+- Stack diagram nodes on narrow canvases to preserve readable labels and connections.
+  Foreground native viewing and wide/narrow export captures confirm the nested layout;
+  do not infer a performance win from these appearance changes.
+
+Keep track of;
+
+- Investigate the initial black surface observed after background application launch.
+  A foreground launch of the same binary rendered correctly, so session locking alone
+  does not explain the observation.
+
 ## 2026-11-07 pinned font bytes
 
 - Preserve the vendored font license's original line endings in Git. Its upstream

@@ -14,6 +14,7 @@ export default defineLibrary({
     ImFont: { handle: {} },
     ImFontAtlas: { handle: {} },
     ImDrawList: { handle: {} },
+    ImDrawListSplitter: { handle: { destroy: "ImDrawListSplitter_destroy" } },
     PVImage: { handle: { destroy: "pv_image_destroy" } },
   },
   functions: {

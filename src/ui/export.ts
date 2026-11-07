@@ -26,7 +26,7 @@ import { DocumentRenderer, documentState } from "./content.ts";
 import { captureLayout, type LayoutCapture } from "./layout.ts";
 import { pdfPages, rasterPdf } from "./pdf.ts";
 import { searchablePdf } from "./pdf-text.ts";
-import { checked } from "./primitives.ts";
+import { checked, releasePanels } from "./primitives.ts";
 import { fonts, initializeTheme, popTheme, pushTheme } from "./theme.ts";
 
 function canvas(
@@ -93,6 +93,7 @@ export async function renderArtifact(
     pixels = captured;
   } finally {
     renderer?.dispose();
+    releasePanels();
     for (const key of Object.keys(fonts))
       delete fonts[key as keyof typeof fonts];
     pv_surface_close();

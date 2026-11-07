@@ -52,6 +52,12 @@ Group blocks inside `row`, `column` or `card` children. A row's optional `weight
 sets relative column widths. Rows stack vertically in a narrow viewport. A `details`
 section is expandable in the viewer and expanded in exports.
 
+Use a `badge` with a short `label` and `tone` for status. A `timeline` contains `events`
+with a `title`, optional `label`, Markdown `content` and `tone`. A `progress` block
+uses a value from zero to one and the same tone colors. The
+[component example](../examples/components.json) combines them with nested cards and
+supporting evidence.
+
 An optional block `id` keeps its interaction key stable when neighboring blocks move.
 Use a lowercase letter followed by letters, digits, hyphens or underscores. IDs must be
 unique among siblings.
@@ -98,7 +104,8 @@ numeric values without changing the underlying data.
 Diagrams use nodes with unique IDs and edges referring to them through `from` and
 `to`. Add normalized `x` and `y` coordinates for an explicit layout, or let nodes
 flow into a grid. Node `detail` text appears on hover. Keep labels short enough to
-read inside a node. The [dashboard example](../examples/observatory.json) composes
+read inside a node. Narrow canvases stack nodes vertically to keep labels and
+connections readable. The [dashboard example](../examples/observatory.json) composes
 charts, tables and a diagram with their explanation.
 
 ## Linked views

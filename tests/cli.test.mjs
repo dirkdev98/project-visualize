@@ -129,6 +129,49 @@ test("paginated PDF text preserves Unicode prose, code and table content", async
     assert.ok(extracted.includes(value), `PDF text is missing: ${value}`);
 });
 
+test("timeline events and status badges remain readable in an exported document", (t) => {
+  const { render } = workspace(t);
+  const events = [
+    {
+      label: "Monday",
+      title: "Collect the baseline",
+      content: "Retain the source rows.",
+      tone: "positive",
+    },
+    {
+      label: "Friday",
+      title: "Review the caveat",
+      content: "Repeat the shortened window.",
+      tone: "warning",
+    },
+  ];
+  const badge = "Ready for review";
+  const entry = render({
+    ...minimal(),
+    body: [
+      {
+        type: "card",
+        children: [
+          { type: "badge", label: badge },
+          { type: "timeline", events },
+        ],
+      },
+    ],
+  });
+  const result = spawnSync("pdftotext", ["-layout", entry.pdf, "-"], {
+    encoding: "utf8",
+    timeout: 60_000,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const extracted = result.stdout.replace(/\s+/g, " ");
+  for (const value of [
+    badge,
+    ...events.flatMap((event) => [event.label, event.title, event.content]),
+  ])
+    assert.ok(extracted.includes(value), `PDF text is missing: ${value}`);
+});
+
 test("a revision keeps earlier source and output intact", (t) => {
   const { render, ok } = workspace(t);
   const first = render();

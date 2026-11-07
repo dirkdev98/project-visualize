@@ -72,6 +72,16 @@ export type Block = BlockStyle &
       ))
     | ControlBlock
     | { type: "progress"; label: string; value: number; detail?: string }
+    | { type: "badge"; label: string }
+    | {
+        type: "timeline";
+        events: {
+          label?: string;
+          title: string;
+          content?: string;
+          tone?: Tone;
+        }[];
+      }
     | {
         type: "row" | "column" | "card" | "details";
         children: Block[];
@@ -357,6 +367,26 @@ export function validate(input: unknown): Artifact {
         }
         break;
       }
+      case "badge":
+        string(block.label, field("label"), 120);
+        break;
+      case "timeline":
+        array(block.events, field("events"), 1, 100).forEach((input, index) => {
+          const event = object(input, `${field("events")}[${index}]`);
+          const at = (name: string) => `${field("events")}[${index}].${name}`;
+          string(event.title, at("title"), 240);
+          if (event.label !== undefined) string(event.label, at("label"), 120);
+          if (event.content !== undefined)
+            string(event.content, at("content"), 20_000);
+          if (
+            event.tone !== undefined &&
+            !["neutral", "positive", "warning", "negative"].includes(
+              String(event.tone),
+            )
+          )
+            fail(at("tone"), "expected neutral, positive, warning or negative");
+        });
+        break;
       case "control": {
         if (block.id === undefined || controlIds.has(String(block.id)))
           fail(field("id"), "controls require globally unique IDs");

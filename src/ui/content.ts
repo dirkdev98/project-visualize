@@ -1,9 +1,11 @@
 import {
+  ImDrawList_AddCircleFilled,
   ImDrawList_AddLine,
   ImDrawList_AddRect,
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
   ImDrawList_AddTriangleFilled,
+  ImGuiCol_PlotHistogram,
   ImGuiStyleVar_CellPadding,
   ImGuiTableColumnFlags_WidthStretch,
   ImGuiTableFlags_BordersInnerH,
@@ -37,15 +39,18 @@ import {
   igEndTable,
   igGetCursorScreenPos,
   igGetWindowDrawList,
+  igIndent,
   igInvisibleButton,
   igIsItemHovered,
   igPopFont,
   igPopID,
+  igPopStyleColor,
   igPopStyleVar,
   igProgressBar,
   igPushFont,
   igPushID_Int,
   igPushID_Str,
+  igPushStyleColor_Vec4,
   igPushStyleVar_Vec2,
   igSelectable_Bool,
   igSeparator,
@@ -57,6 +62,7 @@ import {
   igTableNextColumn,
   igTableNextRow,
   igTableSetupColumn,
+  igUnindent,
   type PVImage,
   pv_image_destroy,
   pv_image_draw,
@@ -264,8 +270,41 @@ export class DocumentRenderer {
         break;
       case "progress":
         text(value.label, 17, "bold");
+        igPushStyleColor_Vec4(
+          ImGuiCol_PlotHistogram,
+          value.tone ? tone(value.tone) : palette.accent,
+        );
         igProgressBar(value.value, { x: -1, y: 14 }, "");
+        igPopStyleColor(1);
         if (value.detail) text(value.detail, 15, "regular", palette.muted);
+        break;
+      case "badge": {
+        const origin = igGetCursorScreenPos(),
+          face = fonts.bold;
+        if (!face) throw new Error("Fonts are not initialized");
+        const width = Math.max(20, available() - 20);
+        igPushFont(face, 13);
+        const size = igCalcTextSize(value.label, false, width);
+        igPopFont();
+        const draw = igGetWindowDrawList();
+        if (!draw) throw new Error("Cannot access the badge canvas");
+        const tint = tone(value.tone ?? "positive");
+        ImDrawList_AddRectFilled(
+          draw,
+          origin,
+          { x: origin.x + size.x + 20, y: origin.y + size.y + 12 },
+          packed({ ...tint, w: 0.1 }),
+          8,
+          0,
+        );
+        igSetCursorScreenPos({ x: origin.x + 10, y: origin.y + 6 });
+        text(value.label, 13, "bold", tint, width);
+        igSetCursorScreenPos(origin);
+        igDummy({ x: size.x + 20, y: size.y + 12 });
+        break;
+      }
+      case "timeline":
+        this.timeline(value, exporting);
         break;
       case "row":
       case "column":
@@ -318,7 +357,7 @@ export class DocumentRenderer {
               text(value.title, 21, "bold", tone(value.tone ?? "positive"));
             this.rich.markdown(value.content, exporting);
           },
-          { ...palette.accent, w: 0.08 },
+          { ...tone(value.tone ?? "positive"), w: 0.08 },
         );
         break;
       case "details":
@@ -356,6 +395,45 @@ export class DocumentRenderer {
       keepTogether(top, Math.min(top + 48, bottom));
       keepTogether(Math.max(top, bottom - 48), bottom);
     }
+  }
+  private timeline(
+    value: Extract<Block, { type: "timeline" }>,
+    exporting: boolean,
+  ) {
+    const origin = igGetCursorScreenPos(),
+      draw = igGetWindowDrawList();
+    if (!draw) throw new Error("Cannot access the timeline canvas");
+    const points: { y: number; tint: Color }[] = [];
+    igIndent(32);
+    for (const [index, event] of value.events.entries()) {
+      igPushID_Int(index);
+      const top = igGetCursorScreenPos().y;
+      points.push({ y: top + 9, tint: tone(event.tone ?? "positive") });
+      if (event.label) text(event.label, 12, "bold", palette.muted);
+      text(event.title, 20, "bold");
+      if (event.content) this.rich.markdown(event.content, exporting);
+      keepTogether(top, igGetCursorScreenPos().y);
+      igDummy({ x: 0, y: 8 });
+      igPopID();
+    }
+    igUnindent(32);
+    for (let i = 1; i < points.length; i++)
+      ImDrawList_AddLine(
+        draw,
+        { x: origin.x + 7, y: points[i - 1].y },
+        { x: origin.x + 7, y: points[i].y },
+        packed(palette.border),
+        2,
+        0,
+      );
+    for (const point of points)
+      ImDrawList_AddCircleFilled(
+        draw,
+        { x: origin.x + 7, y: point.y },
+        5,
+        packed(point.tint),
+        0,
+      );
   }
   private control(control: ControlBlock, exporting: boolean) {
     const current = parameterValue(this.state.parameters, control.id);
@@ -604,24 +682,31 @@ export class DocumentRenderer {
   }
   private diagram(value: DiagramBlock, exporting: boolean) {
     const width = available(),
-      height = value.height ?? 320;
+      narrow = width < 520;
+    const height = narrow
+      ? Math.max(value.height ?? 320, value.nodes.length * 94 + 24)
+      : (value.height ?? 320);
     const origin = igGetCursorScreenPos();
     const draw = igGetWindowDrawList();
     if (!draw) throw new Error("Cannot access the diagram canvas");
-    const boxWidth = Math.min(180, width / 3.5),
+    const boxWidth = narrow
+        ? Math.min(180, width - 24)
+        : Math.min(180, width / 3.5),
       boxHeight = 66;
     const columns = Math.min(3, value.nodes.length),
       rows = Math.ceil(value.nodes.length / columns);
     const positions = value.nodes.map((node, i) => ({
-      x:
-        origin.x +
-        boxWidth / 2 +
-        (node.x ?? ((i % columns) + 0.5) / columns) * (width - boxWidth),
-      y:
-        origin.y +
-        boxHeight / 2 +
-        (node.y ?? (Math.floor(i / columns) + 0.5) / rows) *
-          (height - boxHeight),
+      x: narrow
+        ? origin.x + width / 2
+        : origin.x +
+          boxWidth / 2 +
+          (node.x ?? ((i % columns) + 0.5) / columns) * (width - boxWidth),
+      y: narrow
+        ? origin.y + boxHeight / 2 + 12 + i * 94
+        : origin.y +
+          boxHeight / 2 +
+          (node.y ?? (Math.floor(i / columns) + 0.5) / rows) *
+            (height - boxHeight),
     }));
     const ids = new Map(value.nodes.map((node, i) => [node.id, i]));
     for (const edge of value.edges ?? []) {

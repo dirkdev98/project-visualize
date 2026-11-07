@@ -1,8 +1,15 @@
 import {
+  ImDrawList_AddRect,
+  ImDrawList_AddRectFilled,
+  type ImDrawListSplitter,
+  ImDrawListSplitter_destroy,
+  ImDrawListSplitter_ImDrawListSplitter,
+  ImDrawListSplitter_Merge,
+  ImDrawListSplitter_SetCurrentChannel,
+  ImDrawListSplitter_Split,
   ImGuiCol_Text,
   ImGuiStyleVar_CellPadding,
-  ImGuiTableBgTarget_RowBg0,
-  ImGuiTableFlags_BordersOuter,
+  ImGuiTableFlags_PadOuterX,
   ImGuiTableFlags_SizingStretchSame,
   igBeginTable,
   igBeginTooltip,
@@ -10,7 +17,9 @@ import {
   igEndTooltip,
   igGetContentRegionAvail,
   igGetCursorPosX,
+  igGetItemRectMax,
   igGetItemRectMin,
+  igGetWindowDrawList,
   igInputTextWithHint,
   igPopFont,
   igPopStyleColor,
@@ -22,7 +31,6 @@ import {
   igPushTextWrapPos,
   igTableNextColumn,
   igTableNextRow,
-  igTableSetBgColor,
   igTextUnformatted,
   pv_error,
   pv_font_metrics,
@@ -145,24 +153,54 @@ export function inputValue(buffer: Int8Array): string {
 export function input(id: string, hint: string, buffer: Int8Array): boolean {
   return igInputTextWithHint(id, hint, buffer, 0);
 }
+const splitters: ImDrawListSplitter[] = [];
+let panelDepth = 0;
+export function releasePanels() {
+  for (const splitter of splitters) ImDrawListSplitter_destroy(splitter);
+  splitters.length = 0;
+}
 export function panel(body: () => void, background: Color = palette.white) {
-  igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 20, y: 18 });
-  if (
-    igBeginTable(
-      "panel",
-      1,
-      ImGuiTableFlags_BordersOuter | ImGuiTableFlags_SizingStretchSame,
-      { x: 0, y: 0 },
-      0,
-    )
-  ) {
-    igTableNextRow(0, 0);
-    igTableNextColumn();
-    igTableSetBgColor(ImGuiTableBgTarget_RowBg0, packed(background), -1);
-    body();
-    igEndTable();
+  const draw = igGetWindowDrawList();
+  if (!draw) throw new Error("Cannot access the panel canvas");
+  let splitter = splitters[panelDepth];
+  if (!splitter) {
+    const created = ImDrawListSplitter_ImDrawListSplitter();
+    if (!created) throw new Error("Cannot create a panel drawing layer");
+    splitter = created;
+    splitters.push(splitter);
   }
-  igPopStyleVar(1);
+  panelDepth++;
+  ImDrawListSplitter_Split(splitter, draw, 2);
+  ImDrawListSplitter_SetCurrentChannel(splitter, draw, 1);
+  igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 20, y: 18 });
+  try {
+    if (
+      !igBeginTable(
+        "panel",
+        1,
+        ImGuiTableFlags_PadOuterX | ImGuiTableFlags_SizingStretchSame,
+        { x: 0, y: 0 },
+        0,
+      )
+    )
+      return;
+    try {
+      igTableNextRow(0, 0);
+      igTableNextColumn();
+      body();
+    } finally {
+      igEndTable();
+    }
+    const min = igGetItemRectMin(),
+      max = igGetItemRectMax();
+    ImDrawListSplitter_SetCurrentChannel(splitter, draw, 0);
+    ImDrawList_AddRectFilled(draw, min, max, packed(background), 12, 0);
+    ImDrawList_AddRect(draw, min, max, packed(palette.border), 12, 1, 0);
+  } finally {
+    igPopStyleVar(1);
+    ImDrawListSplitter_Merge(splitter, draw);
+    panelDepth--;
+  }
 }
 export function tooltip(value: string) {
   igBeginTooltip();

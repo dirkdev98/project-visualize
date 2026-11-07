@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "title": "A field guide to the week",
+  "subtitle": "Progress, decisions and evidence in one place",
+  "category": "Team notebook",
+  "context": {
+    "source": "Fictional demonstration data",
+    "question": "What is ready, what changed, and what needs another look?"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Reviewed observations",
+          "value": 1284,
+          "decimals": 0,
+          "detail": "Across the matched station windows",
+          "tone": "positive"
+        },
+        {
+          "type": "metric",
+          "label": "Evidence coverage",
+          "value": 96.4,
+          "decimals": 1,
+          "suffix": "%",
+          "detail": "A short follow-up remains",
+          "tone": "warning"
+        },
+        {
+          "type": "metric",
+          "label": "Open decisions",
+          "value": 2,
+          "decimals": 0,
+          "detail": "Both have an owner and a next step"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "weights": [3, 2],
+      "children": [
+        {
+          "type": "card",
+          "title": "From observation to decision",
+          "children": [
+            {
+              "type": "timeline",
+              "events": [
+                {
+                  "label": "MONDAY / 09:00",
+                  "title": "A matched baseline",
+                  "tone": "positive",
+                  "content": "Use the same operating window at each station. Keep the **source rows** with the report."
+                },
+                {
+                  "label": "WEDNESDAY / 14:30",
+                  "title": "A useful change",
+                  "tone": "positive",
+                  "content": "The revised schedule increased accepted observations. Review the result alongside `energy / accepted` to keep efficiency visible."
+                },
+                {
+                  "label": "FRIDAY / NEXT REVIEW",
+                  "title": "A question to resolve",
+                  "tone": "warning",
+                  "content": "One station had a shorter window. Repeat that comparison before treating the difference as a durable improvement."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "Readiness",
+          "children": [
+            {
+              "type": "badge",
+              "label": "Ready for review",
+              "tone": "positive"
+            },
+            {
+              "type": "progress",
+              "label": "Source reconciliation",
+              "value": 0.96,
+              "detail": "The remaining rows have a named follow-up.",
+              "tone": "positive"
+            },
+            {
+              "type": "progress",
+              "label": "Matched operating windows",
+              "value": 0.72,
+              "detail": "One comparison needs another window.",
+              "tone": "warning"
+            },
+            {
+              "type": "card",
+              "title": "Keep the caveat close",
+              "children": [
+                {
+                  "type": "markdown",
+                  "content": "A useful artifact keeps the **finding**, its evidence and its uncertainty together. This card stays readable inside another card."
+                },
+                {
+                  "type": "badge",
+                  "label": "Follow-up needed",
+                  "tone": "warning"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "title": "Before the next review",
+      "tone": "warning",
+      "content": "Reconcile the remaining source rows and repeat the shortened station window. Keep this version as the evidence for the current decision."
+    },
+    {
+      "type": "card",
+      "title": "A calculation you can reuse",
+      "children": [
+        {
+          "type": "code",
+          "language": "typescript",
+          "content": "type Observation = { accepted: number; energy: number };\n\nfunction efficiency(rows: Observation[]) {\n  const accepted = rows.reduce((sum, row) => sum + row.accepted, 0);\n  const energy = rows.reduce((sum, row) => sum + row.energy, 0);\n  return accepted ? energy / accepted : null;\n}"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Decisions and next steps",
+      "columns": [
+        { "key": "decision", "label": "Decision" },
+        { "key": "owner", "label": "Owner" },
+        { "key": "next", "label": "Next step" }
+      ],
+      "rows": [
+        {
+          "decision": "Keep the revised schedule",
+          "owner": "Station team",
+          "next": "Repeat the matched window"
+        },
+        {
+          "decision": "Retain the original inputs",
+          "owner": "Review team",
+          "next": "Reconcile the open rows"
+        }
+      ]
+    }
+  ]
+}
