@@ -1,5 +1,24 @@
 # Decisions
 
+## 2026-11-07 JS viewer idle acceptance
+
+- Replace the visible-window deferral in JS renderer performance cost with a matched
+  comparison of the original production viewer and the current JS production app.
+  Use the same saved dashboard revision and Retina window, verify its visible focused
+  content before and after every sample, and retain screenshot and binary identities.
+- Three interleaved fresh processes per build, warmups of at least ten seconds and
+  fifteen-second samples on AC give median CPU use of 9.738% versus 0.181% of one
+  core, about 54x lower. Ranges are 9.477..9.743% and 0.151..0.197%. A compiler
+  observer finds no contention. These indicative laptop results are sufficient to
+  accept the retained event-driven CPU improvement in the richer JS viewer.
+- Median physical footprint is 238.9 versus 104.3 MiB, about 2.3x lower; RSS is
+  110.4 versus 142.0 MiB. Keep those measures distinct. The 10x RAM target remains
+  unmet, and this complete product comparison does not isolate the cost of moving
+  behavior into JS from the new fonts, widgets and document capabilities.
+- Keep physical chart input and revision-switch resource acceptance separate. The
+  screenshot and idle checks establish visible rendering, while queued native input
+  checks establish widget behavior without proving SDL pointer delivery.
+
 ## 2026-11-07 authored PDF sections
 
 - Let a top-level block request a fresh PDF page with `pageBreakBefore`. Keep this
