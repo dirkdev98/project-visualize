@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-07 titled PDF sections
+
+- Keep a block title with its first rendered content line when a card, callout,
+  expanded section or other titled block spans pages. Capture the body line locally
+  after the title so nested and parallel branches keep their own content.
+- Add a short preferred span instead of making an oversized container indivisible.
+  Whole-container preferences can exceed a page and were leaving a timeline card's
+  title alone. Let timelines flow between protected events so the title and whole
+  timeline do not form an oversized chain. Preserve the text-first column fallback.
+- Keep continuous layout unchanged and verify exact PNG parity across the example
+  matrix. A public CLI regression reproduces the old orphan and checks the title's
+  association with its first event in light and dark exports.
+
 ## 2026-11-07 readable visual defaults
 
 - Darken the light theme's warning and clay series colors while retaining the slate,

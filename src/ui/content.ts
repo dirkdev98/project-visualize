@@ -382,9 +382,12 @@ export class DocumentRenderer {
   ) {
     const top = igGetCursorScreenPos().y;
     let heading = parentHeading;
+    const capture = currentCapture();
+    let bodyLineStart: number | undefined;
     if (value.title && !["callout", "details", "card"].includes(value.type)) {
       heading = captureHeading(value.title, top, parentHeading);
       text(value.title, 22, "bold");
+      bodyLineStart = capture?.lines.length;
     }
     switch (value.type) {
       case "markdown":
@@ -500,6 +503,7 @@ export class DocumentRenderer {
               parentHeading,
             );
             text(value.title, 21, "bold");
+            bodyLineStart = capture?.lines.length;
           }
           this.blocks(value.children, exporting, key, heading);
         });
@@ -514,6 +518,7 @@ export class DocumentRenderer {
                 parentHeading,
               );
               text(value.title, 21, "bold", tone(value.tone ?? "positive"));
+              bodyLineStart = capture?.lines.length;
             }
             this.rich.markdown(value.content, exporting, heading);
           },
@@ -529,6 +534,7 @@ export class DocumentRenderer {
               parentHeading,
             );
             text(value.title, 21, "bold");
+            bodyLineStart = capture?.lines.length;
           }
           this.blocks(value.children, exporting, key, heading);
         } else if (
@@ -559,9 +565,14 @@ export class DocumentRenderer {
         break;
     }
     if (value.caption) text(value.caption, 15, "regular", palette.muted);
+    if (bodyLineStart !== undefined) {
+      const firstLine = capture?.lines[bodyLineStart];
+      if (firstLine) keepTogether(top, firstLine.bottom);
+    }
     if (value.type !== "spacer") {
       const bottom = igGetCursorScreenPos().y;
-      keepTogether(top, bottom);
+      // Event spans let a timeline flow beneath a parent title without one oversized chain.
+      if (value.type !== "timeline") keepTogether(top, bottom);
       keepTogether(top, Math.min(top + 48, bottom));
       keepTogether(Math.max(top, bottom - 48), bottom);
     }

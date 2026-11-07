@@ -398,6 +398,50 @@ test("Markdown headings stay with the first following body line in a long report
   }
 });
 
+test("titled cards keep their first timeline entry on the same PDF page", (t) => {
+  const { ok } = workspace(t);
+  const document = JSON.parse(
+    readFileSync(resolve("examples/components.json"), "utf8"),
+  );
+  const card = document.body
+    .flatMap((block) => block.children ?? [])
+    .find(
+      (block) =>
+        block.type === "card" && block.children[0]?.type === "timeline",
+    );
+  assert.ok(card);
+  const firstEvent = card.children[0].events[0];
+  for (const [theme, scale] of [
+    ["light", "1"],
+    ["dark", "2"],
+  ]) {
+    const entry = ok(
+      [
+        "render",
+        "--project",
+        "orbital",
+        "--artifact",
+        "review",
+        "--file",
+        "-",
+        "--width",
+        "640",
+        "--scale",
+        scale,
+      ],
+      { ...document, theme },
+    );
+    const pages = pdfTextPages(entry.pdf);
+    assert.ok(pages.length > 1);
+    const page = pages.find((page) => page.includes(card.title));
+    assert.ok(
+      page?.includes(firstEvent.title),
+      `Orphaned card title in ${theme}`,
+    );
+    assert.ok(page.includes(firstEvent.label));
+  }
+});
+
 test("authored PDF sections start on fresh pages without changing the PNG", (t) => {
   const { render } = workspace(t);
   const body = [
