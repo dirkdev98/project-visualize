@@ -250,13 +250,6 @@ extern "C" PVSize pv_surface_size(void) {
 
 extern "C" int pv_surface_limit(void) { return surface().max_dimension; }
 extern "C" ImFontAtlas *pv_font_atlas(void) { return ImGui::GetIO().Fonts; }
-// Pointer-only handles lack scalar field access:
-// https://github.com/dirkdev98/maligator/issues/96
-extern "C" PVSize pv_font_metrics(ImFont *font, float size) {
-  auto baked = font->GetFontBaked(size);
-  float scale = size / baked->Size;
-  return {baked->Ascent * scale, baked->Descent * scale};
-}
 extern "C" int pv_surface_begin(int width, int height, int scale) {
   try { surface().begin(width, height, scale); return 0; }
   catch (const std::exception &error) { last_error = error.what(); return -1; }

@@ -9,7 +9,6 @@ typedef struct { float x, y; } PVSize;
 typedef struct { float x, y, z, w; } PVColor;
 typedef struct PVImage PVImage;
 typedef struct ImFontAtlas ImFontAtlas;
-typedef struct ImFont ImFont;
 
 /* Window, UI and disposal calls run on the application main thread. */
 int pv_surface_open(int viewer);
@@ -37,7 +36,6 @@ const char *pv_error(void);
 /* Resolve the physical executable independently of its invocation name. */
 const char *pv_executable_path(void);
 ImFontAtlas *pv_font_atlas(void);
-PVSize pv_font_metrics(ImFont *font, float size);
 void pv_ui_style(float caret_width);
 int pv_input_text(const char *label, const char *hint, char *buffer, int capacity);
 void pv_input_clear(unsigned int id);

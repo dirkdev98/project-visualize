@@ -23,6 +23,10 @@ export default defineLibrary({
   types: {
     ImGuiIO: { handle: {} },
     ImFont: { handle: {} },
+    ImFontBaked: {
+      handle: {},
+      fields: { Ascent: { value: true }, Size: { value: true } },
+    },
     ImFontAtlas: { handle: {} },
     ImDrawList: { handle: {} },
     ImDrawListSplitter: { handle: { destroy: "ImDrawListSplitter_destroy" } },
@@ -82,6 +86,10 @@ export default defineLibrary({
       },
     },
     ImFont_CalcWordWrapPosition: { params: { text_end: { end: "text" } } },
+    ImFont_GetFontBaked: {
+      params: { density: { constant: "-1" } },
+      returns: { borrowed: true },
+    },
     igTableGetSortSpecs: { returns: { borrowed: true } },
     ImPlot_SetupAxisTicks_doublePtr: {
       params: {

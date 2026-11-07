@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-07 alpha.34 value fields
+
+- Pin Maligator to `0.1.0-alpha.34` and read baked font ascent and size through
+  borrowed handle value fields. Remove the C font-metric accessor now that these
+  fields are supported, consuming the fix for
+  [Maligator #96](https://github.com/dirkdev98/maligator/issues/96).
+- Retain ImGui's float precision when calculating ascent so selectable PDF text
+  keeps its existing baseline positions.
+- Keep explicit class fields and constructor assignments. Parameter properties need
+  transformation beyond erasable TypeScript, and
+  [Maligator #97](https://github.com/dirkdev98/maligator/issues/97) is parked for a
+  language-policy decision rather than treated as an outstanding compiler fix.
+
 ## 2026-11-07 streamed image encoding
 
 - Use zlib through stb's compression hook at level 3. Keep PNG pixels lossless while
@@ -43,11 +56,6 @@ Keep track of;
   tracked in [Maligator #96](https://github.com/dirkdev98/maligator/issues/96).
   Keep constructor fields explicit while parameter properties remain unsupported,
   tracked in [Maligator #97](https://github.com/dirkdev98/maligator/issues/97).
-
-Keep track of;
-
-- Recheck scalar handle fields and constructor parameter properties on the next
-  Maligator update.
 
 ## 2026-11-07 native interaction and visual authoring
 

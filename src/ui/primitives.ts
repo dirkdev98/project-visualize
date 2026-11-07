@@ -7,6 +7,7 @@ import {
   ImDrawListSplitter_Merge,
   ImDrawListSplitter_SetCurrentChannel,
   ImDrawListSplitter_Split,
+  ImFont_GetFontBaked,
   ImGuiCol_FrameBg,
   ImGuiCol_Text,
   ImGuiStyleVar_CellPadding,
@@ -40,7 +41,6 @@ import {
   igTableNextRow,
   igTextUnformatted,
   pv_error,
-  pv_font_metrics,
   pv_input_clear,
   pv_input_text,
 } from "maligator:ffi/visualize";
@@ -97,7 +97,11 @@ export function captureText(
   if (ascent === undefined) {
     const face = fonts[font];
     if (!face) throw new Error("Fonts are not initialized");
-    ascent = pv_font_metrics(face, size).x;
+    const baked = ImFont_GetFontBaked(face, size);
+    if (!baked) throw new Error("Font metrics are unavailable");
+    // Match ImGui's float precision to preserve selectable PDF text baselines.
+    const scale = Math.fround(Math.fround(size) / baked.Size);
+    ascent = Math.fround(baked.Ascent * scale);
     capture.metrics.set(key, ascent);
   }
   const x = Math.trunc(point.x),
