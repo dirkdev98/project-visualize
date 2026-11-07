@@ -37,6 +37,12 @@ import {
   pv_text_line,
 } from "maligator:ffi/visualize";
 import { currentCapture, keepLineTogether } from "./layout.ts";
+import {
+  selectingText,
+  selectionBreak,
+  selectionText,
+  withoutTextSelection,
+} from "./selection.ts";
 import { type Color, type Font, fonts, packed, palette } from "./theme.ts";
 
 export function checked(result: number): number {
@@ -58,6 +64,7 @@ export function text(
   if (wrap >= 0) igPushTextWrapPos(wrap === 0 ? 0 : igGetCursorPosX() + wrap);
   igTextUnformatted(value);
   captureWrappedText(value, font, size, igGetItemRectMin(), width);
+  selectionBreak();
   if (wrap >= 0) igPopTextWrapPos();
   igPopStyleColor(1);
   igPopFont();
@@ -101,7 +108,7 @@ export function captureWrappedText(
   point: { x: number; y: number },
   width: number,
 ) {
-  if (!currentCapture() || !value) return;
+  if ((!currentCapture() && !selectingText()) || !value) return;
   const face = fonts[font];
   if (!face) throw new Error("Fonts are not initialized");
   igPushFont(face, size);
@@ -118,6 +125,16 @@ export function captureWrappedText(
         size,
         { x: point.x, y },
         line.width,
+      );
+      selectionText(
+        remaining.subarray(0, line.length).toString("utf8"),
+        font,
+        size,
+        { x: point.x, y },
+        line.width,
+      );
+      selectionBreak(
+        remaining.subarray(line.length, line.consumed).toString("utf8"),
       );
       remaining = remaining.subarray(line.consumed);
       y += size;
@@ -204,6 +221,6 @@ export function panel(body: () => void, background: Color = palette.surface) {
 }
 export function tooltip(value: string) {
   igBeginTooltip();
-  text(value, 16, "regular", palette.ink, 420);
+  withoutTextSelection(() => text(value, 16, "regular", palette.ink, 420));
   igEndTooltip();
 }

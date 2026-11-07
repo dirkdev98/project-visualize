@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-07 native document text selection
+
+- Let people select rendered text across headings, prose, code and table cells. Keep
+  hit testing, Unicode boundaries, drag state, clipping and clipboard assembly in
+  Maligator JS using measured native glyph positions. Preserve source whitespace
+  across soft wraps and clear selections when the displayed content changes.
+- Keep selection scoped to the document canvas. Editable controls retain keyboard
+  ownership, links activate only without a selection drag, and dragging beyond the
+  viewport scrolls the document. Disable movement of the fixed ImGui root window.
+- Keep exports free of selection state. The new viewer geometry work runs only on
+  redraws; make no performance claim without a matched measurement. Physical macOS
+  input remains distinct from offscreen native input verification.
+
 ## 2026-11-07 compact decision brief
 
 - Add a briefing example that keeps the finding, trend, uncertainty and source rows

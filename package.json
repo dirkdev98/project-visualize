@@ -14,7 +14,8 @@
     "check:viewer": "node scripts/check-presentation.mjs",
     "check:readback": "node scripts/check-native.mjs readback",
     "check:images": "node scripts/check-native.mjs images",
-    "check:plots": "node scripts/check-native.mjs plots"
+    "check:plots": "node scripts/check-native.mjs plots",
+    "check:selection": "node scripts/check-native.mjs selection"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

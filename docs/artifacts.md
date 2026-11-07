@@ -305,6 +305,11 @@ The viewer's theme button and Cmd+Shift+L change its temporary appearance. Cmd+K
 focuses the artifact-library search. These interactions preserve saved snapshots;
 the viewer's Saved PDF button opens the creation-time export.
 
+Drag across document text to select it, then press Cmd+C to copy. Double-click a word
+to select it. With a document selection active, Cmd+A selects the rendered document
+text and Escape clears the selection. Formatting, soft wraps and syntax colors do
+not enter the clipboard. Editable controls keep their own keyboard shortcuts.
+
 The saved PNG and PDF use the render command's width and scale. Exporting at the
 same settings copies that snapshot. Changing `--width`, `--scale`, `--theme` or `--params` rerenders the
 saved data and copied images without creating a revision. Viewer filters, chart

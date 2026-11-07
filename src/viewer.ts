@@ -10,6 +10,7 @@ import {
   ImGuiTableFlags_SizingStretchSame,
   ImGuiTreeNodeFlags_DefaultOpen,
   ImGuiWindowFlags_NoDecoration,
+  ImGuiWindowFlags_NoMove,
   ImGuiWindowFlags_NoSavedSettings,
   igBegin,
   igBeginChild_Str,
@@ -233,7 +234,9 @@ export function openViewer(root: string, options: Options) {
     igSetNextWindowSize(size, 0);
     igBegin(
       "Visualize",
-      ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings,
+      ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings,
     );
     // ImGui maps Command to Ctrl when its macOS behavior is enabled.
     const focusSearch = igShortcut_Nil(

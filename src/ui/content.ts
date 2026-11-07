@@ -150,6 +150,7 @@ import {
   tooltip,
 } from "./primitives.ts";
 import { RichText } from "./richtext.ts";
+import { TextSelection, withTextSelection } from "./selection.ts";
 import {
   type Color,
   color,
@@ -230,6 +231,7 @@ export class DocumentRenderer {
   private plots = new Map<ChartBlock, PlotSeries[]>();
   private barPress: { key: string; revision: number; value: Cell } | undefined;
   private rich: RichText;
+  private selection = new TextSelection();
   private view: ResolvedView | undefined;
   private viewRevision = -1;
   private controlChoices = new Map<
@@ -329,6 +331,10 @@ export class DocumentRenderer {
     this.state.revision++;
   }
   body(exporting: boolean) {
+    if (exporting) this.renderBody(true);
+    else withTextSelection(this.selection, () => this.renderBody(false));
+  }
+  private renderBody(exporting: boolean) {
     if (!this.view || this.viewRevision !== this.state.revision) {
       this.barPress = undefined;
       this.view = resolveView(this.document, this.state.parameters);

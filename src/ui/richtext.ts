@@ -49,6 +49,12 @@ import {
 } from "./layout.ts";
 import { available, captureText, panel, text } from "./primitives.ts";
 import {
+  draggingText,
+  selectionBreak,
+  selectionText,
+  withoutTextSelection,
+} from "./selection.ts";
+import {
   currentTheme,
   type Font,
   fonts,
@@ -191,17 +197,24 @@ export class RichText {
       const pieces = run.value.match(/\n|[^\S\n]+|[^\s]+/g) ?? [];
       for (let piece of pieces) {
         if (piece === "\n") {
+          selectionBreak("\n");
           x = 0;
           y += line;
           continue;
         }
         const space = /^\s+$/.test(piece);
-        if (space && x === 0) continue;
+        if (space && x === 0) {
+          selectionBreak(piece);
+          continue;
+        }
         let measured = igCalcTextSize(piece, false, -1).x;
         if (x + measured > width && x > 0) {
           x = 0;
           y += line;
-          if (space) continue;
+          if (space) {
+            selectionBreak(piece);
+            continue;
+          }
         }
         while (piece.length) {
           const part =
@@ -232,6 +245,7 @@ export class RichText {
             0,
           );
           captureText(part, font, fontSize, point, partWidth, run.link);
+          selectionText(part, font, fontSize, point, partWidth);
           if (run.strike || run.link) {
             const offset = run.strike ? size * 0.55 : size + 1;
             ImDrawList_AddLine(
@@ -252,13 +266,16 @@ export class RichText {
                 { x: Math.max(1, partWidth), y: size + 3 },
                 0,
               ) &&
+              !draggingText() &&
               /^(https?:|mailto:)/.test(run.link)
             )
               pv_open_url(run.link);
             if (igIsItemHovered(0)) {
               igSetMouseCursor(ImGuiMouseCursor_Hand);
               igBeginTooltip();
-              text(run.link, 15, "regular", palette.ink, -1);
+              withoutTextSelection(() =>
+                text(run.link ?? "", 15, "regular", palette.ink, -1),
+              );
               igEndTooltip();
             }
             igPopID();
@@ -276,6 +293,7 @@ export class RichText {
     }
     igSetCursorScreenPos(origin);
     igDummy({ x: width, y: y + line });
+    selectionBreak();
   }
   code(source: string, language: string, exporting: boolean) {
     if (this.codeTheme !== currentTheme()) {
@@ -352,6 +370,13 @@ export class RichText {
               { x: origin.x + x, y: origin.y + y },
               partWidth,
             );
+            selectionText(
+              part,
+              "mono",
+              size,
+              { x: origin.x + x, y: origin.y + y },
+              partWidth,
+            );
             if (token.fontStyle & 4)
               ImDrawList_AddLine(
                 draw,
@@ -370,6 +395,7 @@ export class RichText {
           }
         }
         y += lineHeight;
+        selectionBreak();
       }
       igSetCursorScreenPos(origin);
       igDummy({ x: width, y: Math.max(lineHeight, y) });
