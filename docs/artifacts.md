@@ -192,7 +192,7 @@ are strings; toggle parameters are booleans. Reset controls restores the saved d
 Metric sources support `sum`, `mean`, `count`, `min` and `max`. Count counts rows and
 needs no field. An empty sum is zero; an empty mean, minimum or maximum displays
 `N/A`. Chart sources name `x`, optionally `y` and a grouping `series` field. Bars sum
-by category by default; line and scatter charts preserve source points unless an
+by category by default; line, area and scatter charts preserve source points unless an
 `aggregate` is supplied. Numeric x values retain their coordinates unless a bar chart
 supports selection. Other x values form categories in source order. An absent
 category/series pair stays absent.
@@ -220,6 +220,12 @@ Inspection returns the saved document plus a resolved `view` with parameters, ro
 counts, widget values and typed `chartSelections` keyed by block path. Parameter
 exports rerender the view even at the saved width
 and scale. They preserve the source, default snapshots and version history.
+
+The viewer's **Copy view** action copies its `store`, project, artifact, version,
+theme and `params` as JSON. Pass those identifiers and parameters to the corresponding
+CLI flags to reproduce the selection. Context shows the typed control values;
+saved PNG/PDF snapshots retain the document's defaults.
+Chart navigation and local table searches remain temporary viewer state.
 
 ## Heatmaps
 

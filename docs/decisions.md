@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-07 reproducible viewer selections
+
+- Add Copy view for sharing the displayed revision, current theme and typed linked
+  parameters with an agent. Include the absolute library path so a view from a separate
+  store can be reproduced through the CLI. Preserve scalar types, range bounds and
+  the explicit all-values sentinel instead of copying display labels.
+- Show linked-control values in Context and clarify that the PNG action copies the
+  saved revision's snapshot path. Keep copying a view separate from publishing a new
+  artifact; inspection and themed parameter exports preserve existing saved files.
+- Verify the actual native button and clipboard through the offscreen viewer adapter,
+  including typed categories, partial ranges and Follow latest. Round-trip copied
+  selections through the CLI, and check toolbar wrapping and independent Context
+  scrolling at narrow and Retina sizes. Keep physical SDL delivery separate.
+
 ## 2026-11-07 shaded trends
 
 - Compose area charts from a shaded numeric series and its line in JS. Share the

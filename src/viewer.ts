@@ -48,8 +48,9 @@ import {
   pv_surface_size,
   pv_surface_wait,
 } from "maligator:ffi/visualize";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { controls, isAll, parameterValue } from "./data.ts";
 import type { Theme } from "./model.ts";
 import { type Entry, list, load } from "./store.ts";
 import {
@@ -396,11 +397,31 @@ export function openViewer(root: string, options: Options) {
       if (toolbarButton("Context")) showContext = !showContext;
       if (toolbarButton("Copy PNG path"))
         igSetClipboardText(join(selected.directory, "snapshot.png"));
+      if (igIsItemHovered(0)) tooltip("Copy this revision's saved PNG path.");
       if (toolbarButton("Saved PDF"))
         pv_open_url(
           pathToFileURL(join(selected.directory, "snapshot.pdf")).href,
         );
       if (renderer) {
+        if (toolbarButton("Copy view"))
+          igSetClipboardText(
+            JSON.stringify(
+              {
+                store: resolve(root),
+                project: selected.project,
+                artifact: selected.artifact,
+                version: selected.version,
+                theme: currentTheme(),
+                params: Object.fromEntries(renderer.state.parameters),
+              },
+              null,
+              2,
+            ),
+          );
+        if (igIsItemHovered(0))
+          tooltip(
+            "Copy this revision, theme and linked controls for an agent.",
+          );
         if (renderer.hasControls()) {
           if (toolbarButton("Reset controls")) renderer.resetControls();
         }
@@ -447,6 +468,23 @@ export function openViewer(root: string, options: Options) {
             "mono",
             palette.muted,
           );
+          const definitions = controls(renderer.document);
+          if (definitions.length) {
+            text("Linked controls", 18, "bold");
+            for (const control of definitions) {
+              text(control.label, 14, "bold", palette.muted);
+              const value = parameterValue(
+                renderer.state.parameters,
+                control.id,
+              );
+              text(
+                isAll(value) ? "All values" : JSON.stringify(value),
+                15,
+                "mono",
+              );
+            }
+            igSpacing();
+          }
           const context = renderer.document.context;
           if (context)
             for (const [key, value] of Object.entries(context)) {

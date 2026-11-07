@@ -64,6 +64,8 @@ artifact format.
 The library shows artifact IDs beneath their titles. Choose a revision in the viewer's
 version menu to keep that snapshot open, or choose **Follow latest** to display new
 revisions as agents save them. Context stacks below the canvas in a narrow window.
+Use **Copy view** to share the exact library, revision, theme and linked-control
+parameters with an agent. Context also shows the current typed control values.
 
 ## Development
 

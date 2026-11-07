@@ -39,6 +39,10 @@ Use `inspect --params` to check the selected rows and derived values, then expor
 the same parameters to deliver that view without revising the source. PDFs paginate
 the canvas and include selectable document text. Native plot labels stay rasterized.
 
+When the user supplies a **Copy view** object from the viewer, use its `store`,
+project, artifact and version to identify the source. Pass its `params` and theme
+to the CLI export to reproduce the linked selection.
+
 Use the CLI's returned paths; do not reconstruct paths into the internal store or
 edit saved version files. Run `open` only when a desktop window is useful or requested.
 CLI rendering and exporting work with the viewer closed.
