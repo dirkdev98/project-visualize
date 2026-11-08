@@ -13,7 +13,7 @@
     "test": "node --test tests/*.test.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run check:visual",
     "check:html": "playwright test tests/visual/components.spec.mjs tests/visual/interactions.spec.mjs tests/visual/partial.spec.mjs",
-    "check:html:update": "playwright test tests/visual/components.spec.mjs tests/visual/interactions.spec.mjs tests/visual/partial.spec.mjs --update-snapshots",
+    "check:html:update": "playwright test tests/visual/components.spec.mjs tests/visual/interactions.spec.mjs tests/visual/partial.spec.mjs --update-snapshots=changed",
     "setup:browser": "PLAYWRIGHT_SKIP_BROWSER_GC=1 playwright install chromium",
     "check:viewer": "node scripts/check-presentation.mjs",
     "check:readback": "node scripts/check-native.mjs readback",
@@ -26,7 +26,9 @@
     "check:menu": "node scripts/check-menu.mjs",
     "check:linux-package": "node scripts/check-linux-package.mjs",
     "check:visual": "playwright test",
-    "check:visual:update": "playwright test --update-snapshots"
+    "check:visual:update": "playwright test --update-snapshots=changed",
+    "examples:check": "node scripts/examples.mjs check",
+    "examples:update": "node scripts/examples.mjs update"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

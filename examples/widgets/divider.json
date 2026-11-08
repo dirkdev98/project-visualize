@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Dividers",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "text",
+      "id": "before",
+      "content": "A divider separates related sections."
+    },
+    {
+      "type": "divider",
+      "id": "rule"
+    },
+    {
+      "type": "text",
+      "id": "after",
+      "content": "The next section begins here."
+    }
+  ]
+}

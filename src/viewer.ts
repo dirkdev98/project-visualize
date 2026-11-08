@@ -1135,11 +1135,12 @@ export function openViewer(
     select(selected, followLatest, followPresented);
     while (true) {
       const inputState = pv_surface_input();
+      const processing = capture !== undefined || navigation !== undefined;
       const animating = Date.now() < animateUntil || (inputState & 1) !== 0;
       const editing = (inputState & 2) !== 0;
       const status = checked(
         pv_surface_wait(
-          pending > 0 ? 0 : animating ? 16 : editing ? 250 : 1000,
+          pending > 0 || processing ? 0 : animating ? 16 : editing ? 250 : 1000,
         ),
       );
       if (status === 0) break;
@@ -1210,7 +1211,7 @@ export function openViewer(
         requestedTheme = undefined;
         pending = 2;
       }
-      if (pending === 0 && !animating && !editing) {
+      if (pending === 0 && !animating && !editing && !capture && !navigation) {
         if (unpresented) unpresented = checked(pv_surface_present()) === 1;
         continue;
       }

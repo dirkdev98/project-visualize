@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Metrics",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Whole number",
+          "value": 1284,
+          "id": "integer",
+          "decimals": 0
+        },
+        {
+          "type": "metric",
+          "label": "Formatted value",
+          "value": 12.345,
+          "id": "formatted",
+          "decimals": 2,
+          "prefix": "€",
+          "suffix": " / shift",
+          "detail": "Includes a unit and a description."
+        },
+        {
+          "type": "metric",
+          "label": "Text value",
+          "value": "Ready",
+          "id": "text",
+          "tone": "positive"
+        }
+      ]
+    },
+    {
+      "type": "metric",
+      "label": "neutral value",
+      "value": 42,
+      "id": "neutral",
+      "tone": "neutral"
+    },
+    {
+      "type": "metric",
+      "label": "positive value",
+      "value": 42,
+      "id": "positive",
+      "tone": "positive"
+    },
+    {
+      "type": "metric",
+      "label": "warning value",
+      "value": 42,
+      "id": "warning",
+      "tone": "warning"
+    },
+    {
+      "type": "metric",
+      "label": "negative value",
+      "value": 42,
+      "id": "negative",
+      "tone": "negative"
+    },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "id": "sum",
+          "label": "sum",
+          "source": {
+            "dataset": "observations",
+            "field": "value",
+            "aggregate": "sum"
+          }
+        },
+        {
+          "type": "metric",
+          "id": "mean",
+          "label": "mean",
+          "source": {
+            "dataset": "observations",
+            "field": "value",
+            "aggregate": "mean"
+          }
+        },
+        {
+          "type": "metric",
+          "id": "count",
+          "label": "count",
+          "source": {
+            "dataset": "observations",
+            "field": "value",
+            "aggregate": "count"
+          }
+        },
+        {
+          "type": "metric",
+          "id": "min",
+          "label": "min",
+          "source": {
+            "dataset": "observations",
+            "field": "value",
+            "aggregate": "min"
+          }
+        },
+        {
+          "type": "metric",
+          "id": "max",
+          "label": "max",
+          "source": {
+            "dataset": "observations",
+            "field": "value",
+            "aggregate": "max"
+          }
+        }
+      ]
+    },
+    {
+      "type": "metric",
+      "id": "empty",
+      "label": "No matching observations",
+      "source": {
+        "dataset": "empty",
+        "field": "value",
+        "aggregate": "mean"
+      }
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

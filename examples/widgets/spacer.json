@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Spacing",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "text",
+      "id": "before-default",
+      "content": "Default spacing follows this paragraph."
+    },
+    {
+      "type": "spacer",
+      "id": "default"
+    },
+    {
+      "type": "text",
+      "id": "before-explicit",
+      "content": "An explicit gap follows this paragraph."
+    },
+    {
+      "type": "spacer",
+      "id": "explicit",
+      "height": 48
+    },
+    {
+      "type": "metric",
+      "label": "After the gap",
+      "value": 30
+    }
+  ]
+}

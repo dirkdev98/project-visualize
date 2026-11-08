@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: "tests/visual",
   timeout: 30_000,
   workers: 1,
+  fullyParallel: true,
   updateSnapshots: "none",
   reporter: [
     ["list"],

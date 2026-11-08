@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "Trees",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "tree",
+      "id": "hierarchy",
+      "title": "A hierarchy",
+      "nodes": [
+        {
+          "id": "network",
+          "label": "Network"
+        },
+        {
+          "id": "cedar",
+          "label": "Cedar"
+        },
+        {
+          "id": "birch",
+          "label": "Birch"
+        },
+        {
+          "id": "sensor",
+          "label": "Sensor"
+        }
+      ],
+      "edges": [
+        {
+          "from": "network",
+          "to": "cedar"
+        },
+        {
+          "from": "network",
+          "to": "birch"
+        },
+        {
+          "from": "cedar",
+          "to": "sensor"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "tree",
+      "id": "forest",
+      "title": "Separate roots",
+      "direction": "right",
+      "nodes": [
+        {
+          "id": "a",
+          "label": "First root"
+        },
+        {
+          "id": "b",
+          "label": "Second root"
+        },
+        {
+          "id": "c",
+          "label": "Child"
+        }
+      ],
+      "edges": [
+        {
+          "from": "a",
+          "to": "c"
+        }
+      ]
+    }
+  ]
+}

@@ -1,1 +1,2 @@
 assets/fonts/LICENSE.txt -text
+examples/exports/** -text -whitespace linguist-generated

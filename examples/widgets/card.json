@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Cards",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "card",
+          "title": "Titled card",
+          "children": [
+            {
+              "type": "metric",
+              "label": "Accepted",
+              "value": 30
+            },
+            {
+              "type": "text",
+              "id": "text",
+              "content": "Keep related evidence together."
+            }
+          ],
+          "id": "titled",
+          "caption": "A short card caption."
+        },
+        {
+          "type": "card",
+          "id": "untitled",
+          "children": [
+            {
+              "type": "text",
+              "id": "text",
+              "content": "An untitled card can hold a short note."
+            },
+            {
+              "type": "card",
+              "title": "Nested card",
+              "children": [
+                {
+                  "type": "badge",
+                  "label": "Reviewed",
+                  "tone": "positive"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

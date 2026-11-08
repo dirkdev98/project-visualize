@@ -5,11 +5,11 @@ tarball and a Debian package. The container keeps Linux native dependencies and
 compiler caches separate from the Mac checkout.
 
 ```sh
-docker build --platform linux/amd64 --target source \
+docker build --platform linux/amd64 --target visual-tests \
   -f packaging/linux/Dockerfile -t project-visualize-linux .
 docker run --name visualize-linux-build --platform linux/amd64 \
   project-visualize-linux sh -c \
-  'npm run build && npm run check && npm run check:linux-package'
+  'xvfb-run -a npm run check && npm run check:linux-package'
 docker cp visualize-linux-build:/app/dist/packages ./linux-packages
 docker rm visualize-linux-build
 ```

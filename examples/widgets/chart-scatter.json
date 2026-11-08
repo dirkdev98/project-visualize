@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "type": "dashboard",
+  "title": "Scatter charts",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "chart",
+      "id": "grouped",
+      "kind": "scatter",
+      "title": "Grouped observations",
+      "height": 230,
+      "xLabel": "Time",
+      "yLabel": "Value",
+      "series": [
+        {
+          "name": "Cedar",
+          "values": [3, 7, 4, 9, 6],
+          "x": [0, 2, 4, 6, 8]
+        },
+        {
+          "name": "Birch",
+          "values": [1, 4, 6, 3, 8],
+          "x": [0, 2, 4, 6, 8]
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "repeated-x",
+      "kind": "scatter",
+      "title": "Repeated x values and one observation",
+      "height": 220,
+      "series": [
+        {
+          "name": "Repeated",
+          "values": [3, -1, 5, 3],
+          "x": [0, 2, 2, 8]
+        },
+        {
+          "name": "Single",
+          "values": [2],
+          "x": [5]
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "single",
+      "kind": "scatter",
+      "title": "Single observation",
+      "height": 180,
+      "series": [
+        {
+          "name": "Single",
+          "values": [7]
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "empty",
+      "kind": "scatter",
+      "title": "No matching observations",
+      "height": 180,
+      "source": {
+        "dataset": "empty",
+        "x": "station",
+        "y": "value"
+      }
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

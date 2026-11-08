@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Timeline",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "timeline",
+      "id": "events",
+      "events": [
+        {
+          "label": "Day 1",
+          "title": "Inputs collected",
+          "tone": "neutral",
+          "content": "Retain **source observations** and explain what changed before the next review."
+        },
+        {
+          "title": "Review complete",
+          "tone": "positive",
+          "content": "Retain **source observations** and explain what changed before the next review."
+        },
+        {
+          "label": "Day 3",
+          "title": "Follow-up required",
+          "tone": "warning",
+          "content": "Retain **source observations** and explain what changed before the next review."
+        },
+        {
+          "label": "Day 4",
+          "title": "Window excluded",
+          "tone": "negative",
+          "content": "Retain **source observations** and explain what changed before the next review."
+        }
+      ]
+    }
+  ]
+}

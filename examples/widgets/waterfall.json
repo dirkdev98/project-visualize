@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Waterfalls",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "waterfall",
+      "id": "balance",
+      "title": "Running balance and explicit totals",
+      "height": 250,
+      "steps": [
+        {
+          "label": "Opening",
+          "value": 12,
+          "kind": "total"
+        },
+        {
+          "label": "Added",
+          "value": 5
+        },
+        {
+          "label": "Removed",
+          "value": -21
+        },
+        {
+          "label": "Subtotal",
+          "value": -4,
+          "kind": "total"
+        },
+        {
+          "label": "Recovery",
+          "value": 9
+        },
+        {
+          "label": "Closing",
+          "value": 5,
+          "kind": "total"
+        }
+      ],
+      "yLabel": "Balance"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "type": "dashboard",
+  "title": "Bar charts",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "chart",
+      "id": "grouped",
+      "kind": "bar",
+      "title": "Grouped categories",
+      "height": 230,
+      "labels": [
+        "First station with a long name",
+        "Second station",
+        "Third station"
+      ],
+      "series": [
+        {
+          "name": "Morning",
+          "values": [3, -2, 5]
+        },
+        {
+          "name": "Evening",
+          "values": [1, 0, 4]
+        }
+      ]
+    },
+    {
+      "type": "control",
+      "id": "station",
+      "kind": "select",
+      "label": "Selected station",
+      "dataset": "observations",
+      "field": "station"
+    },
+    {
+      "type": "chart",
+      "id": "linked",
+      "kind": "bar",
+      "select": "station",
+      "title": "Click a bar to filter",
+      "height": 220,
+      "source": {
+        "dataset": "observations",
+        "x": "station",
+        "y": "value",
+        "series": "shift",
+        "aggregate": "sum"
+      }
+    },
+    {
+      "type": "chart",
+      "id": "signed",
+      "kind": "bar",
+      "title": "Signed and zero values",
+      "height": 220,
+      "series": [
+        {
+          "name": "Change",
+          "values": [-2, 3, -1, 4, 0]
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "single",
+      "kind": "bar",
+      "title": "Single observation",
+      "height": 180,
+      "series": [
+        {
+          "name": "Single",
+          "values": [7]
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "empty",
+      "kind": "bar",
+      "title": "No matching observations",
+      "height": 180,
+      "source": {
+        "dataset": "empty",
+        "x": "station",
+        "y": "value"
+      }
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

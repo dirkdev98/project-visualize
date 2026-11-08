@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Images",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "image",
+      "id": "natural",
+      "title": "Natural dimensions",
+      "asset": "sample",
+      "caption": "A procedural fictional landscape fixture."
+    },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "image",
+          "id": "contain",
+          "asset": "sample",
+          "fit": "contain",
+          "height": 160,
+          "title": "Contain"
+        },
+        {
+          "type": "image",
+          "id": "cover",
+          "asset": "sample",
+          "fit": "cover",
+          "height": 160,
+          "title": "Cover"
+        }
+      ]
+    },
+    {
+      "type": "markdown",
+      "id": "markdown-image",
+      "content": "## Image inside Markdown\n\n![Fictional landscape](asset:sample)"
+    }
+  ],
+  "assets": {
+    "sample": "../assets/landscape.png"
+  }
+}

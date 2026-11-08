@@ -1,0 +1,188 @@
+name: Rendering regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: Propose regenerated exports and references in a pull request
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rendering-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      UPDATE_EXPORTS: ${{ inputs.update || false }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build the Linux rendering environment
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: packaging/linux/Dockerfile
+          target: visual-tests
+          load: true
+          tags: visualize-regression:local
+          cache-from: type=gha,scope=visualize-rendering
+          cache-to: type=gha,mode=max,scope=visualize-rendering
+      - name: Start the rendering container
+        run: docker run --detach --name visualize-regression --init visualize-regression:local sleep infinity
+      - name: Lint
+        timeout-minutes: 5
+        run: docker exec visualize-regression npm run lint
+      - name: Type check
+        timeout-minutes: 5
+        run: docker exec visualize-regression npm run typecheck
+      - name: CLI and catalogue contracts
+        timeout-minutes: 5
+        run: docker exec visualize-regression xvfb-run -a npm test
+      - name: Widget exports shard 1
+        timeout-minutes: 5
+        run: |
+          if [ "$UPDATE_EXPORTS" = true ]; then
+            docker exec visualize-regression npm run examples:update -- --shard 1/3
+          else
+            docker exec visualize-regression npm run examples:check -- --shard 1/3
+          fi
+      - name: Widget exports shard 2
+        timeout-minutes: 5
+        run: |
+          if [ "$UPDATE_EXPORTS" = true ]; then
+            docker exec visualize-regression npm run examples:update -- --shard 2/3
+          else
+            docker exec visualize-regression npm run examples:check -- --shard 2/3
+          fi
+      - name: Widget exports shard 3
+        timeout-minutes: 5
+        run: |
+          if [ "$UPDATE_EXPORTS" = true ]; then
+            docker exec visualize-regression npm run examples:update -- --shard 3/3
+          else
+            docker exec visualize-regression npm run examples:check -- --shard 3/3
+          fi
+      - name: Visual regression shard 1
+        timeout-minutes: 5
+        run: |
+          flags=()
+          if [ "$UPDATE_EXPORTS" = true ]; then flags+=(--update-snapshots=changed); fi
+          docker exec -e PLAYWRIGHT_HTML_OUTPUT_DIR=.cache/visual-report/shard-1 visualize-regression xvfb-run -a npm run check:visual -- --shard=1/6 --output=.cache/visual-results/shard-1 "${flags[@]}"
+      - name: Visual regression shard 2
+        timeout-minutes: 5
+        run: |
+          flags=()
+          if [ "$UPDATE_EXPORTS" = true ]; then flags+=(--update-snapshots=changed); fi
+          docker exec -e PLAYWRIGHT_HTML_OUTPUT_DIR=.cache/visual-report/shard-2 visualize-regression xvfb-run -a npm run check:visual -- --shard=2/6 --output=.cache/visual-results/shard-2 "${flags[@]}"
+      - name: Visual regression shard 3
+        timeout-minutes: 5
+        run: |
+          flags=()
+          if [ "$UPDATE_EXPORTS" = true ]; then flags+=(--update-snapshots=changed); fi
+          docker exec -e PLAYWRIGHT_HTML_OUTPUT_DIR=.cache/visual-report/shard-3 visualize-regression xvfb-run -a npm run check:visual -- --shard=3/6 --output=.cache/visual-results/shard-3 "${flags[@]}"
+      - name: Visual regression shard 4
+        timeout-minutes: 5
+        run: |
+          flags=()
+          if [ "$UPDATE_EXPORTS" = true ]; then flags+=(--update-snapshots=changed); fi
+          docker exec -e PLAYWRIGHT_HTML_OUTPUT_DIR=.cache/visual-report/shard-4 visualize-regression xvfb-run -a npm run check:visual -- --shard=4/6 --output=.cache/visual-results/shard-4 "${flags[@]}"
+      - name: Visual regression shard 5
+        timeout-minutes: 5
+        run: |
+          flags=()
+          if [ "$UPDATE_EXPORTS" = true ]; then flags+=(--update-snapshots=changed); fi
+          docker exec -e PLAYWRIGHT_HTML_OUTPUT_DIR=.cache/visual-report/shard-5 visualize-regression xvfb-run -a npm run check:visual -- --shard=5/6 --output=.cache/visual-results/shard-5 "${flags[@]}"
+      - name: Visual regression shard 6
+        timeout-minutes: 5
+        run: |
+          flags=()
+          if [ "$UPDATE_EXPORTS" = true ]; then flags+=(--update-snapshots=changed); fi
+          docker exec -e PLAYWRIGHT_HTML_OUTPUT_DIR=.cache/visual-report/shard-6 visualize-regression xvfb-run -a npm run check:visual -- --shard=6/6 --output=.cache/visual-results/shard-6 "${flags[@]}"
+      - name: Collect reports
+        if: always()
+        run: |
+          mkdir -p .cache/ci
+          for name in example-results visual-report visual-results; do
+            if docker exec visualize-regression test -d "/app/.cache/$name"; then
+              docker cp "visualize-regression:/app/.cache/$name" ".cache/ci/$name"
+            fi
+          done
+      - name: Collect proposed references
+        if: success() && inputs.update && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p .cache/updates/examples/exports .cache/updates/tests/visual/snapshots
+          docker cp visualize-regression:/app/examples/exports/linux .cache/updates/examples/exports/linux
+          docker cp visualize-regression:/app/tests/visual/snapshots/linux .cache/updates/tests/visual/snapshots/linux
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: always()
+        with:
+          name: rendering-reports
+          path: .cache/ci
+          include-hidden-files: true
+          retention-days: 14
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        if: success() && inputs.update && github.ref == 'refs/heads/main'
+        with:
+          name: rendering-updates
+          path: .cache/updates
+      - name: Stop the rendering container
+        if: always()
+        run: docker rm -f visualize-regression
+
+  propose:
+    needs: render
+    if: inputs.update && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: rendering-updates
+          path: .cache/updates
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: rendering-reports
+          path: .cache/ci
+      - name: Apply generated references
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          rm -rf examples/exports/linux tests/visual/snapshots/linux
+          cp -R .cache/updates/examples/exports/linux examples/exports/linux
+          cp -R .cache/updates/tests/visual/snapshots/linux tests/visual/snapshots/linux
+          mkdir -p .cache/example-results
+          cp .cache/ci/example-results/summary.md .cache/example-results/summary.md
+          cp .cache/ci/example-results/changes.json .cache/example-results/changes.json
+          node scripts/visual-update-summary.mjs
+      - name: Propose export changes
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          branch: automation/rendered-examples
+          base: main
+          title: "chore: refresh rendered examples"
+          commit-message: |
+            chore: refresh rendered examples
+
+            - Regenerate widget exports and visual references.
+            - Retain the rendering reports for review.
+          body-path: .cache/example-results/pull-request.md
+          draft: true
+          add-paths: |
+            examples/exports/linux
+            tests/visual/snapshots/linux
+            docs/decisions.md

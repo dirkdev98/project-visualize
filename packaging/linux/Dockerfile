@@ -18,7 +18,16 @@ RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
 ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /app
 
-FROM toolchain AS source
+FROM toolchain AS dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
+
+FROM dependencies AS source
 COPY . .
+
+FROM dependencies AS browsers
+RUN npx playwright install --with-deps chromium
+
+FROM browsers AS visual-tests
+COPY . .
+RUN npm run build

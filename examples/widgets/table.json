@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Tables",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "table",
+      "id": "static",
+      "title": "Static cells and formatting",
+      "columns": [
+        {
+          "key": "station",
+          "label": "Station",
+          "weight": 2
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "align": "right",
+          "format": {
+            "decimals": 1,
+            "suffix": " units"
+          }
+        },
+        {
+          "key": "active",
+          "label": "Active"
+        },
+        {
+          "key": "note",
+          "label": "Note"
+        }
+      ],
+      "rows": [
+        {
+          "station": "Cedar",
+          "shift": "Morning",
+          "value": 12,
+          "active": true,
+          "note": "Clear"
+        },
+        {
+          "station": "Cedar",
+          "shift": "Evening",
+          "value": 7,
+          "active": true,
+          "note": "Review"
+        },
+        {
+          "station": "Birch",
+          "shift": "Morning",
+          "value": 18,
+          "active": false,
+          "note": "Clear"
+        },
+        {
+          "station": "Birch",
+          "shift": "Evening",
+          "value": 9,
+          "active": false,
+          "note": "Pending"
+        },
+        {
+          "station": "A station with a longer name that wraps",
+          "value": -2.5,
+          "active": false,
+          "note": null
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": "linked",
+      "title": "Dataset rows",
+      "columns": [
+        {
+          "key": "station",
+          "label": "Station",
+          "weight": 2
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "align": "right",
+          "format": {
+            "decimals": 1,
+            "suffix": " units"
+          }
+        },
+        {
+          "key": "active",
+          "label": "Active"
+        },
+        {
+          "key": "note",
+          "label": "Note"
+        }
+      ],
+      "dataset": "observations"
+    },
+    {
+      "type": "table",
+      "id": "empty",
+      "title": "An empty result",
+      "columns": [
+        {
+          "key": "station",
+          "label": "Station",
+          "weight": 2
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "align": "right",
+          "format": {
+            "decimals": 1,
+            "suffix": " units"
+          }
+        },
+        {
+          "key": "active",
+          "label": "Active"
+        },
+        {
+          "key": "note",
+          "label": "Note"
+        }
+      ],
+      "rows": []
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

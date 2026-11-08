@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "Flowcharts",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "flowchart",
+      "id": "down",
+      "title": "Automatic vertical layout",
+      "nodes": [
+        {
+          "id": "receive",
+          "label": "Receive",
+          "shape": "start",
+          "tone": "positive"
+        },
+        {
+          "id": "check",
+          "label": "Within range?",
+          "shape": "decision",
+          "tone": "warning"
+        },
+        {
+          "id": "save",
+          "label": "Save",
+          "shape": "end",
+          "tone": "positive"
+        },
+        {
+          "id": "review",
+          "label": "Review",
+          "tone": "negative"
+        }
+      ],
+      "edges": [
+        {
+          "from": "receive",
+          "to": "check"
+        },
+        {
+          "from": "check",
+          "to": "save",
+          "label": "Yes"
+        },
+        {
+          "from": "check",
+          "to": "review",
+          "label": "No"
+        },
+        {
+          "from": "review",
+          "to": "receive",
+          "label": "Retry"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "flowchart",
+      "id": "right",
+      "title": "Horizontal layout",
+      "direction": "right",
+      "nodes": [
+        {
+          "id": "receive",
+          "label": "Receive",
+          "shape": "start",
+          "tone": "positive"
+        },
+        {
+          "id": "check",
+          "label": "Within range?",
+          "shape": "decision",
+          "tone": "warning"
+        },
+        {
+          "id": "save",
+          "label": "Save",
+          "shape": "end",
+          "tone": "positive"
+        },
+        {
+          "id": "review",
+          "label": "Review",
+          "tone": "negative"
+        }
+      ],
+      "edges": [
+        {
+          "from": "receive",
+          "to": "check"
+        },
+        {
+          "from": "check",
+          "to": "save",
+          "label": "Yes"
+        },
+        {
+          "from": "check",
+          "to": "review",
+          "label": "No"
+        },
+        {
+          "from": "review",
+          "to": "receive",
+          "label": "Retry"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "kind": "flowchart",
+      "id": "positioned",
+      "title": "Explicit positions",
+      "nodes": [
+        {
+          "id": "a",
+          "label": "Input",
+          "x": 0.5,
+          "y": 0.0
+        },
+        {
+          "id": "b",
+          "label": "Process",
+          "x": 0.5,
+          "y": 0.5
+        },
+        {
+          "id": "c",
+          "label": "Output",
+          "x": 0.5,
+          "y": 1.0
+        }
+      ],
+      "edges": [
+        {
+          "from": "a",
+          "to": "b"
+        },
+        {
+          "from": "b",
+          "to": "c"
+        }
+      ],
+      "height": 420
+    }
+  ]
+}

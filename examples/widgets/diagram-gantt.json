@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "Gantt diagrams",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "gantt",
+      "id": "schedule",
+      "title": "Dates, dependencies and progress",
+      "caption": "Scheduled dates are inclusive.",
+      "tasks": [
+        {
+          "id": "inspect",
+          "label": "Inspect",
+          "start": "2026-04-06",
+          "end": "2026-04-06",
+          "progress": 1
+        },
+        {
+          "id": "calibrate",
+          "label": "Calibrate",
+          "start": "2026-04-07",
+          "end": "2026-04-09",
+          "progress": 0.5,
+          "dependsOn": ["inspect"]
+        },
+        {
+          "id": "verify",
+          "label": "Verify",
+          "start": "2026-04-10",
+          "end": "2026-04-12",
+          "progress": 0,
+          "dependsOn": ["calibrate"]
+        }
+      ]
+    }
+  ]
+}

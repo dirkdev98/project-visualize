@@ -1,5 +1,32 @@
 # Decisions
 
+## 2026-11-08 queued viewer frame completion
+
+- Keep queued navigation and captures active until their required frames complete,
+  even when a theme or window event changes the ordinary redraw budget. CLI replies
+  must not depend on later user input or a platform event arriving.
+
+## 2026-11-08 widget catalogue and export proposals
+
+- Keep focused widget examples beside the composed reports. Cover widget types and
+  enumerated kinds from the authoring contract, with stable IDs and fictional data.
+- Keep generated HTML, browser previews, native PNG and PDF exports in the repository
+  for desktop and phone widths in both themes. Separate references by platform and
+  bundle only source documents and assets with the application.
+- Make regression checks read-only. Normalize the generated HTML revision identity
+  while comparing the remaining export content, and report missing or obsolete files.
+- Preserve generated export bytes in Git so embedded resources retain their line
+  endings after checkout and exact comparisons remain meaningful.
+- Use a manual CI update from the default branch to propose generated changes in a
+  draft PR. Retain rendering reports and keep acceptance separate from regeneration.
+
+## 2026-11-08 user-facing project guide
+
+- Lead the README with creating, finding and sharing saved artifacts. Keep the
+  catalogue and runnable workflow close to those tasks.
+- Put build, architecture and regression instructions in the development guide so
+  implementation details remain available without interrupting everyday usage.
+
 ## 2026-11-08 public weather demonstration
 
 - Use a dated public weather forecast for README media, with its source attribution

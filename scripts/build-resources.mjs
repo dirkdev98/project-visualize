@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import fontkit from "@pdf-lib/fontkit";
 import dark from "@shikijs/themes/github-dark";
@@ -55,7 +55,13 @@ copyFileSync(
   join(root, "docs/artifacts.md"),
   join(workflow, "docs/artifacts.md"),
 );
-cpSync(join(root, "examples"), join(workflow, "examples"), { recursive: true });
+cpSync(join(root, "examples"), join(workflow, "examples"), {
+  recursive: true,
+  filter: (file) => {
+    const name = relative(join(root, "examples"), file);
+    return name !== "README.md" && name.split(sep)[0] !== "exports";
+  },
+});
 
 const html = join(root, ".cache/resources/html");
 mkdirSync(html, { recursive: true });

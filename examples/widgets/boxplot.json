@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Box plots",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "boxplot",
+      "id": "grouped",
+      "title": "Grouped observations",
+      "height": 230,
+      "series": [
+        {
+          "name": "Cedar",
+          "values": [1, 2, 2, 3, 4, 4, 5, 6, 18]
+        },
+        {
+          "name": "Birch",
+          "values": [3, 4, 5, 5, 6, 7, 8]
+        }
+      ]
+    },
+    {
+      "type": "boxplot",
+      "id": "constant",
+      "title": "Constant and single observations",
+      "height": 210,
+      "series": [
+        {
+          "name": "Constant",
+          "values": [4, 4, 4, 4]
+        },
+        {
+          "name": "Single",
+          "values": [7]
+        }
+      ]
+    },
+    {
+      "type": "boxplot",
+      "id": "linked",
+      "title": "Dataset observations",
+      "height": 220,
+      "source": {
+        "dataset": "observations",
+        "field": "value",
+        "series": "station"
+      }
+    },
+    {
+      "type": "boxplot",
+      "id": "empty",
+      "title": "No matching observations",
+      "height": 150,
+      "source": {
+        "dataset": "empty",
+        "field": "value"
+      }
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

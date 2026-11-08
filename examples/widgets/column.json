@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Columns",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "column",
+      "id": "vertical",
+      "title": "Vertical composition",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Reviewed",
+          "value": 30
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "content": "Content follows in reading order."
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "card",
+              "title": "Left",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "text",
+                  "content": "A column can contain a row."
+                }
+              ]
+            },
+            {
+              "type": "column",
+              "children": [
+                {
+                  "type": "metric",
+                  "label": "Pending",
+                  "value": 3
+                },
+                {
+                  "type": "badge",
+                  "label": "Ready",
+                  "tone": "positive"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

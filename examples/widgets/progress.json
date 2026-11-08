@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Progress",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "progress",
+      "id": "neutral",
+      "tone": "neutral",
+      "label": "neutral progress",
+      "value": 0,
+      "detail": "A short explanation of the current state."
+    },
+    {
+      "type": "progress",
+      "id": "positive",
+      "tone": "positive",
+      "label": "positive progress",
+      "value": 1,
+      "detail": "A short explanation of the current state."
+    },
+    {
+      "type": "progress",
+      "id": "warning",
+      "tone": "warning",
+      "label": "warning progress",
+      "value": 0.65,
+      "detail": "A short explanation of the current state."
+    },
+    {
+      "type": "progress",
+      "id": "negative",
+      "tone": "negative",
+      "label": "negative progress",
+      "value": 0.2,
+      "detail": "A short explanation of the current state."
+    }
+  ]
+}

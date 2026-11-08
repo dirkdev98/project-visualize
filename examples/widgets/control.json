@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Linked controls",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "control",
+      "id": "station",
+      "kind": "select",
+      "label": "Station",
+      "dataset": "observations",
+      "field": "station",
+      "default": {
+        "all": true
+      }
+    },
+    {
+      "type": "control",
+      "id": "notes",
+      "kind": "search",
+      "label": "Search notes",
+      "dataset": "observations",
+      "field": "note",
+      "default": ""
+    },
+    {
+      "type": "control",
+      "id": "amount",
+      "kind": "range",
+      "label": "Observed value",
+      "dataset": "observations",
+      "field": "value",
+      "min": 0,
+      "max": 20,
+      "default": {
+        "min": 0,
+        "max": 20
+      }
+    },
+    {
+      "type": "control",
+      "id": "active",
+      "kind": "toggle",
+      "label": "Active stations",
+      "dataset": "observations",
+      "field": "active",
+      "default": {
+        "all": true
+      }
+    },
+    {
+      "type": "table",
+      "id": "results",
+      "dataset": "observations",
+      "columns": [
+        {
+          "key": "station",
+          "label": "Station"
+        },
+        {
+          "key": "note",
+          "label": "Note"
+        },
+        {
+          "key": "value",
+          "label": "Value"
+        }
+      ]
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

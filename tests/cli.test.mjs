@@ -321,6 +321,9 @@ test("the CLI exposes its bundled skill and extracts a self-contained workflow",
   assert.ok(existsSync(bundled.skill));
   assert.ok(existsSync(bundled.guide));
   assert.ok(existsSync(bundled.examples));
+  assert.ok(existsSync(join(bundled.examples, "widgets/image.json")));
+  assert.ok(existsSync(join(bundled.examples, "assets/landscape.png")));
+  assert.equal(existsSync(join(bundled.examples, "exports")), false);
   const extracted = ok(["skill", "--out", join(root, "workflow")]);
   const manifest = JSON.parse(
     readFileSync(join(extracted.directory, "bundle.json"), "utf8"),

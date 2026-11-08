@@ -4,3 +4,5 @@ dist
 node_modules
 .DS_Store
 AGENTS.local.md
+examples/exports/darwin
+tests/visual/snapshots/darwin

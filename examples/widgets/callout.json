@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Callouts",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "callout",
+      "id": "neutral",
+      "title": "Neutral finding",
+      "tone": "neutral",
+      "content": "Keep the **finding**, its evidence and a short next step together."
+    },
+    {
+      "type": "callout",
+      "id": "positive",
+      "title": "Positive finding",
+      "tone": "positive",
+      "content": "Keep the **finding**, its evidence and a short next step together."
+    },
+    {
+      "type": "callout",
+      "id": "warning",
+      "title": "Warning finding",
+      "tone": "warning",
+      "content": "Keep the **finding**, its evidence and a short next step together."
+    },
+    {
+      "type": "callout",
+      "id": "negative",
+      "title": "Negative finding",
+      "tone": "negative",
+      "content": "Keep the **finding**, its evidence and a short next step together."
+    }
+  ]
+}

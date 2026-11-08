@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "Entity relationships",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "er",
+      "id": "records",
+      "title": "Keys and endpoint cardinalities",
+      "direction": "right",
+      "nodes": [
+        {
+          "id": "station",
+          "label": "Station",
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "key": "primary"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "reading",
+          "label": "Reading",
+          "fields": [
+            {
+              "name": "id",
+              "type": "string",
+              "key": "primary"
+            },
+            {
+              "name": "station_id",
+              "type": "string",
+              "key": "foreign"
+            },
+            {
+              "name": "value",
+              "type": "number"
+            }
+          ]
+        },
+        {
+          "id": "review",
+          "label": "Review",
+          "fields": [
+            {
+              "name": "reading_id",
+              "type": "string",
+              "key": "foreign"
+            },
+            {
+              "name": "note",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "station",
+          "to": "reading",
+          "label": "records",
+          "fromCardinality": "one",
+          "toCardinality": "many"
+        },
+        {
+          "from": "reading",
+          "to": "review",
+          "label": "reviewed by",
+          "fromCardinality": "one-or-many",
+          "toCardinality": "zero-or-one"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Heatmaps",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "heatmap",
+      "id": "static",
+      "title": "Static values, zeros and missing cells",
+      "height": 230,
+      "x": ["Mon", "Tue", "Wed"],
+      "y": ["Cedar", "Birch"],
+      "values": [[3, 0, null], [7, 4, 2]],
+      "xLabel": "Day",
+      "yLabel": "Station"
+    },
+    {
+      "type": "heatmap",
+      "id": "fixed",
+      "title": "Fixed color scale",
+      "height": 220,
+      "x": ["A", "B"],
+      "y": ["One", "Two"],
+      "values": [[-4, 0], [2, 5]],
+      "min": -5,
+      "max": 5,
+      "decimals": 1,
+      "suffix": " °C"
+    },
+    {
+      "type": "heatmap",
+      "id": "constant",
+      "title": "Constant values",
+      "height": 170,
+      "x": ["A", "B"],
+      "y": ["One"],
+      "values": [[4, 4]]
+    },
+    {
+      "type": "heatmap",
+      "id": "linked",
+      "title": "Dataset aggregation",
+      "height": 220,
+      "source": {
+        "dataset": "observations",
+        "x": "station",
+        "y": "shift",
+        "field": "value",
+        "aggregate": "sum"
+      }
+    },
+    {
+      "type": "heatmap",
+      "id": "empty",
+      "title": "No matching observations",
+      "height": 150,
+      "source": {
+        "dataset": "empty",
+        "x": "station",
+        "y": "shift",
+        "field": "value",
+        "aggregate": "sum"
+      }
+    }
+  ],
+  "datasets": {
+    "observations": [
+      {
+        "station": "Cedar",
+        "shift": "Morning",
+        "value": 12,
+        "active": true,
+        "note": "Clear"
+      },
+      {
+        "station": "Cedar",
+        "shift": "Evening",
+        "value": 7,
+        "active": true,
+        "note": "Review"
+      },
+      {
+        "station": "Birch",
+        "shift": "Morning",
+        "value": 18,
+        "active": false,
+        "note": "Clear"
+      },
+      {
+        "station": "Birch",
+        "shift": "Evening",
+        "value": 9,
+        "active": false,
+        "note": "Pending"
+      }
+    ],
+    "empty": []
+  }
+}

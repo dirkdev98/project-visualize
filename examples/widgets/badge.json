@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Badges",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "badge",
+      "id": "neutral",
+      "tone": "neutral",
+      "label": "Neutral status"
+    },
+    {
+      "type": "badge",
+      "id": "positive",
+      "tone": "positive",
+      "label": "Positive status"
+    },
+    {
+      "type": "badge",
+      "id": "warning",
+      "tone": "warning",
+      "label": "Warning status"
+    },
+    {
+      "type": "badge",
+      "id": "negative",
+      "tone": "negative",
+      "label": "Negative status"
+    }
+  ]
+}

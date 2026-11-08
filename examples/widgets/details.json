@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Expandable details",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "details",
+      "id": "expanded",
+      "title": "Source observations",
+      "caption": "Expanded in PNG and PDF; collapsible in HTML and the app.",
+      "children": [
+        {
+          "type": "text",
+          "id": "text",
+          "content": "This supporting explanation belongs with the finding."
+        },
+        {
+          "type": "details",
+          "title": "A nested explanation",
+          "children": [
+            {
+              "type": "metric",
+              "label": "Accepted",
+              "value": 30
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

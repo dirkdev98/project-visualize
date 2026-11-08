@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Code",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "code",
+      "id": "highlighted",
+      "title": "Syntax highlighting",
+      "language": "typescript",
+      "content": "type Reading = { station: string; value: number };\nconst reading: Reading = { station: \"Cedar\", value: 12 };\nconsole.log(reading.value);"
+    },
+    {
+      "type": "code",
+      "id": "plain",
+      "title": "Plain text fallback",
+      "content": "station,accepted,reviewed\nCedar,12,true\nBirch,18,false"
+    },
+    {
+      "type": "code",
+      "id": "long-line",
+      "title": "Long line",
+      "language": "json",
+      "content": "{\"station\":\"Cedar\",\"explanation\":\"A deliberately long record that remains readable when the available width narrows.\",\"accepted\":12,\"reviewed\":true}"
+    }
+  ]
+}

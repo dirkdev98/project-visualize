@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Rows",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Cedar",
+          "value": 12
+        },
+        {
+          "type": "metric",
+          "label": "Birch",
+          "value": 18
+        }
+      ],
+      "id": "equal",
+      "title": "Equal columns"
+    },
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "card",
+          "title": "One part",
+          "children": [
+            {
+              "type": "text",
+              "id": "text",
+              "content": "The smaller side."
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "Two parts",
+          "children": [
+            {
+              "type": "text",
+              "id": "text",
+              "content": "Weighted columns share the available width and stack on a narrow screen."
+            }
+          ]
+        }
+      ],
+      "id": "weighted",
+      "title": "Weighted columns",
+      "weights": [1, 2]
+    }
+  ]
+}

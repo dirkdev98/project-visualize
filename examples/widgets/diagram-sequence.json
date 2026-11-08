@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "Sequence diagrams",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "sequence",
+      "id": "exchange",
+      "title": "Calls, returns, events and self-messages",
+      "participants": [
+        {
+          "id": "sensor",
+          "label": "Sensor"
+        },
+        {
+          "id": "station",
+          "label": "Station"
+        },
+        {
+          "id": "archive",
+          "label": "Archive"
+        }
+      ],
+      "messages": [
+        {
+          "from": "sensor",
+          "to": "station",
+          "label": "Submit reading",
+          "kind": "call"
+        },
+        {
+          "from": "station",
+          "to": "station",
+          "label": "Validate units"
+        },
+        {
+          "from": "station",
+          "to": "archive",
+          "label": "Store observation"
+        },
+        {
+          "from": "archive",
+          "to": "station",
+          "label": "Stored",
+          "kind": "return"
+        },
+        {
+          "from": "station",
+          "to": "sensor",
+          "label": "Accepted",
+          "kind": "event"
+        }
+      ]
+    }
+  ]
+}

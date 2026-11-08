@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Markdown",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "markdown",
+      "id": "formatting",
+      "content": "# A field note\n\nUse **bold**, *italic*, ~~struck text~~ and `inline code` alongside [a source link](https://example.com).\n\n## Observation checklist\n\n- [x] Retain the inputs\n- [ ] Review the result\n\n1. Collect observations\n2. Compare matched windows\n\n> Keep uncertainty close to the finding.\n\n| Station | Accepted |\n| --- | ---: |\n| Cedar | 12 |\n| Birch | 18 |\n\n```typescript\nconst accepted = [12, 18].reduce((a, b) => a + b, 0);\n```"
+    }
+  ]
+}

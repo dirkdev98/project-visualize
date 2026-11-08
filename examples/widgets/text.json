@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Plain text",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "text",
+      "id": "wrapping",
+      "content": "Plain text wraps with the available width. Use it for short explanations, source notes and captions.",
+      "title": "Wrapping",
+      "caption": "A caption below the content."
+    },
+    {
+      "type": "text",
+      "id": "unicode",
+      "content": "Accents and symbols: café, naïve, façade, α, β, °C and €."
+    }
+  ]
+}

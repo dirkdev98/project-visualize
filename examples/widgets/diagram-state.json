@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "State diagrams",
+  "subtitle": "Fictional data. Each section demonstrates a supported variation.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "kind": "state",
+      "id": "lifecycle",
+      "title": "Transitions and a self-loop",
+      "nodes": [
+        {
+          "id": "idle",
+          "label": "Idle",
+          "shape": "start"
+        },
+        {
+          "id": "recording",
+          "label": "Recording"
+        },
+        {
+          "id": "complete",
+          "label": "Complete",
+          "shape": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "idle",
+          "to": "recording",
+          "label": "Start"
+        },
+        {
+          "from": "recording",
+          "to": "recording",
+          "label": "Reading"
+        },
+        {
+          "from": "recording",
+          "to": "complete",
+          "label": "Finish"
+        }
+      ]
+    }
+  ]
+}
