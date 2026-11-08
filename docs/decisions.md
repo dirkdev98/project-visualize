@@ -1,5 +1,23 @@
 # Decisions
 
+## 2026-11-08 portable HTML exports
+
+- Export structured artifacts as self-contained HTML with browser elements and SVG.
+  Share data transforms, graph placement, number formatting and palettes with native
+  rendering, while using browser controls and text selection for interaction.
+- Keep HTML as an export format. Saved source documents and their immutable versions
+  remain the organized library; importing agent-written HTML is outside the format.
+- Select whole widgets and card subtrees through the existing scoped block paths.
+  Apply external linked controls before isolating a part, retain internal controls,
+  and omit unrelated content, dataset fields and assets from partial exports.
+- Organize exports by their source project, artifact and version when no destination
+  is supplied. Preserve native snapshots and presentation markers when exporting.
+- Provide standalone, inline and fragment HTML packaging for different hosts. Carry
+  fonts, images and data with the page so interaction needs no running server.
+- Use paired native/browser fixtures and reviewed visual references across themes
+  and layouts. Keep observable content, clipping and interaction checks alongside
+  screenshot comparisons so appearance changes cannot hide missing behaviour.
+
 ## 2026-11-07 alpha.34 value fields
 
 - Pin Maligator to `0.1.0-alpha.34` and read baked font ascent and size through

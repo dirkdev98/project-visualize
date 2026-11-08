@@ -1,0 +1,589 @@
+.pv {
+  box-sizing: border-box;
+  color: var(--pv-ink);
+  font:
+    18px / 1 PVSans,
+    sans-serif;
+  font-synthesis: none;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-variant-ligatures: none;
+  font-kerning: none;
+}
+.pv *,
+.pv *::before,
+.pv *::after {
+  box-sizing: border-box;
+}
+.pv :where(h1, h2, h3, h4, h5, h6, p, ol, ul, figure, pre, blockquote, dl) {
+  margin: 0;
+}
+.pv :where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  accent-color: var(--pv-accent);
+}
+.pv :where(button, input, select) {
+  border: 1px solid var(--pv-border);
+  border-radius: 7px;
+  background: var(--pv-surface);
+}
+.pv button {
+  cursor: pointer;
+  padding: 5px 9px;
+}
+.pv :focus-visible {
+  outline: 2px solid var(--pv-accent);
+  outline-offset: 3px;
+}
+.pv :where(input, select) {
+  min-width: 0;
+  max-width: 100%;
+  padding: 9px 10px;
+  caret-color: var(--pv-ink);
+}
+.pv h1 {
+  line-height: 1;
+  font-weight: 600;
+  margin: 5px 0;
+}
+.pv h2 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.pv h3 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+.pv header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.pv header h1 {
+  margin: 0;
+}
+.pv .pv-eyebrow {
+  color: var(--pv-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pv .pv-subtitle {
+  color: var(--pv-muted);
+  font-size: 19px;
+}
+.pv hr {
+  border: 0;
+  border-top: 1px solid var(--pv-border);
+  margin: 12px 0;
+}
+.pv .pv-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.pv .pv-row {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 0 8px;
+}
+.pv .pv-block {
+  min-width: 0;
+  max-width: 100%;
+}
+.pv .pv-panel {
+  padding: 18px 20px;
+  border: 1px solid var(--pv-border);
+  border-radius: 12px;
+  background: var(--pv-surface);
+  min-width: 0;
+}
+.pv .pv-metric > strong {
+  font-size: 13px;
+  font-weight: 600;
+  display: block;
+}
+.pv .pv-value {
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1;
+  margin: 12px 0;
+}
+.pv .pv-metric p {
+  font-size: 15px;
+  min-height: 15px;
+}
+.pv .pv-caption {
+  font-size: 15px;
+  color: var(--pv-muted);
+  margin-top: 12px;
+}
+.pv .pv-muted {
+  color: var(--pv-muted);
+}
+.pv .pv-text {
+  white-space: pre-wrap;
+}
+.pv .pv-rich {
+  line-height: 1.48;
+}
+.pv .pv-callout {
+  background: color-mix(in srgb, var(--pv-tone) 8%, var(--pv-paper));
+}
+.pv .pv-callout h3 {
+  color: var(--pv-tone);
+}
+.pv .pv-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  color: var(--pv-tone);
+  background: color-mix(in srgb, var(--pv-tone) 10%, transparent);
+}
+.pv .pv-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 17px;
+}
+.pv progress {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  height: 14px;
+  border-radius: 6px;
+  background: var(--pv-border);
+  overflow: hidden;
+}
+.pv progress::-webkit-progress-bar {
+  background: var(--pv-border);
+}
+.pv progress::-webkit-progress-value {
+  background: var(--pv-progress);
+}
+.pv progress::-moz-progress-bar {
+  background: var(--pv-progress);
+}
+.pv .pv-rich > :not(:first-child) {
+  margin-top: 12px;
+}
+.pv .pv-rich :where(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  line-height: 1.48;
+  margin-bottom: 12px;
+}
+.pv .pv-rich h1 {
+  font-size: 31px;
+}
+.pv .pv-rich h2 {
+  font-size: 28px;
+}
+.pv .pv-rich h3 {
+  font-size: 25px;
+}
+.pv .pv-rich h4 {
+  font-size: 22px;
+}
+.pv .pv-rich :where(h5, h6) {
+  font-size: 19px;
+}
+.pv a {
+  color: var(--pv-accent);
+  text-underline-offset: 3px;
+}
+.pv :where(code, pre) {
+  font-family: PVMono, monospace;
+}
+.pv :not(pre) > code {
+  font-size: 0.92em;
+  color: var(--pv-ink);
+  background: var(--pv-code);
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+.pv .pv-rich :where(ul, ol) {
+  padding-left: 24px;
+}
+.pv .pv-rich :where(li + li) {
+  margin-top: 12px;
+}
+.pv .pv-rich li > :where(ul, ol) {
+  margin-top: 12px;
+}
+.pv .pv-task {
+  list-style: none;
+  position: relative;
+}
+.pv .pv-task > input {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+}
+.pv .pv-rich blockquote {
+  margin-left: 0;
+  padding-left: 20px;
+  border-left: 2px solid var(--pv-border);
+  color: var(--pv-muted);
+}
+.pv pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  line-height: 26px;
+  tab-size: 2;
+}
+.pv .pv-code {
+  background: var(--pv-code);
+  border: 1px solid var(--pv-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.pv .pv-code small {
+  font-size: 11px;
+  display: block;
+  color: var(--pv-muted);
+  margin-bottom: 12px;
+}
+.pv table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 16px;
+  line-height: 1;
+}
+.pv :where(th, td) {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--pv-border);
+  overflow-wrap: anywhere;
+}
+.pv th {
+  font-weight: 600;
+  background: var(--pv-code);
+}
+.pv th button {
+  font: inherit;
+  font-weight: inherit;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: inherit;
+}
+.pv tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--pv-surface) 60%, var(--pv-paper));
+}
+.pv .pv-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pv .pv-search {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--pv-muted);
+  margin-bottom: 12px;
+}
+.pv .pv-search input {
+  font-size: 16px;
+  color: var(--pv-ink);
+}
+.pv .pv-records dl {
+  padding: 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--pv-border);
+  font-size: 16px;
+}
+.pv .pv-records dl > div {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 0 12px;
+}
+.pv .pv-records :where(dt) {
+  font-size: 12px;
+}
+.pv dt {
+  font-weight: 600;
+  color: var(--pv-muted);
+}
+.pv dd {
+  margin: 0;
+}
+.pv .pv-control {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  font-size: 15px;
+  gap: 8px;
+}
+.pv .pv-control :where(input, select) {
+  font-weight: 400;
+  font-size: 16px;
+  width: 100%;
+}
+.pv .pv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+.pv .pv-toggle input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.pv .pv-range {
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 15px;
+  min-width: 0;
+}
+.pv .pv-range legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.pv .pv-range label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 90px;
+  color: var(--pv-muted);
+  font-size: 13px;
+}
+.pv .pv-range input {
+  font-size: 16px;
+  color: var(--pv-ink);
+  width: 100%;
+}
+.pv details > summary {
+  font-size: 21px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.pv .pv-timeline {
+  list-style: none;
+  padding: 0 0 0 32px;
+}
+.pv .pv-timeline li {
+  position: relative;
+  padding-bottom: 20px;
+}
+.pv .pv-timeline li::before {
+  content: "";
+  position: absolute;
+  left: -30px;
+  top: 7px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--pv-tone);
+}
+.pv .pv-timeline li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: -26px;
+  top: 20px;
+  bottom: 0;
+  width: 2px;
+  background: var(--pv-border);
+}
+.pv .pv-timeline small {
+  color: var(--pv-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.pv .pv-timeline h3 {
+  font-size: 20px;
+  margin: 3px 0 12px;
+}
+.pv figure {
+  position: relative;
+  min-width: 0;
+}
+.pv svg {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: PVSans, sans-serif;
+  touch-action: pan-y;
+}
+.pv svg [role="button"] {
+  cursor: pointer;
+}
+.pv .pv-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 5px;
+}
+.pv .pv-legend button {
+  font-size: 18px;
+  border: 0;
+  padding: 3px 4px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pv .pv-legend button[aria-pressed="false"] {
+  opacity: 0.4;
+}
+.pv .pv-legend i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.pv .pv-zoom {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.pv figure:hover .pv-zoom,
+.pv figure:focus-within .pv-zoom {
+  opacity: 1;
+}
+.pv .pv-zoom button {
+  font-size: 18px;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  line-height: 1;
+}
+.pv .pv-sequence {
+  padding-left: 24px;
+  font-size: 15px;
+}
+.pv .pv-sequence li {
+  padding-bottom: 12px;
+}
+.pv .pv-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pv .pv-heatmap table {
+  font-size: 13px;
+}
+.pv .pv-heat-axis {
+  font-size: 13px;
+  color: var(--pv-muted);
+}
+.pv .pv-heatmap td:not(.pv-missing) {
+  font-family: PVMono, monospace;
+}
+.pv .pv-heat-scale {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--pv-muted);
+}
+.pv .pv-heat-scale i {
+  flex: 0 0 auto;
+  height: 10px;
+}
+.pv .pv-empty {
+  font-size: 16px;
+  color: var(--pv-muted);
+}
+.pv .pv-heatmap :where(td, th) {
+  padding: 8px 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+.pv .pv-heatmap tr > th:first-child {
+  text-align: left;
+}
+.pv .pv-missing {
+  background: var(--pv-code);
+  color: var(--pv-muted);
+}
+.pv .pv-image,
+.pv .pv-rich img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+.pv-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 300px;
+  pointer-events: none;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--pv-border);
+  background: var(--pv-surface);
+  color: var(--pv-ink);
+  font:
+    13px / 1.45 PVSans,
+    sans-serif;
+  box-shadow: 0 4px 16px #0002;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (pointer: coarse) {
+  .pv .pv-zoom {
+    opacity: 1;
+  }
+  .pv .pv-zoom button {
+    width: 38px;
+    height: 38px;
+  }
+  .pv :where(input, select) {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pv .pv-zoom {
+    transition: none;
+  }
+}
+@media print {
+  .pv .pv-zoom,
+  .pv .pv-search {
+    display: none;
+  }
+  .pv .pv-panel {
+    break-inside: avoid;
+  }
+  .pv a {
+    color: inherit;
+  }
+}
+
+.pv .pv-sequence strong {
+  font-size: 14px;
+  color: var(--pv-accent);
+}
+.pv .pv-sequence p {
+  margin-top: 12px;
+}

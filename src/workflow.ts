@@ -37,7 +37,7 @@ export function userPath(value: string) {
         : value,
   );
 }
-function describe(directory: string) {
+function describeBundle(directory: string) {
   const bundle: Bundle = JSON.parse(
     readFileSync(join(directory, "bundle.json"), "utf8"),
   );
@@ -75,7 +75,7 @@ export function skillResources(root: string, output?: string) {
       join(dirname(executablePath), "../agent-skill"),
     ])
       if (existsSync(join(directory, "bundle.json")))
-        return describe(resolve(directory));
+        return describeBundle(resolve(directory));
   }
   const destination = userPath(
     output ?? join(root, "integrations", "agent-skill"),
@@ -96,14 +96,15 @@ export function skillResources(root: string, output?: string) {
       !existsSync(join(destination, "bundle.json"))
     )
       throw new Error("The skill destination is not empty");
-    if (existsSync(join(destination, "bundle.json"))) describe(destination);
+    if (existsSync(join(destination, "bundle.json")))
+      describeBundle(destination);
   }
   copyDirectory(mal.assets.materialize("workflow"), destination);
   writeFileSync(
     join(destination, "bundle.json"),
     `${JSON.stringify({ package: "project-visualize", executable: executablePath, guide: "docs/artifacts.md", examples: "examples" }, null, 2)}\n`,
   );
-  return describe(destination);
+  return describeBundle(destination);
 }
 export function defaultCliDestination() {
   const home = homedir();

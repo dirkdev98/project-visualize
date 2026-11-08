@@ -1,7 +1,7 @@
 ---
 
 name: project-visualize
-description: Create visual explanations, charts, dashboards, diagrams and rich reports with Project Visualize. Use when showing how something works, comparing options or trends, exploring data, or turning findings into a visual artifact for the conversation, PNG or PDF. Consider it when a visual would clarify the answer, even if the user does not name the app. Do not use it to build or edit a website, app or existing UI.
+description: Create visual explanations, charts, dashboards, diagrams and rich reports with Project Visualize. Use when showing how something works, comparing options or trends, exploring data, or turning findings into a saved visual artifact, interactive HTML, PNG or PDF. Consider it when a visual would clarify the answer, even if the user does not name the app. Do not use it to build or edit a website, app or existing UI.
 ---
 
 Use this skill when a saved visual helps the user understand, compare or inspect an
@@ -15,8 +15,9 @@ dashboard when the user needs to inspect related views. Read the artifact guide 
 for the schema. Do not substitute a screenshot for a requested editable website or an
 interactive simulation that the artifact format cannot represent.
 
-Use the CLI to save a versioned artifact and return its screenshot to the conversation.
-The native viewer adds chart navigation, sortable tables and retained context.
+Use the CLI to save a versioned artifact, then deliver its screenshot or interactive
+HTML export through the conversation host. The native viewer retains the organized
+library and context. Generated HTML is an export, not a separate source artifact.
 
 The reported skill directory may be a symlink. Set `skill_directory` to the directory
 supplied with this skill, then resolve it physically:
@@ -64,21 +65,30 @@ poor composition by rendering a revision.
 Return the screenshot using the conversation host's supported image mechanism, with
 the artifact's project, ID and version available when useful. A path alone does not
 display an image on every host. When the host requires an HTML wrapper for inline
-display, embed the returned screenshot in that wrapper and use its preview and display
-tools. Keep the saved native artifact as the source; do not recreate it as an HTML
-report. Honor an explicitly requested output format.
+display, export the saved revision as HTML with `--html-mode inline` and use the
+host's preview and display tools. For T3 Code, read the export and pass its contents
+to `html_preview`, then `html_render` with the measured height clamped to that tool's
+accepted range. For OpenCode, use its browser preview tool with the returned HTML
+path. Use `--html-mode fragment`
+only when the host's visualization contract requires a fragment. A terminal can
+offer the standalone HTML path for browser viewing. Keep PNG as the fallback when
+the host cannot display HTML or its payload limit is exceeded. Honor an explicitly
+requested output format; do not claim an inline render from a file link alone.
 
-Once you have chosen the revision and screenshot to deliver, run `present --project
-ID --artifact ID --version ID` with that exact saved version, then return its image.
+Once you have chosen the revision to deliver, run `present --project ID --artifact ID
+--version ID` with that exact saved version, then show its selected export.
 This marks the selected delivery, not every rendering attempt or a receipt that the
 person opened it. Later drafts leave that marker in place, and earlier delivered
 versions keep their history.
 
 Use `inspect` to read an existing saved document before revising it. `render` always
 creates a new version. Export with an explicit `--version` when the request refers to
-particular evidence. PNG and PDF exports use the saved data and current layout engine,
-leaving creation-time snapshots unchanged. New captures follow the appearance chosen
-in Settings or the system; pass `--theme light|dark` when a specific palette matters.
+particular evidence. PNG, PDF and HTML exports use the saved data and current layout
+engine, leaving creation-time snapshots unchanged. New captures follow the appearance
+chosen in Settings or the system; pass `--theme light|dark` when a specific palette matters.
+Omit `--out` to keep the export organized in the library; use the returned path.
+For a whole widget or card, read its path from `inspect`'s `view.blocks`, then export
+with `--block PATH`. This selects a complete subtree, not individual diagram nodes.
 Temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
 A dataset-bound bar chart can `select` its matching select control through Shift-click.

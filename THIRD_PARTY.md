@@ -28,11 +28,16 @@ Their notices are included in the runtime artifact.
 - [pdf-lib](https://github.com/Hopding/pdf-lib) and its fontkit package embed a selectable
   text layer and fonts under the MIT license.
 
-The viewer and PDF text layer share bundled [IBM Plex](https://github.com/IBM/plex)
-fonts under the SIL Open Font License. Their source revision and checksums are recorded
-in [assets/fonts/sources.json](assets/fonts/sources.json); the app includes the license.
+The viewer, PDF text layer and HTML exports share bundled
+[IBM Plex](https://github.com/IBM/plex) fonts under the SIL Open Font License. Their
+source revision and checksums are recorded in
+[assets/fonts/sources.json](assets/fonts/sources.json); the app includes the license.
 
 Viewer icons come from the [Lucide](https://github.com/lucide-icons/lucide) icon font under
 the ISC license, with icons derived from Feather under the MIT license. Its package version
 and checksums are recorded in [assets/icons/sources.json](assets/icons/sources.json); the
 app includes the license.
+
+HTML resources are bundled with esbuild and their fonts are compressed at build time
+with [wawoff2](https://github.com/fontello/wawoff2), using Google's WOFF2 encoder.
+Standalone and fragment exports carry the font and bundled browser dependency notices.

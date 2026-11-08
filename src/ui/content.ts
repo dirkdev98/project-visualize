@@ -283,12 +283,15 @@ export class DocumentRenderer {
     { values: Cell[]; labels: string[] }
   >();
   private controlInputs = new Map<string, Int8Array>();
+  private readonly header: boolean;
   constructor(
     document: Artifact,
     state: DocumentState = documentState(document),
+    options: { header?: boolean } = {},
   ) {
     this.document = document;
     this.state = state;
+    this.header = options.header ?? true;
     this.rich = new RichText((asset, width) => this.image(asset, width));
   }
   dispose() {
@@ -397,20 +400,22 @@ export class DocumentRenderer {
       this.pinchViews.clear();
       this.fitRequests.clear();
     }
-    const headerTop = igGetCursorScreenPos().y;
-    text(
-      `PROJECT VISUALIZE  /  ${(this.document.category ?? this.document.type ?? "artifact").toUpperCase()}`,
-      12,
-      "bold",
-      palette.accent,
-    );
-    text(this.document.title, available() < 480 ? 30 : 38, "bold");
-    if (this.document.subtitle)
-      text(this.document.subtitle, 19, "regular", palette.muted);
-    igSpacing();
-    igSeparator();
-    igSpacing();
-    keepTogether(headerTop, igGetCursorScreenPos().y);
+    if (this.header) {
+      const headerTop = igGetCursorScreenPos().y;
+      text(
+        `PROJECT VISUALIZE  /  ${(this.document.category ?? this.document.type ?? "artifact").toUpperCase()}`,
+        12,
+        "bold",
+        palette.accent,
+      );
+      text(this.document.title, available() < 480 ? 30 : 38, "bold");
+      if (this.document.subtitle)
+        text(this.document.subtitle, 19, "regular", palette.muted);
+      igSpacing();
+      igSeparator();
+      igSpacing();
+      keepTogether(headerTop, igGetCursorScreenPos().y);
+    }
     this.blocks(this.view.body, exporting, "body");
     if (!exporting && !igIsMouseDown_Nil(0)) this.barPress = undefined;
     igSpacing();

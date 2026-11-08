@@ -70,6 +70,7 @@ import {
   pv_ui_style,
 } from "maligator:ffi/visualize";
 import type { Theme } from "../model.ts";
+import { chartColors, palettes } from "../palette.ts";
 import { type Font, fontFile, iconFontFile } from "./font-files.ts";
 
 export type { Font } from "./font-files.ts";
@@ -95,26 +96,25 @@ export function packed(c: Color): number {
   );
 }
 export const palette = {
-  ink: color("#24242b"),
-  muted: color("#696974"),
-  accent: color("#6554c0"),
-  paper: color("#f7f7f9"),
-  surface: color("#ffffff"),
-  onAccent: color("#ffffff"),
-  border: color("#e2e2e8"),
-  blue: color("#287f9c"),
-  positive: color("#39805e"),
-  negative: color("#c3444d"),
-  warning: color("#9a6417"),
-  code: color("#efeff3"),
+  ink: color(palettes.light.ink),
+  muted: color(palettes.light.muted),
+  accent: color(palettes.light.accent),
+  paper: color(palettes.light.paper),
+  surface: color(palettes.light.surface),
+  onAccent: color(palettes.light.onAccent),
+  border: color(palettes.light.border),
+  blue: color(palettes.light.blue),
+  positive: color(palettes.light.positive),
+  negative: color(palettes.light.negative),
+  warning: color(palettes.light.warning),
+  code: color(palettes.light.code),
 };
 export const seriesColors = [
   palette.accent,
   palette.blue,
-  color("#bd743b"),
-  color("#ad5681"),
-  color("#5c8552"),
-  color("#5576c9"),
+  ...chartColors("light")
+    .slice(2)
+    .map((hex) => color(hex)),
 ];
 function widgetColors(mode: Theme): [number, Color][] {
   const shade = (light: string, dark: string, alpha = 1) =>
@@ -186,20 +186,6 @@ const lightPalette = Object.fromEntries(
   Object.entries(palette).map(([key, value]) => [key, { ...value }]),
 ) as typeof palette;
 const lightSeries = seriesColors.map((value) => ({ ...value }));
-const darkPalette: Record<keyof typeof palette, string> = {
-  ink: "#ededf0",
-  muted: "#a6a6b0",
-  accent: "#ae9ff4",
-  paper: "#18181b",
-  surface: "#232327",
-  onAccent: "#24202f",
-  border: "#38383f",
-  blue: "#68bcd0",
-  positive: "#91c8a4",
-  negative: "#f28b91",
-  warning: "#e8b56a",
-  code: "#202023",
-};
 let activeTheme: Theme = "light";
 export function currentTheme(): Theme {
   return activeTheme;
@@ -208,14 +194,12 @@ export function setTheme(mode: Theme) {
   for (const key of Object.keys(palette) as (keyof typeof palette)[])
     Object.assign(
       palette[key],
-      mode === "light" ? lightPalette[key] : color(darkPalette[key]),
+      mode === "light" ? lightPalette[key] : color(palettes.dark[key]),
     );
   for (let i = 2; i < seriesColors.length; i++)
     Object.assign(
       seriesColors[i],
-      mode === "light"
-        ? lightSeries[i]
-        : color(["#e5a66f", "#dc8fb6", "#9abd85", "#8aaaf0"][i - 2]),
+      mode === "light" ? lightSeries[i] : color(chartColors("dark")[i]),
     );
   colors = widgetColors(mode);
   activeTheme = mode;

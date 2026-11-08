@@ -60,6 +60,7 @@ export async function renderArtifact(
   scale: number,
   parameters?: unknown,
   theme?: Theme,
+  options: { header?: boolean } = {},
 ): Promise<number> {
   const state = documentState(document, parameters);
   checked(pv_surface_open(0));
@@ -69,7 +70,7 @@ export async function renderArtifact(
   let layout: LayoutCapture;
   try {
     initializeTheme(theme ?? document.theme ?? "light");
-    renderer = new DocumentRenderer(document, state);
+    renderer = new DocumentRenderer(document, state, options);
     const limit = pv_surface_limit();
     for (let pass = 0; pass < 2; pass++) {
       checked(pv_surface_begin(width, limit / scale, scale));

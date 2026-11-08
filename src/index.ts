@@ -1,8 +1,18 @@
 import { SDL_setenv_unsafe } from "maligator:ffi/visualize";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createParameters, resolveView } from "./data.ts";
+import { blockEntries, exportView } from "./export-view.ts";
+import { exportHtml } from "./html/export.ts";
 import { slug, validate } from "./model.ts";
 import {
   type Appearance,
@@ -25,7 +35,7 @@ const help = `Project Visualize
 visualize render --project ID --artifact ID --file document.json
 visualize list [--project ID] [--artifact ID]
 visualize inspect --project ID --artifact ID [--version ID]
-visualize export --project ID --artifact ID --format png|pdf --out FILE
+visualize export --project ID --artifact ID --format png|pdf|html [--out FILE]
 visualize open [--project ID] [--artifact ID] [--version ID]
 visualize validate --file document.json
 visualize present --project ID --artifact ID --version ID
@@ -34,12 +44,15 @@ visualize install --cli PATH | --skill PATH
 visualize settings [--appearance system|light|dark] [--scroll-speed 5..100]
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
-render and export accept --width 320..2560 and --scale 1|2, defaulting to 2x.
+render and export accept --width 320..2560. PNG/PDF captures accept --scale 1|2, defaulting to 2x.
 render accepts --mobile-width 320..600 to save a second responsive PNG.
 render, export and open accept --theme light|dark.
 render always saves a new immutable version with PNG and PDF snapshots.
 Commands return JSON. open (the default) runs the native desktop viewer.
 inspect, export and open accept --params JSON to override declared controls.
+export accepts --block PATH to export one whole widget or card; inspect lists paths.
+HTML exports accept --html-mode standalone|inline|fragment (default standalone).
+Without --out, exports are organized under the library's exports directory.
 `;
 
 let runtimeDirectory: string | undefined;
@@ -79,6 +92,8 @@ async function main() {
       "store",
       "params",
       "theme",
+      "block",
+      "html-mode",
     ],
     open: ["project", "artifact", "version", "store", "params", "theme"],
     validate: ["file", "store"],
@@ -237,6 +252,7 @@ async function main() {
       ...entry,
       document,
       view: {
+        blocks: blockEntries(view.body),
         parameters: view.parameters,
         datasetRows: Object.fromEntries(
           Object.entries(view.datasets).map(([name, rows]) => [
@@ -256,9 +272,31 @@ async function main() {
       options.version,
     );
     const format = required("format");
-    if (format !== "png" && format !== "pdf")
-      throw new Error("--format must be png or pdf");
-    const out = resolve(required("out"));
+    if (format !== "png" && format !== "pdf" && format !== "html")
+      throw new Error("--format must be png, pdf or html");
+    const mode = options["html-mode"] ?? "standalone";
+    if (!["standalone", "inline", "fragment"].includes(mode))
+      throw new Error("--html-mode must be standalone, inline or fragment");
+    if (options["html-mode"] && format !== "html")
+      throw new Error("--html-mode requires --format html");
+    if (format === "html" && options.scale !== undefined)
+      throw new Error("--scale applies only to PNG and PDF exports");
+    const selected = exportView(load(entry), parameters, options.block);
+    selected.document.theme =
+      theme ?? entry.theme ?? selected.document.theme ?? "light";
+    const managed = options.out === undefined;
+    const out = resolve(
+      options.out ??
+        join(
+          root,
+          "exports",
+          entry.project,
+          entry.artifact,
+          entry.version,
+          randomUUID(),
+          `${entry.artifact}.${format}`,
+        ),
+    );
     if (!out.toLowerCase().endsWith(`.${format}`))
       throw new Error(`--out must end with .${format}`);
     if (out.startsWith(`${root}/projects/`))
@@ -268,15 +306,67 @@ async function main() {
     mkdirSync(dirname(out), { recursive: true });
     const width = dimension("width", entry.width, 320, 2560),
       scale = dimension("scale", 2, 1, 2);
-    await render(load(entry), out, width, scale, parameters, theme);
-    result = {
+    const provenance = {
+      project: entry.project,
+      artifact: entry.artifact,
+      version: entry.version,
+      ...(options.block ? { block: options.block } : {}),
+    };
+    const selectedParameters = Object.fromEntries(selected.parameters);
+    const temporary = `${out}.${randomUUID()}.${format}`;
+    let bytes: number | undefined;
+    try {
+      if (format === "html")
+        bytes = exportHtml(
+          selected.document,
+          selected.parameters,
+          temporary,
+          width,
+          {
+            partial: selected.partial,
+            mode: mode as "standalone" | "inline" | "fragment",
+            provenance,
+            supportControls: selected.supportControls,
+          },
+        );
+      else
+        await render(
+          selected.supportControls.length
+            ? {
+                ...selected.document,
+                body: resolveView(
+                  selected.document,
+                  selected.parameters,
+                  selected.supportControls,
+                ).body,
+              }
+            : selected.document,
+          temporary,
+          width,
+          scale,
+          selectedParameters,
+          theme,
+          { header: !selected.partial },
+        );
+      renameSync(temporary, out);
+    } finally {
+      rmSync(temporary, { force: true });
+    }
+    const exported = {
       output: out,
       format,
-      version: entry.version,
       width,
-      scale,
+      ...(format === "html" ? {} : { scale }),
       ...(theme ? { theme } : {}),
+      ...provenance,
+      ...(bytes === undefined ? {} : { bytes, mode }),
     };
+    result = exported;
+    if (managed)
+      writeFileSync(
+        join(dirname(out), "export.json"),
+        `${JSON.stringify({ ...exported, parameters: selectedParameters, theme: selected.document.theme, createdAt: new Date().toISOString() }, null, 2)}\n`,
+      );
   } else if (command === "open") {
     if (options.artifact && !options.project)
       throw new Error("--artifact requires --project");

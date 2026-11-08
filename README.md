@@ -4,6 +4,9 @@ Create dashboards, rich documents and diagrams from an agent, then inspect the s
 artifacts in a native desktop viewer. Each revision keeps its document, context, image
 assets and PNG/PDF snapshots together.
 
+Export saved revisions as self-contained interactive HTML for browser and agent-host
+previews. The library retains the structured artifact; HTML is an export format.
+
 ## Build
 
 Use macOS with Apple command-line tools, Node.js and Homebrew:
@@ -31,6 +34,11 @@ bin/visualize open --project observatory --artifact weekly-review
 `render` returns JSON containing the version, saved document, PNG and PDF paths. Run
 it again with the same project and artifact IDs to save another version. The viewer
 refreshes its library automatically and lets you browse earlier versions.
+
+Use `export --format html` for an offline interactive page. Omit `--out` to keep
+exports organized in the library, or provide a destination. `inspect` lists paths in
+`view.blocks`; pass `--block PATH` to export one whole widget or card as PNG, PDF or
+HTML. See [exports](docs/artifacts.md#exports) for host embedding modes.
 
 ```sh
 bin/visualize list --project observatory
@@ -120,6 +128,8 @@ npm run build
 npm run check
 ```
 
+Install the test browser once with `npm run setup:browser`.
+
 `npm run check` exercises the compiled CLI, including real GPU exports and revision
 preservation. Run `npm run build` after source changes. `npm run dev -- --help` uses
 Maligator's development runner after the native bridge has been built.
@@ -151,12 +161,22 @@ inconclusive.
 Pass `-- --visible` to check initial window presentation without hiding it. Linux can
 run this mode under Xvfb or a headless Wayland compositor.
 
+`npm run check:html` renders shared component and layout fixtures through both native
+and browser exports. It checks light/dark appearance at phone, medium and wide widths,
+clipping, offline assets, linked controls, selection and sandboxed embedding. The HTML
+report in `.cache/html-report` attaches paired screenshots. Golden images are scoped
+to the operating system; review the pairs before accepting new references with
+`npm run check:html:update`. Compare values, layout and readability across renderers;
+font rasterization differs between native and browser output.
+
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings
 connect it to Dear ImGui, ImPlot and SDL. Chart styles and line wrapping are composed
 in JS. [The native backend](native/visualize.h) supplies window, font, image and GPU
 operations.
-The viewer and exports share the TS content renderer.
+The viewer and PNG/PDF exports share the TS content renderer. HTML uses browser
+elements and SVG, sharing dataset transforms, diagram layout, number formats and
+palette definitions with the native renderer.
 
 Shiki runs with its JavaScript regex engine. The build captures syntax grammars as
 Maligator assets, loaded when a document needs them. [Third-party notices](THIRD_PARTY.md)

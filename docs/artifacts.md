@@ -393,7 +393,44 @@ by cropping equally from the long axis. Captions remain selectable in PDF export
 
 ## Exports
 
-Rendering and exporting default to 2x screenshot density. Use `--scale 1` for a
+Export a saved revision as interactive HTML:
+
+```sh
+bin/visualize export --project orbital --artifact review --format html
+```
+
+Without `--out`, the CLI organizes exports under the library's `exports` directory
+by project, artifact and source version. Its JSON result reports the output path and
+source identifiers. Use `--out FILE` to choose another destination. Exporting leaves
+saved documents, snapshots and presentations unchanged.
+
+HTML contains its fonts, images, data, styles and interaction code. It works offline
+and provides linked controls, sortable tables, chart navigation and hover details.
+The browser uses the same data transforms and diagram layout as the native viewer;
+text measurement and rendering follow browser conventions. HTML accepts no imported
+scripts or arbitrary HTML in the source document.
+
+Use `--html-mode inline` for hosts that wrap a full HTML document, such as T3 Code.
+Use `--html-mode fragment` when a host requires only fragment markup. The default
+`standalone` mode includes the document background and margins for browser viewing.
+Host payload limits still apply to embedded data and images.
+
+`inspect` lists selectable block paths in `view.blocks`. Export a whole widget or
+card subtree with its path:
+
+```sh
+bin/visualize export --project orbital --artifact review --format png \
+  --block body.summary.chart --out chart.png
+```
+
+Paths start with `body` and use each block's `id`, or its zero-based sibling index
+when it has no ID. IDs remain scoped to their parent. Partial exports omit the
+artifact header and unrelated widgets. Linked controls outside the selected subtree
+still affect its initial values; controls inside an HTML card remain interactive.
+Use `--params` to choose the exported view. Node-level diagram selections are outside
+this export contract.
+
+PNG/PDF rendering and exporting default to 2x screenshot density. Use `--scale 1` for a
 smaller image.
 Add `render --mobile-width 390` to save desktop and phone PNGs together, with paths
 in the returned `screenshots` object. Export an existing revision with `--width 390`
@@ -432,8 +469,9 @@ and 2x density unless overridden. It leaves creation-time snapshots and revision
 history unchanged. Viewer filters, chart zoom and other temporary interactions do
 not change the saved export; pass `--params` to export a linked selection.
 
-Exports contain the whole document. An artifact that exceeds the GPU surface limit
-fails with an error; split a long report into separate artifacts or reduce its scale.
+Exports contain the whole document unless `--block` selects a widget. A PNG artifact
+that exceeds the GPU surface limit fails with an error; split a long report into
+separate artifacts or reduce its scale.
 
 PNGs keep a continuous canvas. PDFs use A4 landscape pages by default, with margins
 and page numbers. Set the document's `pdf` options for a different paper or orientation:

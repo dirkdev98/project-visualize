@@ -327,8 +327,9 @@ function heatmap(
 export function resolveView(
   document: Artifact,
   parameters: Parameters,
+  additionalControls: ControlBlock[] = [],
 ): ResolvedView {
-  const definitions = controls(document);
+  const definitions = [...controls(document), ...additionalControls];
   const datasets: Record<string, DataRow[]> = Object.create(null);
   function filteredRows(name: string, except?: string): DataRow[] {
     const source = datasetRows(document, name);

@@ -9,7 +9,7 @@ in a native desktop app.
 - Provide a desktop viewer, a CLI for agents to drive artifact creation, and an agent
   skill that teaches the workflow.
 - Support a broad range of widgets and layout compositions.
-- Export artifacts as PNG and PDF.
+- Export artifacts and whole widgets as PNG, PDF and interactive HTML.
 
 ## Stack
 
