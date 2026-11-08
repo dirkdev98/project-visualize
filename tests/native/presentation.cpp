@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
 #define LOAD(name) auto call_##name = symbol<decltype(&name)>(library, #name)
   LOAD(pv_surface_open); LOAD(pv_surface_close); LOAD(pv_surface_begin);
   LOAD(pv_surface_present); LOAD(pv_surface_wait); LOAD(pv_error);
+  LOAD(pv_surface_raise);
   LOAD(igSetNextWindowPos); LOAD(igSetNextWindowSize); LOAD(igBegin);
   LOAD(igTextUnformatted); LOAD(igEnd); LOAD(igRender); LOAD(igGetFrameCount);
   LOAD(SDL_GetWindows); LOAD(SDL_HideWindow); LOAD(SDL_ShowWindow); LOAD(SDL_RaiseWindow); LOAD(SDL_free);
@@ -35,6 +36,7 @@ int main(int argc, char **argv) {
     call_igEnd(); call_igRender();
     const int frame = call_igGetFrameCount();
     if (argc == 3) {
+      if (call_pv_surface_raise() < 0) throw std::runtime_error(call_pv_error());
       int status = 1;
       const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
       while (status == 1 && std::chrono::steady_clock::now() < deadline) {
@@ -55,6 +57,7 @@ int main(int argc, char **argv) {
       result = 3;
     } else {
       call_SDL_ShowWindow(window); call_SDL_RaiseWindow(window);
+      if (call_pv_surface_raise() < 0) throw std::runtime_error(call_pv_error());
       int status=1, attempts=0;
       const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
       while (status==1 && std::chrono::steady_clock::now()<deadline) {

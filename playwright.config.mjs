@@ -1,14 +1,15 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "tests/html",
+  testDir: "tests/visual",
   timeout: 30_000,
   workers: 1,
+  updateSnapshots: "none",
   reporter: [
     ["list"],
-    ["html", { outputFolder: ".cache/html-report", open: "never" }],
+    ["html", { outputFolder: ".cache/visual-report", open: "never" }],
   ],
-  outputDir: ".cache/html-results",
+  outputDir: ".cache/visual-results",
   snapshotPathTemplate: "{testDir}/snapshots/{platform}/{arg}{ext}",
   use: {
     browserName: "chromium",

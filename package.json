@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:icons": "node scripts/build-icons.mjs",
     "build:native": "node scripts/build-native.mjs",
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build-resources.mjs && maligator run --",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "check": "npm run lint && npm run typecheck && npm test && npm run check:html",
-    "check:html": "playwright test",
-    "check:html:update": "playwright test --update-snapshots",
+    "check": "npm run lint && npm run typecheck && npm test && npm run check:visual",
+    "check:html": "playwright test tests/visual/components.spec.mjs tests/visual/interactions.spec.mjs tests/visual/partial.spec.mjs",
+    "check:html:update": "playwright test tests/visual/components.spec.mjs tests/visual/interactions.spec.mjs tests/visual/partial.spec.mjs --update-snapshots",
     "setup:browser": "PLAYWRIGHT_SKIP_BROWSER_GC=1 playwright install chromium",
     "check:viewer": "node scripts/check-presentation.mjs",
     "check:readback": "node scripts/check-native.mjs readback",
@@ -23,7 +24,9 @@
     "check:inputs": "node scripts/check-inputs.mjs",
     "check:navigation": "node scripts/check-native.mjs navigation",
     "check:menu": "node scripts/check-menu.mjs",
-    "check:linux-package": "node scripts/check-linux-package.mjs"
+    "check:linux-package": "node scripts/check-linux-package.mjs",
+    "check:visual": "playwright test",
+    "check:visual:update": "playwright test --update-snapshots"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",

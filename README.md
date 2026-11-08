@@ -7,7 +7,20 @@ assets and PNG/PDF snapshots together.
 Export saved revisions as self-contained interactive HTML for browser and agent-host
 previews. The library retains the structured artifact; HTML is an export format.
 
+<picture>
+  <source media="(max-width: 760px)" srcset="docs/media/weather-workflow-mobile.png">
+  <img src="docs/media/weather-workflow-wide.png"
+       alt="A weather artifact preview beside its searched view in Project Visualize">
+</picture>
+
+The same public weather forecast as an exported preview and in the native viewer.
+[Artifact source](docs/media/netherlands-weather.json).
+
 ## Build
+
+Desktop packages include an app icon for macOS and Linux. To revise it, edit
+`assets/icon.svg` and run `npm run build:icons` on macOS with `librsvg` installed.
+Normal builds copy the checked-in icon resources.
 
 Use macOS with Apple command-line tools, Node.js and Homebrew:
 
@@ -66,7 +79,7 @@ bin/visualize export --project observatory --artifact weekly-review \
 Use `--version` with `inspect`, `open` or `export` to select an earlier revision.
 `--file -` reads a document from stdin. `--width` sets the export layout width and
 `--scale` controls pixel density. `--help` describes the CLI.
-Rendering and exporting default to 2x screenshots. Add `--mobile-width 390` to
+PNG/PDF rendering and exporting default to 2x screenshots. Add `--mobile-width 390` to
 `render` to save desktop and phone PNGs in the same revision; their paths are in
 `screenshots`.
 Use `export --width 390` for a phone layout of an existing revision, or `--scale 1`
@@ -177,13 +190,20 @@ inconclusive.
 Pass `-- --visible` to check initial window presentation without hiding it. Linux can
 run this mode under Xvfb or a headless Wayland compositor.
 
-`npm run check:html` renders shared component and layout fixtures through both native
-and browser exports. It checks light/dark appearance at phone, medium and wide widths,
-clipping, offline assets, linked controls, selection and sandboxed embedding. The HTML
-report in `.cache/html-report` attaches paired screenshots. Golden images are scoped
-to the operating system; review the pairs before accepting new references with
-`npm run check:html:update`. Compare values, layout and readability across renderers;
-font rasterization differs between native and browser output.
+`npm run check:visual` exercises shared component and layout fixtures across HTML,
+PNG, rasterized PDF pages and the interactive app. It covers light/dark appearance,
+responsive widths, layout boundaries and screenshot density. App captures use the
+same content widths as exports and scroll through long artifacts. They replay the
+actual viewer's draw data; the headed presentation check covers the window surface.
+Run this suite in a graphical session with Poppler's `pdftoppm` installed. The
+`check:html` command provides the browser/PNG subset.
+
+The report in `.cache/visual-report` attaches PDF pages and app viewports alongside
+browser/export images. References are scoped to the operating system and missing
+references fail. Review content, layout and readability across renderers before
+accepting new references with `npm run check:visual:update`. Font rasterization and
+PDF pagination differ between outputs. Linked controls, text selection, offline
+assets and sandboxed embedding have separate behavioural checks.
 
 The Maligator-compiled TypeScript application owns the UI, document layout, Markdown,
 table transforms, chart preparation, redraw policy and exports. Generated C bindings

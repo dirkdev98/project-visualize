@@ -31,6 +31,9 @@ int pv_viewer_capture(const char *file, int scale);
 /* Kernel ownership survives stale files and is released when the process exits. */
 int pv_viewer_claim(const char *file);
 void pv_viewer_release(void);
+int pv_viewer_listen(const char *file);
+void pv_viewer_stop(void);
+void pv_viewer_notify(const char *file);
 void pv_surface_background(PVColor color);
 /* Pixels stay caller-owned; capture completes all writes before returning. */
 int pv_surface_capture(int width, int height, unsigned char *pixels);

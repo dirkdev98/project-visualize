@@ -91,6 +91,7 @@ writeFileSync(
 <key>CFBundleDisplayName</key><string>Project Visualize</string>
 <key>CFBundleIdentifier</key><string>tools.visualize.desktop</string>
 <key>CFBundleExecutable</key><string>visualize</string>
+<key>CFBundleIconFile</key><string>visualize.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>NSHighResolutionCapable</key><true/>
@@ -106,6 +107,10 @@ copyWorkflow(
 const notices = join(release, "licenses");
 const resources = join(app, "Resources");
 mkdirSync(resources, { recursive: true });
+copyFileSync(
+  join(root, "assets/app-icons/visualize.icns"),
+  join(resources, "visualize.icns"),
+);
 for (const file of ["LICENSE", "THIRD_PARTY_NOTICES.md", "THIRD_PARTY.md"])
   copyFileSync(join(release, file), join(resources, file));
 cpSync(notices, join(resources, "licenses"), { recursive: true });

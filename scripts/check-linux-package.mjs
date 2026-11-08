@@ -45,6 +45,24 @@ try {
         ? join(directory, "usr/bin/visualize")
         : join(bundle, "bin/visualize");
     const store = join(scratch, `${format}-library`);
+    const share =
+      format === "deb" ? join(directory, "usr/share") : join(bundle, "share");
+    const desktop = readFileSync(
+      join(share, "applications/tools.visualize.desktop"),
+      "utf8",
+    );
+    const icon = desktop.match(/^Icon=(.+)$/m)?.[1];
+    assert.ok(icon, "The desktop entry names its icon");
+    const hicolor = join(share, "icons/hicolor");
+    assert.ok(existsSync(join(hicolor, "scalable/apps", `${icon}.svg`)));
+    for (const size of readdirSync(hicolor).filter((name) =>
+      /^\d+x\d+$/.test(name),
+    )) {
+      const image = readFileSync(join(hicolor, size, "apps", `${icon}.png`));
+      const [width, height] = size.split("x").map(Number);
+      assert.equal(image.readUInt32BE(16), width);
+      assert.equal(image.readUInt32BE(20), height);
+    }
     const environment = {
       ...process.env,
       LD_LIBRARY_PATH: "",

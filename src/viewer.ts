@@ -90,6 +90,8 @@ import {
   pv_surface_size,
   pv_surface_wait,
   pv_viewer_capture,
+  pv_viewer_listen,
+  pv_viewer_stop,
   SDL_GetSystemTheme,
   SDL_OpenURL,
   SDL_SYSTEM_THEME_DARK,
@@ -376,7 +378,7 @@ export function openViewer(
     animateUntil = 0,
     showContext = false,
     showSettings = false;
-  let unpresented = false;
+  let unpresented = true;
   let copied: { what: string; until: number } | undefined;
   const collapsedProjects = new Set<string>(),
     expandedProjects = new Set<string>();
@@ -385,6 +387,7 @@ export function openViewer(
   let search = inputBuffer(options.search);
   const states = new Map<string, DocumentState>();
   let closing = false;
+  let navigation: { request: ViewerRequest; frames: number } | undefined;
   let canvas:
     | {
         x: number;
@@ -405,6 +408,7 @@ export function openViewer(
       }
     | undefined;
   function viewerStatus() {
+    const size = pv_surface_size();
     return {
       selected: selected && {
         project: selected.project,
@@ -416,8 +420,8 @@ export function openViewer(
       parameters: renderer && Object.fromEntries(renderer.state.parameters),
       theme: themeOverride ?? preferredTheme(),
       canvas,
-      window: pv_surface_size(),
-      presented: !unpresented,
+      window: size.x > 0 && size.y > 0 ? size : undefined,
+      presented: size.x > 0 && size.y > 0 && !unpresented,
     };
   }
   function applyRequest(request: ViewerRequest) {
@@ -1125,6 +1129,7 @@ export function openViewer(
   }
   checked(pv_surface_open(1));
   try {
+    checked(pv_viewer_listen(controller.owner.notify));
     initializeTheme(themeOverride ?? preferredTheme());
     checked(pv_surface_input_policy(preferences.wheelScale, ImGuiMod_Ctrl));
     select(selected, followLatest, followPresented);
@@ -1147,7 +1152,7 @@ export function openViewer(
         animateUntil = Date.now() + 500;
       }
       refresh();
-      if (!capture) {
+      if (!capture && !navigation) {
         const request = controller.next();
         if (request) {
           try {
@@ -1180,6 +1185,8 @@ export function openViewer(
                   ),
                 );
                 pending = 3;
+              } else if (request.action === "open") {
+                navigation = { request, frames: 3 };
               } else controller.reply(request, viewerStatus());
             } else throw new Error("Unknown viewer action");
           } catch (error) {
@@ -1214,6 +1221,10 @@ export function openViewer(
       popTheme();
       igRender();
       unpresented = checked(pv_surface_present()) === 1;
+      if (navigation && --navigation.frames === 0) {
+        controller.reply(navigation.request, viewerStatus());
+        navigation = undefined;
+      }
       if (capture && --capture.frames <= 0) {
         const work = capture,
           options = work.request.capture;
@@ -1278,6 +1289,7 @@ export function openViewer(
       }
     }
   } finally {
+    pv_viewer_stop();
     renderer?.dispose();
     releasePanels();
     for (const key of Object.keys(fonts))

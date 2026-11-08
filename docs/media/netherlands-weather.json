@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "type": "dashboard",
+  "title": "The Netherlands, next week",
+  "subtitle": "9-15 November 2026 · Utrecht, central Netherlands",
+  "category": "Weather outlook",
+  "context": {
+    "source": "https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=Europe%2FAmsterdam&start_date=2026-11-09&end_date=2026-11-15",
+    "provider": "Open-Meteo",
+    "retrievedAt": "2026-11-08",
+    "referenceLocation": "Utrecht, Netherlands",
+    "timezone": "Europe/Amsterdam",
+    "purpose": "Public product demonstration; no personal or client data"
+  },
+  "body": [
+    {
+      "type": "row",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Warmest afternoon",
+          "value": 10.5,
+          "decimals": 1,
+          "suffix": " °C"
+        },
+        {
+          "type": "metric",
+          "label": "Coldest night",
+          "value": 0.4,
+          "decimals": 1,
+          "suffix": " °C"
+        },
+        {
+          "type": "metric",
+          "label": "Highest rain chance",
+          "value": 71,
+          "suffix": "%"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "weights": [1, 1],
+      "children": [
+        {
+          "type": "card",
+          "title": "A cool week ahead",
+          "children": [
+            {
+              "type": "chart",
+              "id": "temperatures",
+              "kind": "line",
+              "height": 200,
+              "yLabel": "Temperature (°C)",
+              "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+              "series": [
+                {
+                  "name": "Afternoon high",
+                  "values": [10.5, 9.0, 6.8, 9.6, 9.4, 7.9, 8.4]
+                },
+                {
+                  "name": "Night-time low",
+                  "values": [3.4, 2.1, 4.8, 4.1, 3.4, 0.4, 0.6]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "title": "Rain is most likely midweek",
+          "children": [
+            {
+              "type": "chart",
+              "id": "rain",
+              "kind": "bar",
+              "height": 200,
+              "yLabel": "Rain chance (%)",
+              "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+              "series": [
+                {
+                  "name": "Daily chance",
+                  "values": [8, 34, 71, 37, 4, 2, 11]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "tone": "neutral",
+      "title": "The forecast at a glance",
+      "content": "Afternoon highs stay around **7-11 °C**, with nights around **0-5 °C**. Wednesday has the highest rain probability. Utrecht is the central reference for this Netherlands outlook."
+    },
+    {
+      "type": "markdown",
+      "content": "Forecast snapshot retrieved **8 November 2026**, Europe/Amsterdam. [Weather data by Open-Meteo](https://api.open-meteo.com/v1/forecast?latitude=52.09&longitude=5.12&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code&timezone=Europe%2FAmsterdam&start_date=2026-11-09&end_date=2026-11-15)."
+    }
+  ]
+}

@@ -88,6 +88,8 @@ test("CLI navigation reuses the viewer and reapplies parameters to the same revi
   const initial = await w.open(entry),
     changed = await w.open(entry, ["--params", '{"station":"Cedar"}']);
   assert.equal(changed.pid, initial.pid);
+  assert.ok(initial.window.x > 0 && initial.window.y > 0);
+  assert.ok(initial.canvas.width > 0 && initial.canvas.height > 0);
   assert.equal(changed.selected.version, entry.version);
   assert.equal(changed.parameters.station, "Cedar");
   const screenshot = await w.cli([

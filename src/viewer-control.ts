@@ -1,6 +1,10 @@
-import { pv_viewer_claim, pv_viewer_release } from "maligator:ffi/visualize";
+import {
+  pv_viewer_claim,
+  pv_viewer_notify,
+  pv_viewer_release,
+} from "maligator:ffi/visualize";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -11,7 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import type { Theme } from "./model.ts";
 import { checked } from "./ui/primitives.ts";
@@ -44,6 +48,7 @@ interface Owner {
   session: string;
   pid: number;
   executable: string;
+  notify: string;
 }
 function directory(root: string) {
   mkdirSync(root, { recursive: true });
@@ -74,10 +79,13 @@ export class ViewerController {
   readonly directory: string;
   constructor(location: string) {
     this.directory = location;
+    const sockets = `/tmp/project-visualize-${createHash("sha256").update(location).digest("hex").slice(0, 24)}`;
+    mkdirSync(sockets, { recursive: true, mode: 0o700 });
     this.owner = {
       session: randomUUID(),
       pid: process.pid,
       executable: executablePath,
+      notify: join(sockets, "notify.sock"),
     };
     write(join(location, "owner.json"), this.owner);
   }
@@ -118,9 +126,13 @@ export class ViewerController {
     });
   }
   close() {
-    rmSync(join(this.directory, "owner.json"), { force: true });
-    // Retain the lock inode so another process cannot lock a replacement file.
-    pv_viewer_release();
+    try {
+      rmSync(join(this.directory, "owner.json"), { force: true });
+      rmSync(dirname(this.owner.notify), { recursive: true, force: true });
+    } finally {
+      // Retain the lock inode so another process cannot lock a replacement file.
+      pv_viewer_release();
+    }
   }
 }
 export function claimViewer(root: string): ViewerController | undefined {
@@ -163,6 +175,7 @@ export async function requestViewer(
       file = join(location, "requests", `${id}.json`),
       reply = join(location, "replies", `${id}.json`);
     write(file, { ...input, id, session: owner.session, expires: deadline });
+    pv_viewer_notify(owner.notify);
     let inspected = Date.now();
     try {
       while (Date.now() < deadline) {

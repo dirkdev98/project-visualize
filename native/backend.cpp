@@ -18,6 +18,11 @@
 #include <cerrno>
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <thread>
+#include <atomic>
 #include <unistd.h>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -29,6 +34,10 @@ namespace {
 std::unique_ptr<pv::Gpu> context;
 std::string last_error;
 int viewer_lock = -1;
+int notify_socket = -1;
+std::atomic<bool> notify_running = false;
+std::thread notify_thread;
+std::string notify_path;
 
 struct DeflateStream {
   z_stream value{};
@@ -72,6 +81,74 @@ extern "C" int pv_viewer_claim(const char *file) {
 extern "C" void pv_viewer_release(void) {
   if (viewer_lock >= 0) close(viewer_lock);
   viewer_lock = -1;
+}
+
+extern "C" void pv_viewer_notify(const char *file) {
+  if (!file) return;
+  sockaddr_un address{};
+  address.sun_family = AF_UNIX;
+  const size_t length = std::strlen(file);
+  if (length >= sizeof(address.sun_path)) return;
+  std::memcpy(address.sun_path, file, length + 1);
+  const int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+  if (fd < 0) return;
+  const char event = 1;
+  sendto(fd, &event, 1, MSG_DONTWAIT, reinterpret_cast<sockaddr *>(&address), sizeof(address));
+  close(fd);
+}
+
+extern "C" int pv_viewer_listen(const char *file) {
+  if (!file) { last_error = "A viewer notification path is required"; return -1; }
+  sockaddr_un address{};
+  address.sun_family = AF_UNIX;
+  const size_t length = std::strlen(file);
+  if (length >= sizeof(address.sun_path)) { last_error = "Viewer notification path is too long"; return -1; }
+  std::memcpy(address.sun_path, file, length + 1);
+  const int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+  if (fd < 0) { last_error = "Cannot create the viewer notification socket"; return -1; }
+  fcntl(fd, F_SETFD, FD_CLOEXEC);
+  unlink(file);
+  if (bind(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0) {
+    close(fd); last_error = "Cannot bind the viewer notification socket"; return -1;
+  }
+  if (chmod(file, 0600) != 0) {
+    close(fd); unlink(file); last_error = "Cannot protect the viewer notification socket"; return -1;
+  }
+  notify_socket = fd;
+  notify_path = file;
+  const Uint32 event_type = SDL_RegisterEvents(1);
+  notify_running = true;
+  try {
+    notify_thread = std::thread([fd, event_type] {
+    while (notify_running) {
+      char byte;
+      if (recv(fd, &byte, 1, 0) < 0) {
+        if (errno == EINTR) continue;
+        break;
+      }
+      if (!notify_running) break;
+      SDL_Event event{};
+      event.type = event_type;
+      SDL_PushEvent(&event);
+    }
+    });
+  } catch (const std::exception &error) {
+    notify_running = false;
+    close(fd); unlink(file); notify_socket = -1;
+    last_error = error.what(); return -1;
+  }
+  return 0;
+}
+
+extern "C" void pv_viewer_stop(void) {
+  notify_running = false;
+  if (notify_socket >= 0) {
+    pv_viewer_notify(notify_path.c_str());
+    if (notify_thread.joinable()) notify_thread.join();
+    close(notify_socket);
+    unlink(notify_path.c_str());
+    notify_socket = -1;
+  }
 }
 
 extern "C" int pv_surface_raise(void) {

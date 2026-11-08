@@ -1,5 +1,44 @@
 # Decisions
 
+## 2026-11-08 public weather demonstration
+
+- Use a dated public weather forecast for README media, with its source attribution
+  and structured artifact beside the images. Keep the viewer's library search scoped
+  to that artifact and show only its generic library label.
+- Pair the artifact preview with the running viewer's captured frame. Stack the pair
+  on narrow screens without inventing a chat screenshot or exposing other artifacts.
+
+Keep track of;
+
+- Capture a clean Codex desktop conversation for the chat side of the public demo.
+
+## 2026-11-08 responsive rendering references
+
+- Use shared component and layout fixtures for HTML, native PNG, rasterized PDF pages
+  and interactive app captures. Exercise themes, responsive widths, layout boundaries
+  and screenshot density through the public CLI and browser.
+- Capture every PDF page and scroll through app viewports. Retain page and viewport
+  indexes so a missing trailing section fails alongside changed appearance.
+- Keep native window presentation and OS screenshots distinct from draw-data captures.
+  Match usable artifact widths across renderers and require an explicit reference
+  update after reviewing their different text and pagination conventions.
+
+## 2026-11-08 background viewer notifications
+
+- Notify the viewer through a private local socket when an atomic CLI request is ready.
+  Post an SDL event from a blocking receiver so background event waits cannot defer
+  request handling until a platform timeout, while adding no idle polling timer.
+- Acknowledge navigation after rendering the selected state so CLI replies include
+  usable viewport dimensions instead of startup placeholders.
+
+## 2026-11-08 desktop icon resources
+
+- Use one SVG design for the app's desktop identity, matching the viewer's violet
+  palette. Include small raster sizes and Retina artwork in the macOS icon container.
+- Name the icon in the macOS bundle and install scalable and raster hicolor resources
+  under the Linux desktop entry's icon name. Keep generation separate from ordinary
+  builds so packaging needs no image conversion tools.
+
 ## 2026-11-08 CLI-driven viewer ownership
 
 - Keep one viewer process per canonical library. Use kernel-held file ownership and

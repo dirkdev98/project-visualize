@@ -98,6 +98,14 @@ copyFileSync(
   join(applications, "tools.visualize.desktop"),
 );
 copyFileSync(join(root, "assets/icon.svg"), join(icons, "tools.visualize.svg"));
+for (const size of [16, 32, 48, 64, 128, 256, 512]) {
+  const directory = join(release, `share/icons/hicolor/${size}x${size}/apps`);
+  mkdirSync(directory, { recursive: true });
+  copyFileSync(
+    join(root, `assets/app-icons/${size}.png`),
+    join(directory, "tools.visualize.png"),
+  );
+}
 writeChecksums(release);
 normalizeModes(release);
 chmodSync(executable, 0o755);
