@@ -24,6 +24,13 @@ int pv_surface_limit(void);
 int pv_surface_begin(int width, int height, int scale);
 /* A retryable result (1) occurs before drawing, so the same frame can be retried. */
 int pv_surface_present(void);
+int pv_surface_raise(void);
+int pv_surface_resize(int width, int height);
+/* Capture the current interactive draw data at the requested screenshot density. */
+int pv_viewer_capture(const char *file, int scale);
+/* Kernel ownership survives stale files and is released when the process exits. */
+int pv_viewer_claim(const char *file);
+void pv_viewer_release(void);
 void pv_surface_background(PVColor color);
 /* Pixels stay caller-owned; capture completes all writes before returning. */
 int pv_surface_capture(int width, int height, unsigned char *pixels);

@@ -43,7 +43,11 @@ import {
   igEndTable,
   igGetContentRegionAvail,
   igGetCursorScreenPos,
+  igGetScrollMaxY,
+  igGetScrollY,
   igGetWindowDrawList,
+  igGetWindowPos,
+  igGetWindowSize,
   igGetWindowWidth,
   igInvisibleButton,
   igIsItemHovered,
@@ -68,6 +72,7 @@ import {
   igSetNextWindowPos,
   igSetNextWindowSize,
   igSetNextWindowSizeConstraints,
+  igSetScrollY_Float,
   igShortcut_Nil,
   igSpacing,
   igTableNextColumn,
@@ -80,13 +85,17 @@ import {
   pv_surface_open,
   pv_surface_pinch,
   pv_surface_present,
+  pv_surface_raise,
+  pv_surface_resize,
   pv_surface_size,
   pv_surface_wait,
+  pv_viewer_capture,
   SDL_GetSystemTheme,
   SDL_OpenURL,
   SDL_SYSTEM_THEME_DARK,
 } from "maligator:ffi/visualize";
-import { basename, join, resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { controls, isAll, parameterValue } from "./data.ts";
 import { libraryGroups } from "./library.ts";
@@ -122,6 +131,11 @@ import {
   pushTheme,
   setTheme,
 } from "./ui/theme.ts";
+import type {
+  ViewerController,
+  ViewerOptions,
+  ViewerRequest,
+} from "./viewer-control.ts";
 
 function compactLabel(
   value: string,
@@ -319,14 +333,11 @@ function moreRow(label: string): boolean {
   return clicked;
 }
 
-interface Options {
-  project?: string;
-  artifact?: string;
-  version?: string;
-  parameters?: unknown;
-  theme?: Theme;
-}
-export function openViewer(root: string, options: Options) {
+export function openViewer(
+  root: string,
+  options: ViewerOptions,
+  controller: ViewerController,
+) {
   let preferences = readSettings(root);
   let diskPreferences = JSON.stringify(preferences);
   let entries = list(root);
@@ -371,8 +382,79 @@ export function openViewer(root: string, options: Options) {
     expandedProjects = new Set<string>();
   let themeOverride = options.theme;
   let requestedTheme: Theme | undefined;
-  const search = inputBuffer();
+  let search = inputBuffer(options.search);
   const states = new Map<string, DocumentState>();
+  let closing = false;
+  let canvas:
+    | {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        scroll: number;
+        scrollMax: number;
+      }
+    | undefined;
+  let scrollTarget: number | undefined;
+  let capture:
+    | {
+        request: ViewerRequest;
+        frames: number;
+        attempts: number;
+        files: { output: string; canvas: NonNullable<typeof canvas> }[];
+      }
+    | undefined;
+  function viewerStatus() {
+    return {
+      selected: selected && {
+        project: selected.project,
+        artifact: selected.artifact,
+        version: selected.version,
+        title: selected.title,
+        archivedAt: selected.archivedAt,
+      },
+      parameters: renderer && Object.fromEntries(renderer.state.parameters),
+      theme: themeOverride ?? preferredTheme(),
+      canvas,
+      window: pv_surface_size(),
+      presented: !unpresented,
+    };
+  }
+  function applyRequest(request: ViewerRequest) {
+    const next = request.options;
+    if (!next) return;
+    if (next.search !== undefined) search = inputBuffer(next.search);
+    themeOverride = next.theme;
+    requestedTheme = themeOverride ?? preferredTheme();
+    if (next.project || next.artifact || next.version) {
+      entries = list(root);
+      const matching = entries.filter(
+        (entry) =>
+          (!next.project || entry.project === next.project) &&
+          (!next.artifact || entry.artifact === next.artifact) &&
+          (!next.version || entry.version === next.version) &&
+          (!entry.archivedAt || next.artifact !== undefined),
+      );
+      const entry = next.version
+        ? matching[0]
+        : (matching.find((entry) => entry.currentPresentation) ?? matching[0]);
+      if (!entry)
+        throw new Error("No saved artifact matches the viewer request");
+      if (next.parameters !== undefined) {
+        states.set(
+          entry.directory,
+          documentState(load(entry), next.parameters),
+        );
+        renderer?.dispose();
+        renderer = undefined;
+        loaded = "";
+      }
+      select(entry, !next.version, !next.version);
+    }
+    showSettings = false;
+    if (next.focus !== false) checked(pv_surface_raise());
+    pending = 3;
+  }
   function preferredTheme(): Theme {
     return preferences.appearance === "system"
       ? SDL_GetSystemTheme() === SDL_SYSTEM_THEME_DARK
@@ -928,6 +1010,20 @@ export function openViewer(root: string, options: Options) {
           ImGuiChildFlags_Borders,
           0,
         );
+        if (scrollTarget !== undefined) igSetScrollY_Float(scrollTarget);
+        const canvasStart = igGetCursorScreenPos(),
+          canvasSpace = igGetContentRegionAvail(),
+          canvasWindow = igGetWindowSize(),
+          canvasPosition = igGetWindowPos();
+        const top = canvasStart.y + igGetScrollY();
+        canvas = {
+          x: canvasStart.x,
+          y: top,
+          width: canvasSpace.x,
+          height: canvasWindow.y - 2 * (top - canvasPosition.y),
+          scroll: igGetScrollY(),
+          scrollMax: igGetScrollMaxY(),
+        };
         renderer.body(false, pinchScale);
         igEndChild();
         igPopID();
@@ -1051,6 +1147,51 @@ export function openViewer(root: string, options: Options) {
         animateUntil = Date.now() + 500;
       }
       refresh();
+      if (!capture) {
+        const request = controller.next();
+        if (request) {
+          try {
+            if (request.action === "close") {
+              controller.reply(request, viewerStatus());
+              closing = true;
+            } else if (
+              request.action === "open" ||
+              request.action === "capture" ||
+              request.action === "status"
+            ) {
+              if (request.action !== "status") applyRequest(request);
+              if (request.action === "capture") {
+                if (!request.capture)
+                  throw new Error("Capture options are missing");
+                if (!renderer)
+                  throw new Error(
+                    "Select an artifact before capturing the viewer",
+                  );
+                scrollTarget =
+                  typeof request.capture.scroll === "number"
+                    ? request.capture.scroll
+                    : 0;
+                capture = { request, frames: 3, attempts: 0, files: [] };
+                const size = pv_surface_size();
+                checked(
+                  pv_surface_resize(
+                    Math.round(size.x),
+                    request.capture.height ?? 900,
+                  ),
+                );
+                pending = 3;
+              } else controller.reply(request, viewerStatus());
+            } else throw new Error("Unknown viewer action");
+          } catch (error) {
+            controller.reply(
+              request,
+              undefined,
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
+      }
+      if (closing) break;
       if (
         preferences.appearance === "system" &&
         themeOverride === undefined &&
@@ -1073,6 +1214,68 @@ export function openViewer(root: string, options: Options) {
       popTheme();
       igRender();
       unpresented = checked(pv_surface_present()) === 1;
+      if (capture && --capture.frames <= 0) {
+        const work = capture,
+          options = work.request.capture;
+        try {
+          if (!canvas || !options)
+            throw new Error("The viewer has no artifact canvas");
+          if (Date.now() > work.request.expires)
+            throw new Error("Viewer capture exceeded its deadline");
+          const difference =
+            options.canvasWidth === undefined
+              ? 0
+              : options.canvasWidth - canvas.width;
+          if (Math.abs(difference) > 0.5) {
+            if (++work.attempts > 12)
+              throw new Error(
+                "The window cannot provide the requested content width",
+              );
+            const size = pv_surface_size();
+            checked(
+              pv_surface_resize(
+                Math.round(size.x + difference),
+                Math.round(size.y),
+              ),
+            );
+            work.frames = pending = 3;
+          } else {
+            const output = work.files.length
+              ? options.out.replace(/\.png$/i, `-${work.files.length + 1}.png`)
+              : options.out;
+            mkdirSync(dirname(output), { recursive: true });
+            checked(pv_viewer_capture(output, options.scale));
+            work.files.push({ output, canvas: { ...canvas } });
+            if (
+              options.scroll === "all" &&
+              canvas.scroll < canvas.scrollMax - 1
+            ) {
+              scrollTarget = Math.min(
+                canvas.scrollMax,
+                canvas.scroll + Math.max(1, canvas.height - 24),
+              );
+              work.frames = pending = 3;
+            } else {
+              controller.reply(work.request, {
+                ...viewerStatus(),
+                kind: "viewer-draw-data",
+                scale: options.scale,
+                files: work.files,
+              });
+              capture = undefined;
+              scrollTarget = undefined;
+            }
+          }
+        } catch (error) {
+          controller.reply(
+            work.request,
+            undefined,
+            error instanceof Error ? error.message : String(error),
+          );
+          capture = undefined;
+          scrollTarget = undefined;
+        }
+      }
     }
   } finally {
     renderer?.dispose();

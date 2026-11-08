@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-11-08 CLI-driven viewer ownership
+
+- Keep one viewer process per canonical library. Use kernel-held file ownership and
+  atomic local requests so stale files and concurrent launches cannot create windows
+  that compete for the same library.
+- Route open and presentation requests into that process, applying the requested
+  revision, linked parameters and theme. Keep presentation headless when no viewer is
+  running and report an unresponsive owner instead of launching another window.
+- Expose viewer status and draw-data captures through the CLI. Support measured content
+  widths and successive scroll positions so tests exercise interactive app rendering
+  rather than treating artifact PNG exports as app screenshots.
+
 ## 2026-11-08 artifact archiving
 
 - Archive an artifact together with all its revisions through a mutable library

@@ -35,6 +35,17 @@ bin/visualize open --project observatory --artifact weekly-review
 it again with the same project and artifact IDs to save another version. The viewer
 refreshes its library automatically and lets you browse earlier versions.
 
+`open` navigates the running viewer for that library and starts one only when needed.
+It returns the responding process and selected revision as JSON. `present` selects the
+delivered revision in an open viewer and remains headless when no viewer is running.
+Use `open --search QUERY` to filter the library, including archived artifacts.
+
+Use `viewer --action status` to inspect the running view, or
+`viewer --action capture --out view.png` to capture its interactive draw data.
+`--content-width` sets the artifact's usable width; `--height` sets the window height.
+`--scroll all` captures successive viewport images through a long artifact. This
+capture replays the current app frame; it is separate from PNG artifact export.
+
 Archive an artifact with the viewer's archive action or
 `visualize archive --project ID --artifact ID`. All its revisions stay saved and
 searchable. Search includes archived artifacts; restore one from its toolbar or with

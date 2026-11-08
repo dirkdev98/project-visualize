@@ -15,6 +15,10 @@
 #include <cstdlib>
 #include <vector>
 #include <zlib.h>
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <unistd.h>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
@@ -24,6 +28,7 @@ struct PVImage { std::unique_ptr<pv::Image> image; };
 namespace {
 std::unique_ptr<pv::Gpu> context;
 std::string last_error;
+int viewer_lock = -1;
 
 struct DeflateStream {
   z_stream value{};
@@ -48,6 +53,62 @@ extern "C" int pv_surface_open(int viewer) {
     return 0;
   } catch (const std::exception &error) {
     last_error = error.what(); context.reset(); return -1;
+  }
+}
+
+extern "C" int pv_viewer_claim(const char *file) {
+  const int fd = open(file, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600);
+  if (fd < 0) { last_error = "Cannot open the viewer ownership file"; return -1; }
+  if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+    const int cause = errno;
+    close(fd);
+    if (cause == EWOULDBLOCK || cause == EAGAIN) return 0;
+    last_error = "Cannot claim the viewer ownership file"; return -1;
+  }
+  viewer_lock = fd;
+  return 1;
+}
+
+extern "C" void pv_viewer_release(void) {
+  if (viewer_lock >= 0) close(viewer_lock);
+  viewer_lock = -1;
+}
+
+extern "C" int pv_surface_raise(void) {
+  try {
+    if (!SDL_ShowWindow(surface().window) || !SDL_RaiseWindow(surface().window))
+      throw std::runtime_error(SDL_GetError());
+#ifdef __APPLE__
+    pv::activate_app();
+#endif
+    return 0;
+  } catch (const std::exception &error) { last_error = error.what(); return -1; }
+}
+
+extern "C" int pv_surface_resize(int width, int height) {
+  try {
+    if (!SDL_SetWindowSize(surface().window, width, height))
+      throw std::runtime_error(SDL_GetError());
+    return 0;
+  } catch (const std::exception &error) { last_error = error.what(); return -1; }
+}
+
+extern "C" int pv_viewer_capture(const char *file, int scale) {
+  auto *data = ImGui::GetDrawData();
+  if (!data || (scale != 1 && scale != 2)) { last_error = "Capture requires a completed viewer frame"; return -1; }
+  const ImVec2 previous = data->FramebufferScale;
+  try {
+    const int width = static_cast<int>(data->DisplaySize.x) * scale,
+      height = static_cast<int>(data->DisplaySize.y) * scale;
+    std::vector<unsigned char> pixels(static_cast<size_t>(width) * height * 4);
+    data->FramebufferScale = ImVec2(scale, scale);
+    surface().capture(width, height, pixels.data());
+    data->FramebufferScale = previous;
+    pv::write_png(file, width, height, pixels.data());
+    return 0;
+  } catch (const std::exception &error) {
+    data->FramebufferScale = previous;
+    last_error = error.what(); return -1;
   }
 }
 

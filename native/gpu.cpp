@@ -243,7 +243,12 @@ void Gpu::capture(int width, int height, unsigned char *pixels) {
   desc.size = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
   desc.mipLevelCount = desc.sampleCount = 1;
   desc.dimension = WGPUTextureDimension_2D;
-  desc.format = WGPUTextureFormat_RGBA8Unorm;
+  desc.format = configuration.format;
+  const bool bgra = desc.format == WGPUTextureFormat_BGRA8Unorm ||
+    desc.format == WGPUTextureFormat_BGRA8UnormSrgb;
+  if (!bgra && desc.format != WGPUTextureFormat_RGBA8Unorm &&
+      desc.format != WGPUTextureFormat_RGBA8UnormSrgb)
+    throw std::runtime_error("The window pixel format cannot be captured as PNG");
   desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc;
   std::unique_ptr<WGPUTextureImpl, decltype(&wgpuTextureRelease)>
     texture(wgpuDeviceCreateTexture(device, &desc), wgpuTextureRelease);
@@ -284,6 +289,9 @@ void Gpu::capture(int width, int height, unsigned char *pixels) {
     auto bytes = static_cast<const unsigned char *>(wgpuBufferGetConstMappedRange(buffer.get(), 0, size));
     for (int y = 0; y < height; ++y)
       memcpy(pixels + static_cast<size_t>(y) * width * 4, bytes + static_cast<size_t>(y) * stride, width * 4);
+    if (bgra)
+      for (size_t offset = 0; offset < static_cast<size_t>(width) * height * 4; offset += 4)
+        std::swap(pixels[offset], pixels[offset + 2]);
     wgpuBufferUnmap(buffer.get());
   } else throw std::runtime_error("GPU screenshot readback failed");
   check();

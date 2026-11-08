@@ -33,6 +33,12 @@ import {
 import { renderArtifact as render } from "./ui/export.ts";
 import { openViewer } from "./viewer.ts";
 import {
+  claimViewer,
+  requestViewer,
+  type ViewerOptions,
+  viewerRunning,
+} from "./viewer-control.ts";
+import {
   executablePath,
   linkInstallation,
   skillResources,
@@ -47,6 +53,7 @@ visualize restore --project ID --artifact ID
 visualize inspect --project ID --artifact ID [--version ID]
 visualize export --project ID --artifact ID --format png|pdf|html [--out FILE]
 visualize open [--project ID] [--artifact ID] [--version ID]
+visualize viewer --action status|capture|close [--out screenshot.png]
 visualize validate --file document.json
 visualize present --project ID --artifact ID --version ID
 visualize skill [--out DIRECTORY]
@@ -58,11 +65,13 @@ render and export accept --width 320..2560. PNG/PDF captures accept --scale 1|2,
 render accepts --mobile-width 320..600 to save a second responsive PNG.
 render, export and open accept --theme light|dark.
 render always saves a new immutable version with PNG and PDF snapshots.
-Commands return JSON. open (the default) runs the native desktop viewer.
+Commands return JSON. open (the default) navigates the viewer, starting it if needed.
 inspect, export and open accept --params JSON to override declared controls.
 export accepts --block PATH to export one whole widget or card; inspect lists paths.
 HTML exports accept --html-mode standalone|inline|fragment (default standalone).
 Without --out, exports are organized under the library's exports directory.
+open accepts --search QUERY and --focus true|false.
+viewer capture accepts --content-width 280..2560, --height 320..2000, --scroll PIXELS|all and --scale 1|2.
 `;
 
 let runtimeDirectory: string | undefined;
@@ -107,7 +116,33 @@ async function main() {
       "block",
       "html-mode",
     ],
-    open: ["project", "artifact", "version", "store", "params", "theme"],
+    open: [
+      "project",
+      "artifact",
+      "version",
+      "store",
+      "params",
+      "theme",
+      "search",
+      "focus",
+    ],
+    viewer: [
+      "action",
+      "project",
+      "artifact",
+      "version",
+      "store",
+      "params",
+      "theme",
+      "search",
+      "focus",
+      "out",
+      "content-width",
+      "height",
+      "scroll",
+      "scale",
+    ],
+    "viewer-host": ["store"],
     validate: ["file", "store"],
     present: ["project", "artifact", "version", "store"],
     skill: ["out", "store"],
@@ -149,7 +184,7 @@ async function main() {
   if (
     process.platform === "linux" &&
     !process.env.XDG_RUNTIME_DIR &&
-    ["render", "export", "open"].includes(command)
+    ["render", "export", "viewer-host"].includes(command)
   ) {
     runtimeDirectory = mkdtempSync(join(tmpdir(), "visualize-runtime-"));
     // Set this before native graphics workers start reading the process environment.
@@ -165,7 +200,16 @@ async function main() {
   for (const key of ["project", "artifact"])
     if (options[key]) slug(options[key], key);
   let result: unknown;
-  if (command === "render" || command === "validate") {
+  if (command === "viewer-host") {
+    const controller = claimViewer(root);
+    if (!controller) return;
+    try {
+      openViewer(root, {}, controller);
+    } finally {
+      controller.close();
+    }
+    return;
+  } else if (command === "render" || command === "validate") {
     const file = required("file");
     const raw = readFileSync(file === "-" ? 0 : file, "utf8");
     if (Buffer.byteLength(raw) > 5 * 1024 * 1024)
@@ -233,6 +277,18 @@ async function main() {
       required("artifact"),
       required("version"),
     );
+    if (viewerRunning(root))
+      result = {
+        ...(result as object),
+        viewer: await requestViewer(root, {
+          action: "open",
+          options: {
+            project: options.project,
+            artifact: options.artifact,
+            version: options.version,
+          },
+        }),
+      };
   } else if (command === "skill") {
     result = skillResources(root, options.out);
   } else if (command === "install") {
@@ -398,7 +454,7 @@ async function main() {
         join(dirname(out), "export.json"),
         `${JSON.stringify({ ...exported, parameters: selectedParameters, theme: selected.document.theme, createdAt: new Date().toISOString() }, null, 2)}\n`,
       );
-  } else if (command === "open") {
+  } else if (command === "open" || command === "viewer") {
     if (options.artifact && !options.project)
       throw new Error("--artifact requires --project");
     if (options.version && (!options.project || !options.artifact))
@@ -419,8 +475,69 @@ async function main() {
     }
     if (options.project && options.artifact)
       find(root, options.project, options.artifact, options.version);
-    openViewer(root, { ...options, parameters, theme });
-    return;
+    if (
+      options.focus !== undefined &&
+      !["true", "false"].includes(options.focus)
+    )
+      throw new Error("--focus must be true or false");
+    const viewerOptions: ViewerOptions = {
+      project: options.project,
+      artifact: options.artifact,
+      version: options.version,
+      parameters,
+      theme,
+      search: options.search,
+      focus: options.focus !== "false",
+    };
+    if (command === "open")
+      result = await requestViewer(
+        root,
+        { action: "open", options: viewerOptions },
+        true,
+      );
+    else {
+      const action = required("action");
+      if (action !== "status" && action !== "capture" && action !== "close")
+        throw new Error("--action must be status, capture or close");
+      let capture:
+        | {
+            out: string;
+            canvasWidth?: number;
+            height?: number;
+            scroll?: number | "all";
+            scale: number;
+          }
+        | undefined;
+      if (action === "capture") {
+        const out = resolve(required("out"));
+        if (!out.toLowerCase().endsWith(".png"))
+          throw new Error("--out must end with .png");
+        if (out.startsWith(`${root}/projects/`))
+          throw new Error(
+            "Capture outside the saved version store to preserve history",
+          );
+        const scroll =
+          options.scroll === "all" ? "all" : Number(options.scroll ?? 0);
+        if (scroll !== "all" && (!Number.isFinite(scroll) || scroll < 0))
+          throw new Error("--scroll must be a nonnegative number or all");
+        capture = {
+          out,
+          scale: dimension("scale", 1, 1, 2),
+          ...(options["content-width"]
+            ? { canvasWidth: dimension("content-width", 390, 280, 2560) }
+            : {}),
+          ...(options.height
+            ? { height: dimension("height", 900, 320, 2000) }
+            : {}),
+          scroll,
+        };
+      }
+      result = await requestViewer(root, {
+        action,
+        options: viewerOptions,
+        ...(capture ? { capture } : {}),
+      });
+    }
   }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

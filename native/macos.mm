@@ -28,6 +28,10 @@ PVApplicationCommands *commands;
 }
 
 namespace pv {
+void activate_app() {
+  [NSApp activateIgnoringOtherApps:YES];
+}
+
 void install_app_menu() {
   remove_app_menu();
   NSMenu *menu = NSApp.mainMenu.itemArray.firstObject.submenu;
