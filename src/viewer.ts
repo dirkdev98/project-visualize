@@ -86,13 +86,13 @@ import {
   SDL_OpenURL,
   SDL_SYSTEM_THEME_DARK,
 } from "maligator:ffi/visualize";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { controls, isAll, parameterValue } from "./data.ts";
 import { libraryGroups } from "./library.ts";
 import type { Theme } from "./model.ts";
 import { readSettings, type Settings, saveSettings } from "./settings.ts";
-import { type Entry, list, load } from "./store.ts";
+import { archive, type Entry, list, load } from "./store.ts";
 import {
   DocumentRenderer,
   type DocumentState,
@@ -251,7 +251,7 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
   const middle = start.y + height / 2;
   drawIcon(
     draw,
-    artifactIcon(entry.type),
+    entry.archivedAt ? "archive" : artifactIcon(entry.type),
     { x: start.x + 18, y: middle },
     16,
     active ? palette.accent : palette.muted,
@@ -290,7 +290,7 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
   );
   if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
     tooltip(
-      `${entry.title}\n${entry.project} / ${entry.artifact}\nUpdated ${dateLabel(new Date(updated))}${entry.currentPresentation ? "\nShowing the presented revision" : ""}`,
+      `${entry.title}\n${entry.project} / ${entry.artifact}\nUpdated ${dateLabel(new Date(updated))}${entry.archivedAt ? "\nArchived artifact" : ""}${entry.currentPresentation ? "\nShowing the presented revision" : ""}`,
     );
   return clicked;
 }
@@ -333,6 +333,7 @@ export function openViewer(root: string, options: Options) {
   let selected = entries.find(
     (entry) =>
       (!options.project || entry.project === options.project) &&
+      (!entry.archivedAt || options.artifact !== undefined) &&
       (!options.artifact || entry.artifact === options.artifact) &&
       (!options.version || entry.version === options.version),
   );
@@ -341,6 +342,7 @@ export function openViewer(root: string, options: Options) {
       entries.find(
         (entry) =>
           entry.currentPresentation &&
+          (!entry.archivedAt || options.artifact !== undefined) &&
           (!options.project || entry.project === options.project) &&
           (!options.artifact || entry.artifact === options.artifact),
       ) ?? selected;
@@ -354,7 +356,7 @@ export function openViewer(root: string, options: Options) {
     values
       .map(
         (entry) =>
-          `${entry.directory}:${entry.presentedAt ?? ""}:${entry.currentPresentation ?? false}`,
+          `${entry.directory}:${entry.presentedAt ?? ""}:${entry.currentPresentation ?? false}:${entry.archivedAt ?? ""}`,
       )
       .join("\n");
   let previous = signatureOf(entries);
@@ -550,10 +552,12 @@ export function openViewer(root: string, options: Options) {
     const query = inputValue(search).trim().toLowerCase();
     let matches = 0;
     for (const { project, artifacts } of libraryGroups(entries)) {
-      const visible = artifacts.filter(
-        ({ artifact, entry }) =>
-          !query ||
-          `${project} ${artifact} ${entry.title}`.toLowerCase().includes(query),
+      const visible = artifacts.filter(({ artifact, entry }) =>
+        query
+          ? `${project} ${artifact} ${entry.title}`
+              .toLowerCase()
+              .includes(query)
+          : !entry.archivedAt,
       );
       if (!visible.length) continue;
       matches += visible.length;
@@ -616,7 +620,7 @@ export function openViewer(root: string, options: Options) {
     }
     text("LIBRARY", 10, "bold", palette.muted);
     text(
-      compactLabel(root, available(), 12, "regular"),
+      compactLabel(basename(root), available(), 12, "regular"),
       12,
       "regular",
       palette.muted,
@@ -642,8 +646,9 @@ export function openViewer(root: string, options: Options) {
           entry.artifact === current.artifact &&
           entry.currentPresentation,
       );
-      const preview =
-        followPresented && current.currentPresentation
+      const preview = current.archivedAt
+        ? `Archived · ${revisionDate(current)}`
+        : followPresented && current.currentPresentation
           ? `Presented · ${revisionDate(current)}`
           : followLatest
             ? `Latest · ${revisionDate(current)}`
@@ -671,6 +676,25 @@ export function openViewer(root: string, options: Options) {
         active?: boolean;
         run: () => void;
       }[] = [];
+      actions.push({
+        id: "archive",
+        icon: current.archivedAt ? "restore" : "archive",
+        hint: current.archivedAt
+          ? "Restore artifact"
+          : "Archive artifact and all revisions",
+        run: () => {
+          archive(root, current.project, current.artifact, !current.archivedAt);
+          entries = list(root);
+          previous = signatureOf(entries);
+          select(
+            current.archivedAt
+              ? entries.find((entry) => entry.directory === current.directory)
+              : undefined,
+            followLatest,
+            followPresented,
+          );
+        },
+      });
       if (view?.hasControls())
         actions.push({
           id: "reset",

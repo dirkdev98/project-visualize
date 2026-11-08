@@ -31,6 +31,32 @@ export interface Entry {
   directory: string;
   presentedAt?: string;
   currentPresentation?: boolean;
+  archivedAt?: string;
+}
+
+export function archive(
+  root: string,
+  project: string,
+  artifact: string,
+  archived: boolean,
+): Entry {
+  const entry = find(root, project, artifact);
+  const parent = dirname(entry.directory),
+    file = join(parent, "archived.json");
+  if (!archived) {
+    rmSync(file, { force: true });
+    const { archivedAt: _, ...rest } = entry;
+    return rest;
+  }
+  const archivedAt = entry.archivedAt ?? new Date().toISOString(),
+    temporary = join(parent, `.archived-${randomUUID()}.json`);
+  try {
+    writeFileSync(temporary, `${JSON.stringify({ archivedAt })}\n`);
+    renameSync(temporary, file);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return { ...entry, archivedAt };
 }
 
 interface Presentation {
@@ -105,11 +131,16 @@ export function list(
     for (const a of directories(join(projects, p))) {
       if (artifact && a !== artifact) continue;
       const presented = presentation(join(projects, p, a));
+      const archiveFile = join(projects, p, a, "archived.json");
+      const archived = existsSync(archiveFile)
+        ? JSON.parse(readFileSync(archiveFile, "utf8"))
+        : undefined;
       for (const v of directories(join(projects, p, a))) {
         const directory = join(projects, p, a, v);
         entries.push({
           ...JSON.parse(readFileSync(join(directory, "metadata.json"), "utf8")),
           directory,
+          ...(archived ? { archivedAt: archived.archivedAt } : {}),
           ...(presented?.versions[v]
             ? {
                 presentedAt: presented.versions[v],

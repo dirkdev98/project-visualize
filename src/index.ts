@@ -21,7 +21,15 @@ import {
   saveSettings,
   systemTheme,
 } from "./settings.ts";
-import { find, list, load, present, save, storeRoot } from "./store.ts";
+import {
+  archive,
+  find,
+  list,
+  load,
+  present,
+  save,
+  storeRoot,
+} from "./store.ts";
 import { renderArtifact as render } from "./ui/export.ts";
 import { openViewer } from "./viewer.ts";
 import {
@@ -33,7 +41,9 @@ import {
 const help = `Project Visualize
 
 visualize render --project ID --artifact ID --file document.json
-visualize list [--project ID] [--artifact ID]
+visualize list [--project ID] [--artifact ID] [--search QUERY] [--status active|archived|all]
+visualize archive --project ID --artifact ID
+visualize restore --project ID --artifact ID
 visualize inspect --project ID --artifact ID [--version ID]
 visualize export --project ID --artifact ID --format png|pdf|html [--out FILE]
 visualize open [--project ID] [--artifact ID] [--version ID]
@@ -79,7 +89,9 @@ async function main() {
       "theme",
       "mobile-width",
     ],
-    list: ["project", "artifact", "store"],
+    list: ["project", "artifact", "store", "search", "status"],
+    archive: ["project", "artifact", "store"],
+    restore: ["project", "artifact", "store"],
     inspect: ["project", "artifact", "version", "store", "params"],
     export: [
       "project",
@@ -232,12 +244,31 @@ async function main() {
       options.cli ? executablePath : skillResources(root).directory,
       options.cli ?? required("skill"),
     );
-  } else if (command === "list")
+  } else if (command === "archive" || command === "restore") {
+    result = archive(
+      root,
+      required("project"),
+      required("artifact"),
+      command === "archive",
+    );
+  } else if (command === "list") {
+    const query = options.search?.trim().toLowerCase() ?? "",
+      status = options.status ?? (query ? "all" : "active");
+    if (!["active", "archived", "all"].includes(status))
+      throw new Error("--status must be active, archived or all");
     result = {
       store: root,
-      versions: list(root, options.project, options.artifact),
+      versions: list(root, options.project, options.artifact).filter(
+        (entry) =>
+          (status === "all" ||
+            (status === "archived") === !!entry.archivedAt) &&
+          (!query ||
+            `${entry.project} ${entry.artifact} ${entry.title}`
+              .toLowerCase()
+              .includes(query)),
+      ),
     };
-  else if (command === "inspect") {
+  } else if (command === "inspect") {
     const entry = find(
       root,
       required("project"),

@@ -35,6 +35,11 @@ bin/visualize open --project observatory --artifact weekly-review
 it again with the same project and artifact IDs to save another version. The viewer
 refreshes its library automatically and lets you browse earlier versions.
 
+Archive an artifact with the viewer's archive action or
+`visualize archive --project ID --artifact ID`. All its revisions stay saved and
+searchable. Search includes archived artifacts; restore one from its toolbar or with
+`visualize restore --project ID --artifact ID`.
+
 Use `export --format html` for an offline interactive page. Omit `--out` to keep
 exports organized in the library, or provide a destination. `inspect` lists paths in
 `view.blocks`; pass `--block PATH` to export one whole widget or card as PNG, PDF or

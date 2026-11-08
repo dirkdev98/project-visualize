@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-08 artifact archiving
+
+- Archive an artifact together with all its revisions through a mutable library
+  marker. Keep saved documents, exports and presentation history unchanged.
+- Hide archived artifacts from ordinary browsing and include them in searches.
+  Allow restoring them from the viewer or CLI without creating a revision.
+- Show the library's directory name in the sidebar and expose its full path on hover,
+  so an ordinary screenshot does not disclose the user's home directory.
+
 ## 2026-11-08 portable HTML exports
 
 - Export structured artifacts as self-contained HTML with browser elements and SVG.

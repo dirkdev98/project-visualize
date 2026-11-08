@@ -19,6 +19,7 @@ import { itemTooltip } from "./tooltips.ts";
 
 // Code points in the bundled Lucide font; see assets/icons/sources.json for its version.
 const glyphs = {
+  archive: 0xe041,
   artifact: 0xe0c0,
   check: 0xe06c,
   chevronDown: 0xe06d,
@@ -35,6 +36,7 @@ const glyphs = {
   pdf: 0xe318,
   plus: 0xe13d,
   reset: 0xe148,
+  restore: 0xe2cd,
 };
 export type Icon = keyof typeof glyphs;
 
