@@ -59,11 +59,25 @@ for (const [name, entry] of Object.entries(lock)) {
       entry.sha256
   ) {
     console.error(`Downloading ${name}`);
-    const response = await fetch(entry.url, {
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!response.ok) throw new Error(`${entry.url}: HTTP ${response.status}`);
-    writeFileSync(archive, Buffer.from(await response.arrayBuffer()));
+    run("curl", [
+      "--fail",
+      "--location",
+      "--silent",
+      "--show-error",
+      "--retry",
+      "2",
+      "--retry-delay",
+      "1",
+      "--retry-max-time",
+      "60",
+      "--connect-timeout",
+      "10",
+      "--max-time",
+      "60",
+      "--output",
+      archive,
+      entry.url,
+    ]);
   }
   if (
     createHash("sha256").update(readFileSync(archive)).digest("hex") !==

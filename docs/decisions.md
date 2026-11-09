@@ -1,5 +1,10 @@
 # Decisions
 
+## 2026-11-09 native dependency downloads
+
+- Retry transient download failures within a bounded deadline before failing a native
+  build. Keep checksum verification mandatory before extracting or using an archive.
+
 ## 2026-11-09 Linux production linker
 
 - Select LLVM's lld through Clang's driver configuration in the Linux toolchain.
