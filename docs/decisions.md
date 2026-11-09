@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-09 Linux production linker
+
+- Select LLVM's lld through Clang's driver configuration in the Linux toolchain.
+  Installing lld alone leaves Clang using the system linker for production ThinLTO.
+- Include native phase timings and commands in CI build logs so a failed build
+  identifies the active compilation or linking phase.
+
 ## 2026-11-09 cold production build budget
 
 - Give production AOT compilation and linking a separate bounded build budget. A cold

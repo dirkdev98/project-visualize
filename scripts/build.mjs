@@ -14,7 +14,13 @@ rmSync(join(root, ".cache/release"), { recursive: true, force: true });
 // Cold AOT compilation and linking share one compiler invocation.
 run(
   compiler,
-  ["build", "--production", "--artifact", ".cache/release"],
+  [
+    "build",
+    "--production",
+    "--artifact",
+    ".cache/release",
+    ...(process.env.CI ? ["--verbose"] : []),
+  ],
   600_000,
 );
 run(process.execPath, ["scripts/package.mjs"]);

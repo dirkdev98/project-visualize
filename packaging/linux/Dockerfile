@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && echo 'deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-21 main' \
        > /etc/apt/sources.list.d/llvm.list \
     && apt-get update && apt-get install -y --no-install-recommends clang-21 lld-21 \
+    && printf '%s\n' '-fuse-ld=lld' > /usr/lib/llvm-21/bin/clang.cfg \
+    && printf '%s\n' '-fuse-ld=lld' > /usr/lib/llvm-21/bin/clang++.cfg \
     && rm -rf /var/lib/apt/lists/*
 ENV CC=clang-21 CXX=clang++-21
 RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
@@ -30,4 +32,4 @@ RUN npx playwright install --with-deps chromium
 
 FROM browsers AS visual-tests
 COPY . .
-RUN npm run build
+RUN CI=true npm run build
