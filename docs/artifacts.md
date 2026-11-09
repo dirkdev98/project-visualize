@@ -474,6 +474,18 @@ text and Escape clears the selection. The context menu offers Copy and Select al
 Formatting, soft wraps and syntax colors do
 not enter the clipboard. Editable controls keep their own keyboard shortcuts.
 
+Use **Contents** to search block titles, Markdown headings and timeline events.
+Choosing a section opens its collapsed ancestors and moves to the heading. The
+current section is highlighted while you scroll. Cmd+Shift+O on macOS or Ctrl+Shift+O
+on Linux focuses the contents search; Escape closes it. The panel sits beside a wide
+report and below a narrow one.
+
+Agents can open the panel with `open --contents true`, list its section IDs with
+`viewer --action outline`, and jump with `viewer --action navigate --heading ID`.
+Use the ID returned for the selected revision. IDs survive reflow and inserted prose;
+renaming a heading or reordering duplicate headings can change them. Explicit block
+IDs keep sections identifiable when their surrounding document changes.
+
 The saved PNG and PDF use the render command's width and scale. `export` renders the
 saved data and copied images with the current layout engine, using the saved width
 and 2x density unless overridden. It leaves creation-time snapshots and revision

@@ -85,6 +85,182 @@ async function workspace(t) {
   return { cli, raw, render, open, directory, file };
 }
 
+test("report sections can be listed and revisited from either scroll direction", async (t) => {
+  const w = await workspace(t);
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(
+    w.file,
+    JSON.stringify({
+      schemaVersion: 1,
+      type: "document",
+      title: "Station review",
+      body: [
+        {
+          type: "markdown",
+          id: "overview",
+          content: "## Overview\n\nFictional observations.",
+        },
+        { type: "spacer", height: 900 },
+        {
+          type: "details",
+          id: "evidence",
+          title: "Evidence",
+          children: [
+            {
+              type: "markdown",
+              id: "checks",
+              content: "## Calibration\n\nFictional equipment checks.",
+            },
+          ],
+        },
+        { type: "spacer", height: 900 },
+      ],
+    }),
+  );
+  const entry = await w.render("report");
+  await w.open(entry, ["--contents", "true", "--theme", "dark"]);
+  const outline = await w.cli([
+    "viewer",
+    "--action",
+    "outline",
+    "--focus",
+    "false",
+  ]);
+  assert.equal(outline.contentsOpen, true);
+  assert.equal(outline.theme, "dark");
+  const target = outline.headings.find(
+    (heading) => heading.title === "Calibration",
+  );
+  assert.ok(target);
+  const first = await w.cli([
+    "viewer",
+    "--action",
+    "navigate",
+    "--heading",
+    target.id,
+    "--focus",
+    "false",
+  ]);
+  assert.equal(first.heading, target.id);
+  assert.equal(first.theme, "dark");
+  assert.ok(first.canvas.scroll > 0);
+  const top = await w.cli([
+    "viewer",
+    "--action",
+    "navigate",
+    "--heading",
+    outline.headings[0].id,
+    "--focus",
+    "false",
+  ]);
+  assert.equal(top.canvas.scroll, 0);
+  const again = await w.cli([
+    "viewer",
+    "--action",
+    "navigate",
+    "--heading",
+    target.id,
+    "--focus",
+    "false",
+  ]);
+  assert.equal(again.heading, target.id);
+  assert.equal(again.canvas.scroll, first.canvas.scroll);
+  await assert.rejects(
+    w.cli(["viewer", "--action", "navigate", "--heading", "missing"]),
+    /Unknown report section/,
+  );
+});
+
+test("a selected final heading stays active when the report fits the viewport", async (t) => {
+  const w = await workspace(t);
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(
+    w.file,
+    JSON.stringify({
+      schemaVersion: 1,
+      type: "document",
+      title: "Short station review",
+      body: [
+        {
+          type: "markdown",
+          content:
+            "## Overview\n\nFictional observations.\n\n## Final checks\n\nComplete.",
+        },
+      ],
+    }),
+  );
+  const entry = await w.render("short-report");
+  await w.open(entry);
+  const outline = await w.cli([
+    "viewer",
+    "--action",
+    "outline",
+    "--focus",
+    "false",
+  ]);
+  const target = outline.headings.find(
+    (heading) => heading.title === "Final checks",
+  );
+  const selected = await w.cli([
+    "viewer",
+    "--action",
+    "navigate",
+    "--heading",
+    target.id,
+    "--focus",
+    "false",
+  ]);
+  assert.equal(selected.canvas.scrollMax, 0);
+  assert.equal(selected.heading, target.id);
+  const settled = await w.cli(["viewer", "--action", "status"]);
+  assert.equal(settled.heading, target.id);
+});
+
+test("opening and closing contents keeps the reader's section", async (t) => {
+  const w = await workspace(t);
+  const { writeFileSync } = await import("node:fs");
+  const body = Array.from({ length: 8 }, (_, i) => ({
+    type: "markdown",
+    id: `section-${i}`,
+    content: `## Station ${i + 1}\n\n${"Fictional station observations remain linked to supporting evidence. ".repeat(30)}`,
+  }));
+  writeFileSync(
+    w.file,
+    JSON.stringify({
+      schemaVersion: 1,
+      type: "document",
+      title: "Station reviews",
+      body,
+    }),
+  );
+  const entry = await w.render("long-report");
+  await w.open(entry, ["--contents", "true"]);
+  const outline = await w.cli([
+    "viewer",
+    "--action",
+    "outline",
+    "--focus",
+    "false",
+  ]);
+  const target = outline.headings.find(
+    (heading) => heading.title === "Station 4",
+  );
+  const initial = await w.cli([
+    "viewer",
+    "--action",
+    "navigate",
+    "--heading",
+    target.id,
+    "--focus",
+    "false",
+  ]);
+  const closed = await w.open(entry, ["--contents", "false"]);
+  assert.equal(closed.heading, target.id);
+  const reopened = await w.open(entry, ["--contents", "true"]);
+  assert.equal(reopened.heading, target.id);
+  assert.ok(Math.abs(reopened.canvas.scroll - initial.canvas.scroll) <= 1);
+});
+
 test("chart captures retain their fitted layout after the first capture", async (t) => {
   const w = await workspace(t);
   await w.cli(["open", "--focus", "false"]);

@@ -1,5 +1,33 @@
 # Decisions
 
+## 2026-11-09 report contents and reusable viewer work
+
+- Index block titles, Markdown headings and timeline events for a native contents
+  view. Derive section identities from authored block IDs and heading names so reflow
+  and inserted prose do not change navigation targets.
+- Search and navigate through the CLI as well as the viewer. Reveal collapsed
+  ancestors before moving to a target, and track the current section while scrolling.
+- Share the inspector space between contents and artifact context. Use a side panel
+  for wide reports and a bottom panel for narrow ones.
+- Prepare inline text runs once per token array and font size, preserving the native
+  advances and selection boundaries. Reuse a text block's clip rectangle across its
+  fragments instead of querying the same native draw list for every word.
+- Keep immutable revision metadata and library grouping between refreshes. Continue
+  discovering version directories and reading presentation and archive markers so
+  other agents' updates remain visible.
+- Retain bundled syntax grammars for the viewer session while keeping document tokens
+  scoped to each renderer. Clear chart bounds when controls resolve a new view so
+  prior filtered series do not accumulate.
+- Distinguish agent notifications from user input in the native event wait. Requests
+  must wake the controller without triggering half a second of input animation;
+  actual input retains priority when both arrive together.
+
+Keep track of;
+
+- Confirm visible-window scrolling, GPU presentation and resource costs when the Mac
+  driver can target the probe windows. Composition probes and occluded CLI-driven
+  measurements establish narrower CPU and memory improvements.
+
 ## 2026-11-09 fixed enum storage in C bindings
 
 - Apply the enum storage types supplied in cimgui's metadata to its C declarations.
@@ -815,11 +843,6 @@ Keep track of;
   strings, link parents and siblings explicitly, and count descendants for expanded
   navigation. Check destinations against the actual extracted heading glyphs at both
   export densities, including headings following continued tables.
-
-Keep track of;
-
-- Consider a native document outline with stable heading identities and automatic
-  opening of collapsed ancestors. Cached screen coordinates cannot resolve those jumps.
 
 ## 2026-11-07 JS viewer idle acceptance
 

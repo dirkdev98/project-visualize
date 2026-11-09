@@ -36,6 +36,8 @@ for (const { name, theme, width } of renderCases()) {
       entry.version,
       "--theme",
       theme,
+      "--contents",
+      "false",
       "--focus",
       "false",
       "--content-width",
@@ -71,3 +73,54 @@ for (const { name, theme, width } of renderCases()) {
       ).toMatchSnapshot(`${name}-${theme}-${width}-app-viewports.json`);
   });
 }
+
+for (const theme of ["light", "dark"])
+  for (const width of [390, 740])
+    test(`contents ${theme} ${width}`, async () => {
+      const info = test.info();
+      const fixture = fixtures(w.directory).find(
+        (fixture) => fixture.name === "notebook",
+      );
+      const entry = w.save(fixture.document, width, theme);
+      const capture = w.cli([
+        "viewer",
+        "--action",
+        "capture",
+        "--project",
+        entry.project,
+        "--artifact",
+        entry.artifact,
+        "--version",
+        entry.version,
+        "--theme",
+        theme,
+        "--contents",
+        "true",
+        "--focus",
+        "false",
+        "--content-width",
+        String(width),
+        "--height",
+        "900",
+        "--out",
+        info.outputPath("contents.png"),
+      ]);
+      expect(capture.contentsOpen).toBe(true);
+      const file = capture.files[0];
+      const image = artifactViewport(
+        file,
+        {
+          x: file.canvas.x,
+          y: file.canvas.y,
+          width: capture.window.x - file.canvas.x,
+          height: capture.window.y - file.canvas.y,
+        },
+        capture.scale,
+      );
+      await info.attach("Report and contents", {
+        body: image,
+        contentType: "image/png",
+      });
+      if (!process.env.VISUALIZE_CAPTURE_ONLY)
+        expect(image).toMatchSnapshot(`contents-${theme}-${width}.png`);
+    });

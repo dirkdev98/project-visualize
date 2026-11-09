@@ -68,3 +68,7 @@ export class SyntaxHighlighter {
     this.highlighter = undefined;
   }
 }
+
+// Grammars and themes are bounded by the bundled catalogue and survive revision
+// switches; tokenized document content stays owned by its renderer.
+export const documentHighlighter = new SyntaxHighlighter();

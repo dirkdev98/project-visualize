@@ -57,6 +57,10 @@ The viewer follows the revision marked for presentation. Agents can save newer d
 without replacing that delivered view; choose **Follow latest** to inspect those drafts.
 CLI commands navigate the existing viewer for the library and start one when needed.
 
+Open **Contents** to find a section in a long report. Search headings or choose one to
+jump to it, including sections inside collapsed notes. Cmd+Shift+O on macOS or
+Ctrl+Shift+O on Linux opens the contents search.
+
 ## Share an artifact
 
 - **PNG** gives you an image for chat, documents and slides, with desktop or phone

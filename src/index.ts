@@ -53,7 +53,7 @@ visualize restore --project ID --artifact ID
 visualize inspect --project ID --artifact ID [--version ID]
 visualize export --project ID --artifact ID --format png|pdf|html [--out FILE]
 visualize open [--project ID] [--artifact ID] [--version ID]
-visualize viewer --action status|capture|close [--out screenshot.png]
+visualize viewer --action status|capture|outline|navigate|close [--heading ID] [--out screenshot.png]
 visualize validate --file document.json
 visualize present --project ID --artifact ID --version ID
 visualize skill [--out DIRECTORY]
@@ -125,6 +125,7 @@ async function main() {
       "theme",
       "search",
       "focus",
+      "contents",
     ],
     viewer: [
       "action",
@@ -141,6 +142,8 @@ async function main() {
       "height",
       "scroll",
       "scale",
+      "heading",
+      "contents",
     ],
     "viewer-host": ["store"],
     validate: ["file", "store"],
@@ -501,6 +504,11 @@ async function main() {
       !["true", "false"].includes(options.focus)
     )
       throw new Error("--focus must be true or false");
+    if (
+      options.contents !== undefined &&
+      !["true", "false"].includes(options.contents)
+    )
+      throw new Error("--contents must be true or false");
     const viewerOptions: ViewerOptions = {
       project: options.project,
       artifact: options.artifact,
@@ -509,6 +517,9 @@ async function main() {
       theme,
       search: options.search,
       focus: options.focus !== "false",
+      ...(options.contents !== undefined
+        ? { contents: options.contents === "true" }
+        : {}),
     };
     if (command === "open")
       result = await requestViewer(
@@ -518,8 +529,12 @@ async function main() {
       );
     else {
       const action = required("action");
-      if (action !== "status" && action !== "capture" && action !== "close")
-        throw new Error("--action must be status, capture or close");
+      if (
+        !["status", "capture", "close", "outline", "navigate"].includes(action)
+      )
+        throw new Error(
+          "--action must be status, capture, outline, navigate or close",
+        );
       let capture:
         | {
             out: string;
@@ -554,8 +569,14 @@ async function main() {
         };
       }
       result = await requestViewer(root, {
-        action,
+        action: action as
+          | "status"
+          | "capture"
+          | "close"
+          | "outline"
+          | "navigate",
         options: viewerOptions,
+        ...(action === "navigate" ? { heading: required("heading") } : {}),
         ...(capture ? { capture } : {}),
       });
     }

@@ -35,6 +35,7 @@ std::unique_ptr<pv::Gpu> context;
 std::string last_error;
 int viewer_lock = -1;
 int notify_socket = -1;
+Uint32 notify_event = 0;
 std::atomic<bool> notify_running = false;
 std::thread notify_thread;
 std::string notify_path;
@@ -117,6 +118,7 @@ extern "C" int pv_viewer_listen(const char *file) {
   notify_socket = fd;
   notify_path = file;
   const Uint32 event_type = SDL_RegisterEvents(1);
+  notify_event = event_type;
   notify_running = true;
   try {
     notify_thread = std::thread([fd, event_type] {
@@ -148,6 +150,7 @@ extern "C" void pv_viewer_stop(void) {
     close(notify_socket);
     unlink(notify_path.c_str());
     notify_socket = -1;
+    notify_event = 0;
   }
 }
 
@@ -216,10 +219,14 @@ extern "C" int pv_surface_wait(int timeout_ms) {
     wgpuDevicePoll(gpu.device, false, nullptr);
     gpu.check();
     SDL_Event event;
-    bool received = false;
+    bool received = false, notified = false;
     if (SDL_WaitEventTimeout(&event, timeout_ms)) {
       do {
         if (event.type == SDL_EVENT_POLL_SENTINEL) continue;
+        if (notify_event && event.type == notify_event) {
+          notified = true;
+          continue;
+        }
         if (event.type == SDL_EVENT_MOUSE_WHEEL) {
           event.wheel.x *= gpu.wheel_scale;
           event.wheel.y *= gpu.wheel_scale;
@@ -233,7 +240,8 @@ extern "C" int pv_surface_wait(int timeout_ms) {
         received = true;
       } while (SDL_PollEvent(&event));
     }
-    return received ? 2 : 1;
+    // Agent requests wake processing without starting user-input animations.
+    return received ? 2 : notified ? 3 : 1;
   } catch (const std::exception &error) { last_error = error.what(); return -1; }
 }
 

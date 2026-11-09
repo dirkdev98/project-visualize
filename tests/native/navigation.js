@@ -28,6 +28,9 @@ import {
   pv_surface_open,
   pv_surface_pinch,
   pv_surface_wait,
+  pv_viewer_listen,
+  pv_viewer_notify,
+  pv_viewer_stop,
   SDL_EVENT_PINCH_UPDATE,
   SDL_INIT_EVENTS,
   SDL_Init,
@@ -142,12 +145,37 @@ try {
     "Pinch changes did not accumulate",
   );
   expect(pv_surface_pinch() === 1, "A pinch change was applied twice");
+  const socket = `/tmp/visualize-navigation-${process.pid}.sock`;
+  checked(pv_viewer_listen(socket));
+  pv_surface_wait(0);
+  pv_viewer_notify(socket);
+  let notification = 1;
+  for (let attempt = 0; attempt < 10 && notification === 1; attempt++)
+    notification = pv_surface_wait(100);
+  expect(notification === 3, "An agent notification was treated as user input");
+  pv_viewer_notify(socket);
+  expect(
+    SDL_PushEvent({
+      type: SDL_EVENT_PINCH_UPDATE,
+      pinch: {
+        type: SDL_EVENT_PINCH_UPDATE,
+        reserved: 0,
+        timestamp: 0n,
+        scale: 1.1,
+        windowID: 0,
+      },
+    }).result,
+    "Input accompanying a notification was not queued",
+  );
+  expect(pv_surface_wait(100) === 2, "A notification masked real user input");
+  expect(pv_surface_pinch() > 1, "Input accompanying a notification was lost");
   const pixels = new Uint8Array(481 * 160 * 4);
   checked(pv_surface_capture(481, 160, pixels));
   checked(
     pv_png_write(process.env.VISUALIZE_NATIVE_CHECK_OUTPUT, 481, 160, pixels),
   );
 } finally {
+  pv_viewer_stop();
   plots.dispose();
   pv_surface_close();
   SDL_QuitSubSystem(SDL_INIT_EVENTS);
@@ -160,5 +188,6 @@ console.log(
     reset: true,
     pinch: true,
     neutralCapture: true,
+    notificationWake: true,
   }),
 );

@@ -11,11 +11,12 @@ if (
     "plots",
     "selection",
     "navigation",
+    "contents",
     "bindings",
   ].includes(name)
 )
   throw new Error(
-    "Choose a native probe: readback, images, plots, selection, navigation or bindings",
+    "Choose a native probe: readback, images, plots, selection, navigation, contents or bindings",
   );
 const scratch = mkdtempSync(join(tmpdir(), `visualize-${name}-`));
 const compiler = resolve("node_modules/.bin/maligator");

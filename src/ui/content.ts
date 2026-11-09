@@ -65,6 +65,7 @@ import {
   igEndCombo,
   igEndDisabled,
   igEndTable,
+  igGetCursorPosY,
   igGetCursorScreenPos,
   igGetFontSize,
   igGetFrameHeight,
@@ -72,6 +73,9 @@ import {
   igGetItemRectMin,
   igGetMouseDragDelta,
   igGetMousePos,
+  igGetScrollMaxY,
+  igGetScrollY,
+  igGetWindowHeight,
   igIndent,
   igInputDouble,
   igIsItemHovered,
@@ -96,7 +100,10 @@ import {
   igSelectable_Bool,
   igSeparator,
   igSetCursorScreenPos,
+  igSetNextItemOpen,
   igSetNextItemWidth,
+  igSetScrollY_Float,
+  igSetWindowFocus_Nil,
   igSmallButton,
   igSpacing,
   igTableGetColumnFlags,
@@ -137,6 +144,7 @@ import type {
   ParameterValue,
   Tone,
 } from "../model.ts";
+import { DocumentOutline, type OutlineHeading } from "../outline.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import {
   analyticalRange,
@@ -358,6 +366,16 @@ export class DocumentRenderer {
   >();
   private controlInputs = new Map<string, Int8Array>();
   private readonly header: boolean;
+  private outlineIndex: DocumentOutline | undefined;
+  private headingPositions = new Map<string, number>();
+  private headingTarget: string | undefined;
+  private headingOffset: number | undefined;
+  private currentHeading: string | undefined;
+  private viewportScroll = 0;
+  private chosenHeading:
+    | { id: string; scroll: number; settling: number }
+    | undefined;
+  private revealedDetails = new Set<string>();
   constructor(
     document: Artifact,
     state: DocumentState = documentState(document),
@@ -366,7 +384,95 @@ export class DocumentRenderer {
     this.document = document;
     this.state = state;
     this.header = options.header ?? true;
-    this.rich = new RichText((asset, width) => this.image(asset, width));
+    this.rich = new RichText(
+      (asset, width) => this.image(asset, width),
+      (key, token) => this.markHeading(this.outlineIndex?.token(key, token)),
+    );
+  }
+  private index(): DocumentOutline {
+    if (!this.outlineIndex)
+      this.outlineIndex = new DocumentOutline(this.document, (source) =>
+        this.rich.tokens(source),
+      );
+    return this.outlineIndex;
+  }
+  outline(): OutlineHeading[] {
+    return this.index().headings;
+  }
+  searchSections(query: string): OutlineHeading[] {
+    return this.index().search(query);
+  }
+  navigate(id: string) {
+    const index = this.index();
+    if (!index.find(id)) throw new Error(`Unknown report section: ${id}`);
+    this.headingTarget = id;
+    this.headingOffset = undefined;
+    this.revealedDetails = new Set(index.reveal(id));
+  }
+  preserveViewport() {
+    const id = this.currentHeading;
+    const position = id ? this.headingPositions.get(id) : undefined;
+    if (id && position !== undefined) {
+      this.headingTarget = id;
+      this.headingOffset = this.viewportScroll - position;
+      this.revealedDetails = new Set(this.index().reveal(id));
+    }
+  }
+  activeHeading(): string | undefined {
+    return this.currentHeading;
+  }
+  private updateActiveHeading() {
+    let active = this.outlineIndex?.headings[0]?.id;
+    let nearest = -Infinity;
+    const scroll = igGetScrollY();
+    this.viewportScroll = scroll;
+    const choice = this.chosenHeading;
+    if (choice) {
+      const position = this.headingPositions.get(choice.id);
+      if (
+        choice.settling > 0 ||
+        (Math.abs(scroll - choice.scroll) < 0.5 &&
+          position !== undefined &&
+          position >= scroll &&
+          position < scroll + igGetWindowHeight())
+      ) {
+        choice.scroll = scroll;
+        if (choice.settling > 0) choice.settling--;
+        this.currentHeading = choice.id;
+        return;
+      }
+      this.chosenHeading = undefined;
+    }
+    const atEnd = scroll > 0 && scroll >= igGetScrollMaxY() - 1;
+    const top = scroll + (atEnd ? igGetWindowHeight() : 20);
+    for (const [id, position] of this.headingPositions)
+      if (position <= top && position > nearest) {
+        active = id;
+        nearest = position;
+      }
+    this.currentHeading = active;
+  }
+  private markHeading(heading: OutlineHeading | undefined) {
+    if (!heading) return;
+    const top = igGetCursorPosY();
+    this.headingPositions.set(heading.id, top);
+    if (this.headingTarget === heading.id) {
+      const target =
+        this.headingOffset === undefined
+          ? heading.id === "document"
+            ? 0
+            : top - 12
+          : top + this.headingOffset;
+      igSetScrollY_Float(Math.max(0, target));
+      igSetWindowFocus_Nil();
+      this.chosenHeading = {
+        id: heading.id,
+        scroll: igGetScrollY(),
+        settling: 2,
+      };
+      this.headingTarget = undefined;
+      this.headingOffset = undefined;
+    }
   }
   dispose() {
     for (const image of this.images.values()) pv_image_destroy(image);
@@ -380,6 +486,7 @@ export class DocumentRenderer {
     this.searches.clear();
     this.tableCells.clear();
     this.cellWidths.clear();
+    this.chartBounds.clear();
     this.rich.dispose();
   }
   private image(
@@ -456,8 +563,11 @@ export class DocumentRenderer {
   }
   body(exporting: boolean, pinchScale = 1) {
     this.pinchScale = exporting ? 1 : pinchScale;
+    if (!exporting) this.headingPositions.clear();
     if (exporting) this.renderBody(true);
     else withTextSelection(this.selection, () => this.renderBody(false));
+    if (!exporting && this.outlineIndex) this.updateActiveHeading();
+    if (!this.headingTarget) this.revealedDetails.clear();
   }
   private renderBody(exporting: boolean) {
     if (!this.view || this.viewRevision !== this.state.revision) {
@@ -469,11 +579,13 @@ export class DocumentRenderer {
       this.tableCells.clear();
       this.cellWidths.clear();
       this.categoryLayouts.clear();
+      this.chartBounds.clear();
       this.distributions.clear();
       this.pinchViews.clear();
       this.fitRequests.clear();
     }
     if (this.header) {
+      if (!exporting) this.markHeading(this.outlineIndex?.block("document"));
       const headerTop = igGetCursorScreenPos().y;
       text(
         `PROJECT VISUALIZE  /  ${(this.document.category ?? this.document.type ?? "artifact").toUpperCase()}`,
@@ -525,13 +637,14 @@ export class DocumentRenderer {
     const capture = currentCapture();
     let bodyLineStart: number | undefined;
     if (value.title && !["callout", "details", "card"].includes(value.type)) {
+      if (!exporting) this.markHeading(this.outlineIndex?.block(key));
       heading = captureHeading(value.title, top, parentHeading);
       text(value.title, 22, "bold");
       bodyLineStart = capture?.lines.length;
     }
     switch (value.type) {
       case "markdown":
-        this.rich.markdown(value.content, exporting, heading);
+        this.rich.markdown(value.content, exporting, heading, key);
         break;
       case "text":
         text(value.content);
@@ -600,7 +713,7 @@ export class DocumentRenderer {
         break;
       }
       case "timeline":
-        this.timeline(value, exporting, heading);
+        this.timeline(value, exporting, key, heading);
         break;
       case "row":
       case "column":
@@ -652,6 +765,7 @@ export class DocumentRenderer {
       case "card":
         panel(() => {
           if (value.title) {
+            if (!exporting) this.markHeading(this.outlineIndex?.block(key));
             heading = captureHeading(
               value.title,
               igGetCursorScreenPos().y,
@@ -667,6 +781,7 @@ export class DocumentRenderer {
         panel(
           () => {
             if (value.title) {
+              if (!exporting) this.markHeading(this.outlineIndex?.block(key));
               heading = captureHeading(
                 value.title,
                 igGetCursorScreenPos().y,
@@ -675,12 +790,17 @@ export class DocumentRenderer {
               text(value.title, 21, "bold", tone(value.tone ?? "positive"));
               bodyLineStart = capture?.lines.length;
             }
-            this.rich.markdown(value.content, exporting, heading);
+            this.rich.markdown(value.content, exporting, heading, key);
           },
           { ...tone(value.tone ?? "positive"), w: 0.08 },
         );
         break;
       case "details":
+        if (!exporting) {
+          if (this.revealedDetails.has(key))
+            igSetNextItemOpen(true, ImGuiCond_Always);
+          this.markHeading(this.outlineIndex?.block(key));
+        }
         if (exporting) {
           if (value.title) {
             heading = captureHeading(
@@ -756,6 +876,7 @@ export class DocumentRenderer {
   private timeline(
     value: Extract<Block, { type: "timeline" }>,
     exporting: boolean,
+    key: string,
     heading?: number,
   ) {
     const origin = igGetCursorScreenPos(),
@@ -767,8 +888,16 @@ export class DocumentRenderer {
       const top = igGetCursorScreenPos().y;
       points.push({ y: top + 9, tint: tone(event.tone ?? "positive") });
       if (event.label) text(event.label, 12, "bold", palette.muted);
+      if (!exporting)
+        this.markHeading(this.outlineIndex?.block(`${key}.events.${index}`));
       text(event.title, 20, "bold");
-      if (event.content) this.rich.markdown(event.content, exporting, heading);
+      if (event.content)
+        this.rich.markdown(
+          event.content,
+          exporting,
+          heading,
+          `${key}.events.${index}`,
+        );
       keepTogether(top, igGetCursorScreenPos().y);
       igDummy({ x: 0, y: 8 });
       igPopID();

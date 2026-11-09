@@ -26,6 +26,7 @@ const glyphs = {
   chevronRight: 0xe06f,
   close: 0xe1b2,
   context: 0xe431,
+  contents: 0xe0cc,
   copy: 0xe225,
   dashboard: 0xe1c1,
   diagram: 0xe425,

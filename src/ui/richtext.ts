@@ -41,7 +41,7 @@ import {
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
 import { windowDrawList } from "./draw-list.ts";
-import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
+import { type CodeLines, documentHighlighter } from "./highlight.ts";
 import { iconButton } from "./icons.ts";
 import {
   captureHeading,
@@ -57,7 +57,12 @@ import {
   panel,
   text,
 } from "./primitives.ts";
-import { draggingText, selectionBreak, selectionText } from "./selection.ts";
+import {
+  draggingText,
+  selectionBreak,
+  selectionClip,
+  selectionText,
+} from "./selection.ts";
 import {
   currentTheme,
   type Font,
@@ -75,6 +80,9 @@ interface Run {
   strike?: boolean;
   link?: string;
   image?: string;
+}
+interface PreparedRun extends Run {
+  pieces: { value: string; width: number; space: boolean }[];
 }
 function runs(
   tokens: Token[],
@@ -167,36 +175,77 @@ function fittingPrefix(value: string, width: number): string {
 }
 
 export class RichText {
-  private highlighter = new SyntaxHighlighter();
+  private prepared = new WeakMap<
+    Token[],
+    { size: number; strong: boolean; runs: PreparedRun[] }
+  >();
   private image: (asset: string, width: number) => number;
   private trees = new Map<string, Token[]>();
   private codeTokens = new Map<string, CodeLines>();
   private codeTheme = currentTheme();
-  constructor(image: (asset: string, width: number) => number) {
+  private onHeading?: (key: string, token: Token) => void;
+  constructor(
+    image: (asset: string, width: number) => number,
+    onHeading?: (key: string, token: Token) => void,
+  ) {
     this.image = image;
+    this.onHeading = onHeading;
   }
   dispose() {
     this.trees.clear();
     this.codeTokens.clear();
-    this.highlighter.dispose();
+    this.prepared = new WeakMap();
   }
-  markdown(source: string, exporting: boolean, parentHeading?: number) {
+  private prepare(
+    tokens: Token[],
+    size: number,
+    strong: boolean,
+  ): PreparedRun[] {
+    const cached = this.prepared.get(tokens);
+    if (cached?.size === size && cached.strong === strong) return cached.runs;
+    const values = runs(tokens, { strong }).map((run) => {
+      const face = fonts[runFont(run)];
+      if (!face) throw new Error("Fonts are not initialized");
+      igPushFont(face, run.code ? size * 0.92 : size);
+      const pieces = (
+        run.image ? [] : (run.value.match(/\n|[^\S\n]+|[^\s]+/g) ?? [])
+      ).map((value) => ({
+        value,
+        width: value === "\n" ? 0 : igCalcTextSize(value, false, -1).x,
+        space: /^\s+$/.test(value),
+      }));
+      igPopFont();
+      return { ...run, pieces };
+    });
+    this.prepared.set(tokens, { size, strong, runs: values });
+    return values;
+  }
+  tokens(source: string): Token[] {
     let tokens = this.trees.get(source);
     if (!tokens) {
       tokens = lexer(source, { gfm: true });
       this.trees.set(source, tokens);
     }
-    this.blocks(tokens, exporting, parentHeading);
+    return tokens;
+  }
+  markdown(
+    source: string,
+    exporting: boolean,
+    parentHeading?: number,
+    key = "",
+  ) {
+    this.blocks(this.tokens(source), exporting, parentHeading, key);
   }
   private inline(tokens: Token[], size = 18, strong = false) {
     const origin = igGetCursorScreenPos();
     const width = Math.max(20, available());
     const line = size * 1.48;
     const draw = windowDrawList();
+    const clip = selectionClip();
     let x = 0,
       y = 0,
       id = 0;
-    for (const run of runs(tokens, { strong })) {
+    for (const run of this.prepare(tokens, size, strong)) {
       if (run.image) {
         if (x > 0) {
           y += line;
@@ -217,20 +266,20 @@ export class RichText {
       igPushFont(face, fontSize);
       // Code chips extend past their text, so keep them clear of neighbours.
       if (run.code && x > 0) x += 4;
-      const pieces = run.value.match(/\n|[^\S\n]+|[^\s]+/g) ?? [];
-      for (let piece of pieces) {
+      for (const prepared of run.pieces) {
+        let piece = prepared.value;
         if (piece === "\n") {
           selectionBreak("\n");
           x = 0;
           y += line;
           continue;
         }
-        const space = /^\s+$/.test(piece);
+        const space = prepared.space;
         if (space && x === 0) {
           selectionBreak(piece);
           continue;
         }
-        let measured = igCalcTextSize(piece, false, -1).x;
+        let measured = prepared.width;
         if (x + measured > width && x > 0) {
           x = 0;
           y += line;
@@ -242,7 +291,10 @@ export class RichText {
         while (piece.length) {
           const part =
             measured > width ? fittingPrefix(piece, width - x) : piece;
-          const partWidth = igCalcTextSize(part, false, -1).x;
+          const partWidth =
+            part === prepared.value
+              ? prepared.width
+              : igCalcTextSize(part, false, -1).x;
           const point = {
             x: origin.x + x,
             y: origin.y + y + (line - size) * 0.35,
@@ -268,7 +320,7 @@ export class RichText {
             0,
           );
           captureText(part, font, fontSize, point, partWidth, run.link);
-          selectionText(part, font, fontSize, point, partWidth);
+          selectionText(part, font, fontSize, point, partWidth, clip);
           if (run.strike || run.link) {
             const offset = run.strike ? size * 0.55 : size + 1;
             ImDrawList_AddLine(
@@ -323,7 +375,7 @@ export class RichText {
     const key = `${language}\0${source}`;
     let lines = this.codeTokens.get(key);
     if (!lines) {
-      lines = this.highlighter.highlight(source, language);
+      lines = documentHighlighter.highlight(source, language);
       this.codeTokens.set(key, lines);
     }
     panel(() => {
@@ -352,6 +404,7 @@ export class RichText {
       const face = fonts.mono;
       if (!face) throw new Error("Fonts are not initialized");
       const draw = windowDrawList();
+      const clip = selectionClip();
       const size = 17,
         lineHeight = 26;
       igPushFont(face, size);
@@ -394,6 +447,7 @@ export class RichText {
               size,
               { x: origin.x + x, y: origin.y + y },
               partWidth,
+              clip,
             );
             if (token.fontStyle & 4)
               ImDrawList_AddLine(
@@ -420,7 +474,12 @@ export class RichText {
       igPopFont();
     }, palette.code);
   }
-  private blocks(tokens: Token[], exporting: boolean, parentHeading?: number) {
+  private blocks(
+    tokens: Token[],
+    exporting: boolean,
+    parentHeading?: number,
+    key = "",
+  ) {
     const capture = currentCapture();
     let headingTop: number | undefined;
     const headings: { depth: number; index: number }[] = [];
@@ -443,6 +502,7 @@ export class RichText {
           );
           break;
         case "heading":
+          if (!exporting) this.onHeading?.(key, tokens[i]);
           if (capture) {
             while (
               headings.length &&
@@ -476,6 +536,7 @@ export class RichText {
             token.tokens,
             exporting,
             headings[headings.length - 1]?.index ?? parentHeading,
+            key,
           );
           igUnindent(20);
           ImDrawList_AddRectFilled(
@@ -543,6 +604,7 @@ export class RichText {
                 children,
                 exporting,
                 headings[headings.length - 1]?.index ?? parentHeading,
+                key,
               );
             else igDummy({ x: available(), y: 26 });
             igUnindent(24);

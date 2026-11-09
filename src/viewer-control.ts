@@ -32,12 +32,14 @@ export interface ViewerOptions {
   theme?: Theme;
   search?: string;
   focus?: boolean;
+  contents?: boolean;
 }
 export interface ViewerRequest {
   id: string;
   session: string;
   expires: number;
-  action: "open" | "status" | "capture" | "close";
+  action: "open" | "status" | "capture" | "close" | "outline" | "navigate";
+  heading?: string;
   options?: ViewerOptions;
   capture?: {
     out: string;

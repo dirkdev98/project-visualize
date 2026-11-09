@@ -122,6 +122,30 @@ export function list(
   project?: string,
   artifact?: string,
 ): Entry[] {
+  return readEntries(root, project, artifact);
+}
+
+export class LibraryIndex {
+  private root: string;
+  private metadata = new Map<string, Entry>();
+  constructor(root: string) {
+    this.root = root;
+  }
+  refresh(): Entry[] {
+    const entries = readEntries(this.root, undefined, undefined, this.metadata);
+    const retained = new Set(entries.map((entry) => entry.directory));
+    for (const key of this.metadata.keys())
+      if (!retained.has(key)) this.metadata.delete(key);
+    return entries;
+  }
+}
+
+function readEntries(
+  root: string,
+  project?: string,
+  artifact?: string,
+  metadata?: Map<string, Entry>,
+): Entry[] {
   if (project) slug(project, "project");
   if (artifact) slug(artifact, "artifact");
   const projects = join(root, "projects");
@@ -137,8 +161,16 @@ export function list(
         : undefined;
       for (const v of directories(join(projects, p, a))) {
         const directory = join(projects, p, a, v);
+        let saved = metadata?.get(directory);
+        if (!saved) {
+          saved = JSON.parse(
+            readFileSync(join(directory, "metadata.json"), "utf8"),
+          ) as Entry;
+          // Saved revisions are immutable and become visible through one atomic rename.
+          metadata?.set(directory, saved);
+        }
         entries.push({
-          ...JSON.parse(readFileSync(join(directory, "metadata.json"), "utf8")),
+          ...saved,
           directory,
           ...(archived ? { archivedAt: archived.archivedAt } : {}),
           ...(presented?.versions[v]

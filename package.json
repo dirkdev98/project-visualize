@@ -23,6 +23,7 @@
     "check:selection": "node scripts/check-native.mjs selection",
     "check:inputs": "node scripts/check-inputs.mjs",
     "check:navigation": "node scripts/check-native.mjs navigation",
+    "check:contents": "node scripts/check-native.mjs contents",
     "check:menu": "node scripts/check-menu.mjs",
     "check:linux-package": "node scripts/check-linux-package.mjs",
     "check:visual": "playwright test",

@@ -45,6 +45,21 @@ interface Point {
   x: number;
   y: number;
 }
+interface Clip {
+  min: Point;
+  max: Point;
+}
+export function selectionClip(): Clip | undefined {
+  if (!current) return;
+  return clipRectangle();
+}
+function clipRectangle(): Clip {
+  const draw = windowDrawList();
+  return {
+    min: ImDrawList_GetClipRectMin(draw),
+    max: ImDrawList_GetClipRectMax(draw),
+  };
+}
 interface Fragment {
   value: string;
   start: number;
@@ -63,8 +78,9 @@ export function selectionText(
   size: number,
   point: Point,
   width: number,
+  clip?: Clip,
 ) {
-  current?.add(value, font, size, point, width);
+  current?.add(value, font, size, point, width, clip);
 }
 export function selectionBreak(value = "\n") {
   current?.append(value);
@@ -117,8 +133,14 @@ export class TextSelection {
   append(value: string) {
     this.content += value;
   }
-  add(value: string, font: Font, size: number, point: Point, width: number) {
-    const draw = windowDrawList();
+  add(
+    value: string,
+    font: Font,
+    size: number,
+    point: Point,
+    width: number,
+    clip = clipRectangle(),
+  ) {
     this.fragments.push({
       value,
       start: this.content.length,
@@ -126,8 +148,8 @@ export class TextSelection {
       size,
       point,
       width,
-      clipMin: ImDrawList_GetClipRectMin(draw),
-      clipMax: ImDrawList_GetClipRectMax(draw),
+      clipMin: clip.min,
+      clipMax: clip.max,
     });
     this.content += value;
   }

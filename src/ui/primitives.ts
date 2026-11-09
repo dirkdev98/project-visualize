@@ -46,7 +46,12 @@ import {
 import { windowDrawList } from "./draw-list.ts";
 import { iconButton } from "./icons.ts";
 import { currentCapture, keepLineTogether } from "./layout.ts";
-import { selectingText, selectionBreak, selectionText } from "./selection.ts";
+import {
+  selectingText,
+  selectionBreak,
+  selectionClip,
+  selectionText,
+} from "./selection.ts";
 import { textLine } from "./text-layout.ts";
 import {
   type Color,
@@ -130,6 +135,7 @@ export function captureWrappedText(
   if (!face) throw new Error("Fonts are not initialized");
   igPushFont(face, size);
   try {
+    const clip = selectionClip();
     let remaining = value,
       y = point.y;
     while (remaining.length) {
@@ -149,6 +155,7 @@ export function captureWrappedText(
         size,
         { x: point.x, y },
         line.width,
+        clip,
       );
       selectionBreak(remaining.slice(line.length, line.consumed));
       remaining = remaining.slice(line.consumed);

@@ -15,10 +15,12 @@ import {
   ImGuiComboFlags_NoArrowButton,
   ImGuiHoveredFlags_ForTooltip,
   ImGuiInputFlags_RouteGlobal,
+  ImGuiInputFlags_RouteOverActive,
   ImGuiKey_Comma,
   ImGuiKey_Escape,
   ImGuiKey_K,
   ImGuiKey_L,
+  ImGuiKey_O,
   ImGuiMod_Ctrl,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
@@ -48,6 +50,7 @@ import {
   igGetWindowPos,
   igGetWindowSize,
   igGetWindowWidth,
+  igIndent,
   igInvisibleButton,
   igIsItemHovered,
   igIsMouseDown_Nil,
@@ -76,6 +79,7 @@ import {
   igSpacing,
   igTableNextColumn,
   igTableNextRow,
+  igUnindent,
   pv_surface_begin,
   pv_surface_close,
   pv_surface_command,
@@ -103,13 +107,14 @@ import { controls, isAll, parameterValue } from "./data.ts";
 import { archiveNeighbor, libraryGroups } from "./library.ts";
 import type { Theme } from "./model.ts";
 import { readSettings, type Settings, saveSettings } from "./settings.ts";
-import { archive, type Entry, list, load } from "./store.ts";
+import { archive, type Entry, LibraryIndex, load } from "./store.ts";
 import {
   DocumentRenderer,
   type DocumentState,
   documentState,
 } from "./ui/content.ts";
 import { windowDrawList } from "./ui/draw-list.ts";
+import { documentHighlighter } from "./ui/highlight.ts";
 import { artifactIcon, drawIcon, type Icon, iconButton } from "./ui/icons.ts";
 import {
   available,
@@ -342,7 +347,13 @@ export async function openViewer(
 ) {
   let preferences = readSettings(root);
   let diskPreferences = JSON.stringify(preferences);
-  let entries = list(root);
+  const library = new LibraryIndex(root);
+  let entries = library.refresh();
+  let groups = libraryGroups(entries);
+  function reloadEntries() {
+    entries = library.refresh();
+    groups = libraryGroups(entries);
+  }
   let selected = entries.find(
     (entry) =>
       (!options.project || entry.project === options.project) &&
@@ -377,6 +388,7 @@ export async function openViewer(
   let pending = 2,
     animateUntil = 0,
     showContext = false,
+    showContents = false,
     showSettings = false;
   let unpresented = true;
   let copied: { what: string; until: number } | undefined;
@@ -385,6 +397,7 @@ export async function openViewer(
   let themeOverride = options.theme;
   let requestedTheme: Theme | undefined;
   let search = inputBuffer(options.search);
+  let contentsSearch = inputBuffer("");
   const states = new Map<string, DocumentState>();
   let closing = false;
   let exportingPdf = false;
@@ -423,6 +436,8 @@ export async function openViewer(
       canvas,
       window: size.x > 0 && size.y > 0 ? size : undefined,
       presented: size.x > 0 && size.y > 0 && !unpresented,
+      contentsOpen: showContents,
+      heading: renderer?.activeHeading(),
       log: join(controller.directory, "viewer.log"),
     };
   }
@@ -430,10 +445,15 @@ export async function openViewer(
     const next = request.options;
     if (!next) return;
     if (next.search !== undefined) search = inputBuffer(next.search);
+    if (next.contents !== undefined) {
+      if (next.contents !== showContents) renderer?.preserveViewport();
+      showContents = next.contents;
+      if (showContents) showContext = false;
+    }
     themeOverride = next.theme;
     requestedTheme = themeOverride ?? preferredTheme();
     if (next.project || next.artifact || next.version) {
-      entries = list(root);
+      reloadEntries();
       const matching = entries.filter(
         (entry) =>
           (!next.project || entry.project === next.project) &&
@@ -498,6 +518,7 @@ export async function openViewer(
     followLatest = follow;
     followPresented = presented;
     if (!entry || entry.directory !== loaded || !renderer) {
+      contentsSearch = inputBuffer("");
       renderer?.dispose();
       renderer = undefined;
       loaded = "";
@@ -539,9 +560,11 @@ export async function openViewer(
         pending = 2;
       }
       const current = selected;
-      entries = list(root);
-      const signature = signatureOf(entries);
+      const nextEntries = library.refresh();
+      const signature = signatureOf(nextEntries);
       if (signature !== previous) {
+        entries = nextEntries;
+        groups = libraryGroups(entries);
         const matching = entries.filter((entry) =>
           current
             ? entry.project === current.project &&
@@ -606,6 +629,32 @@ export async function openViewer(
       igShortcut_Nil(ImGuiKey_Escape, ImGuiInputFlags_RouteGlobal)
     )
       closeSettings();
+    const focusContents =
+      !showSettings &&
+      renderer &&
+      renderer.outline().length > 1 &&
+      igShortcut_Nil(
+        ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_O,
+        ImGuiInputFlags_RouteGlobal,
+      );
+    if (focusContents) {
+      renderer?.preserveViewport();
+      showContents = true;
+      showContext = false;
+      pending = 2;
+    }
+    if (
+      !showSettings &&
+      showContents &&
+      igShortcut_Nil(
+        ImGuiKey_Escape,
+        ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_RouteOverActive,
+      )
+    ) {
+      renderer?.preserveViewport();
+      showContents = false;
+      pending = 2;
+    }
     const maxSidebar = Math.min(420, Math.max(200, size.x * 0.4));
     igSetNextWindowSizeConstraints(
       { x: 200, y: 0 },
@@ -650,7 +699,7 @@ export async function openViewer(
     );
     const query = inputValue(search).trim().toLowerCase();
     let matches = 0;
-    for (const { project, artifacts } of libraryGroups(entries)) {
+    for (const { project, artifacts } of groups) {
       const visible = artifacts.filter(({ artifact, entry }) =>
         query
           ? `${project} ${artifact} ${entry.title}`
@@ -775,6 +824,22 @@ export async function openViewer(
         active?: boolean;
         run: () => void;
       }[] = [];
+      if (view && view.outline().length > 1)
+        actions.push({
+          id: "contents",
+          icon: "contents",
+          active: showContents,
+          hint:
+            process.platform === "darwin"
+              ? "Contents · Cmd+Shift+O"
+              : "Contents · Ctrl+Shift+O",
+          run: () => {
+            view.preserveViewport();
+            showContents = !showContents;
+            if (showContents) showContext = false;
+            pending = 2;
+          },
+        });
       actions.push({
         id: "archive",
         icon: current.archivedAt ? "restore" : "archive",
@@ -783,7 +848,7 @@ export async function openViewer(
           : "Archive artifact and all revisions",
         run: () => {
           archive(root, current.project, current.artifact, !current.archivedAt);
-          entries = list(root);
+          reloadEntries();
           previous = signatureOf(entries);
           select(
             current.archivedAt
@@ -897,7 +962,9 @@ export async function openViewer(
           hint: showContext ? "Hide context" : "Show context",
           active: showContext,
           run: () => {
+            view.preserveViewport();
             showContext = !showContext;
+            if (showContext) showContents = false;
           },
         });
       const button = 28,
@@ -1058,12 +1125,14 @@ export async function openViewer(
       igDummy({ x: rowWidth, y: rowHeight });
       if (renderer && selected) {
         const space = igGetContentRegionAvail();
-        const sideContext = showContext && space.x >= 760;
+        const panelOpen = showContext || showContents;
+        const panelWidth = showContents ? 256 : 312;
+        const sideContext = panelOpen && space.x >= 760;
         const contextHeight =
-          showContext && !sideContext ? Math.min(220, space.y * 0.35) : 0;
+          panelOpen && !sideContext ? Math.min(260, space.y * 0.4) : 0;
         const width = Math.max(
           1,
-          space.x - (sideContext ? 312 + itemSpacing.x : 0),
+          space.x - (sideContext ? panelWidth + itemSpacing.x : 0),
         );
         const height = contextHeight
           ? Math.max(1, space.y - contextHeight - itemSpacing.y)
@@ -1092,86 +1161,155 @@ export async function openViewer(
         renderer.body(false, pinchScale);
         igEndChild();
         igPopID();
-        if (showContext) {
+        if (panelOpen) {
           if (sideContext) igSameLine(0, -1);
           igBeginChild_Str(
-            "context",
-            { x: sideContext ? 312 : 0, y: 0 },
+            showContents ? "contents" : "context",
+            { x: sideContext ? panelWidth : 0, y: 0 },
             ImGuiChildFlags_Borders,
             0,
           );
-          const definitions = controls(renderer.document);
-          text(
-            definitions.length ? "Linked controls" : "Artifact context",
-            18,
-            "bold",
-          );
-          text(
-            `Revision ${selected.version.slice(-8)}`,
-            13,
-            "mono",
-            palette.muted,
-          );
-          if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
-            tooltip(
-              `${selected.project} / ${selected.artifact}\n${revisionDate(selected, true)}\n${selected.version}`,
-            );
-          if (definitions.length) {
-            igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 4, y: 3 });
-            if (
-              igBeginTable(
-                "parameters",
-                2,
-                ImGuiTableFlags_SizingStretchSame,
-                { x: 0, y: 0 },
-                0,
-              )
-            ) {
-              for (const control of definitions) {
-                igTableNextRow(0, 0);
-                igTableNextColumn();
-                text(control.label, 14, "bold", palette.muted);
-                igTableNextColumn();
-                const value = parameterValue(
-                  renderer.state.parameters,
-                  control.id,
-                );
-                let display: string;
-                if (isAll(value)) display = "All values";
-                else if (value !== null && typeof value === "object")
-                  display =
-                    value.min === undefined
-                      ? `Up to ${value.max}`
-                      : value.max === undefined
-                        ? `From ${value.min}`
-                        : `${value.min} to ${value.max}`;
-                else display = JSON.stringify(value);
-                text(display, 14, "mono");
-              }
-              igEndTable();
+          if (showContents) {
+            text("Contents", 18, "bold");
+            igSameLine(Math.max(0, available() - 28), -1);
+            if (iconButton("##close-contents", "close", "Close contents")) {
+              renderer.preserveViewport();
+              showContents = false;
+              pending = 2;
             }
-            igPopStyleVar(1);
+            if (focusContents) igSetKeyboardFocusHere(0);
+            igSetNextItemWidth(-1);
+            input("##find-section", "Find a section", contentsSearch);
             igSpacing();
-            text("Artifact context", 18, "bold");
-          }
-          const context = renderer.document.context;
-          if (context)
-            for (const [key, value] of Object.entries(context)) {
-              text(key, 15, "bold");
-              text(
-                typeof value === "string"
-                  ? value
-                  : JSON.stringify(value, null, 2),
-                15,
+            const query = inputValue(contentsSearch).trim().toLowerCase();
+            let matches = 0;
+            const active = renderer.activeHeading();
+            igBeginChild_Str("sections", { x: 0, y: 0 }, 0, 0);
+            for (const heading of renderer.searchSections(query)) {
+              matches++;
+              igPushID_Str(heading.id);
+              const inset = query ? 0 : Math.min(heading.depth, 4) * 12;
+              if (inset > 0) igIndent(inset);
+              const caption = query ? heading.breadcrumb : "";
+              const point = igGetCursorScreenPos();
+              igPushFont(fonts.regular, 16);
+              const selected = igSelectable_Bool(
+                "##section",
+                heading.id === active,
+                0,
+                { x: 0, y: caption ? 44 : 26 },
               );
+              igPopFont();
+              ImDrawList_AddText_FontPtr(
+                windowDrawList(),
+                fonts.regular,
+                16,
+                point,
+                packed(palette.ink),
+                compactLabel(heading.title, available(), 16, "regular"),
+                0,
+              );
+              if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                tooltip(
+                  heading.breadcrumb
+                    ? `${heading.title}\n${heading.breadcrumb}`
+                    : heading.title,
+                );
+              if (caption)
+                ImDrawList_AddText_FontPtr(
+                  windowDrawList(),
+                  fonts.regular,
+                  12,
+                  { x: point.x, y: point.y + 22 },
+                  packed(palette.muted),
+                  compactLabel(caption, available(), 12, "regular"),
+                  0,
+                );
+              if (inset > 0) igUnindent(inset);
+              igPopID();
+              if (selected) {
+                renderer.navigate(heading.id);
+                if (!sideContext) showContents = false;
+                pending = 3;
+              }
             }
-          else
+            if (!matches)
+              text("No sections match.", 14, "regular", palette.muted);
+            igEndChild();
+          } else {
+            const definitions = controls(renderer.document);
             text(
-              "No additional context supplied.",
-              15,
-              "regular",
+              definitions.length ? "Linked controls" : "Artifact context",
+              18,
+              "bold",
+            );
+            text(
+              `Revision ${selected.version.slice(-8)}`,
+              13,
+              "mono",
               palette.muted,
             );
+            if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
+              tooltip(
+                `${selected.project} / ${selected.artifact}\n${revisionDate(selected, true)}\n${selected.version}`,
+              );
+            if (definitions.length) {
+              igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 4, y: 3 });
+              if (
+                igBeginTable(
+                  "parameters",
+                  2,
+                  ImGuiTableFlags_SizingStretchSame,
+                  { x: 0, y: 0 },
+                  0,
+                )
+              ) {
+                for (const control of definitions) {
+                  igTableNextRow(0, 0);
+                  igTableNextColumn();
+                  text(control.label, 14, "bold", palette.muted);
+                  igTableNextColumn();
+                  const value = parameterValue(
+                    renderer.state.parameters,
+                    control.id,
+                  );
+                  let display: string;
+                  if (isAll(value)) display = "All values";
+                  else if (value !== null && typeof value === "object")
+                    display =
+                      value.min === undefined
+                        ? `Up to ${value.max}`
+                        : value.max === undefined
+                          ? `From ${value.min}`
+                          : `${value.min} to ${value.max}`;
+                  else display = JSON.stringify(value);
+                  text(display, 14, "mono");
+                }
+                igEndTable();
+              }
+              igPopStyleVar(1);
+              igSpacing();
+              text("Artifact context", 18, "bold");
+            }
+            const context = renderer.document.context;
+            if (context)
+              for (const [key, value] of Object.entries(context)) {
+                text(key, 15, "bold");
+                text(
+                  typeof value === "string"
+                    ? value
+                    : JSON.stringify(value, null, 2),
+                  15,
+                );
+              }
+            else
+              text(
+                "No additional context supplied.",
+                15,
+                "regular",
+                palette.muted,
+              );
+          }
           igEndChild();
         }
       }
@@ -1233,9 +1371,12 @@ export async function openViewer(
             } else if (
               request.action === "open" ||
               request.action === "capture" ||
+              request.action === "outline" ||
+              request.action === "navigate" ||
               request.action === "status"
             ) {
-              if (request.action !== "status") applyRequest(request);
+              if (request.action === "open" || request.action === "capture")
+                applyRequest(request);
               if (request.action === "capture") {
                 if (!request.capture)
                   throw new Error("Capture options are missing");
@@ -1256,6 +1397,18 @@ export async function openViewer(
                   ),
                 );
                 pending = 3;
+              } else if (request.action === "navigate") {
+                if (!renderer)
+                  throw new Error("Select an artifact before navigating");
+                if (!request.heading)
+                  throw new Error("A report section is required");
+                renderer.navigate(request.heading);
+                navigation = { request, frames: 3 };
+              } else if (request.action === "outline") {
+                controller.reply(request, {
+                  ...viewerStatus(),
+                  headings: renderer?.outline() ?? [],
+                });
               } else if (request.action === "open") {
                 navigation = { request, frames: 3 };
               } else controller.reply(request, viewerStatus());
@@ -1365,6 +1518,7 @@ export async function openViewer(
     closing = true;
     pv_viewer_stop();
     renderer?.dispose();
+    documentHighlighter.dispose();
     releasePanels();
     for (const key of Object.keys(fonts))
       delete fonts[key as keyof typeof fonts];
