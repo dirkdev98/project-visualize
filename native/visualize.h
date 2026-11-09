@@ -21,7 +21,8 @@ int pv_surface_input_policy(float wheel_scale, int zoom_modifier);
 float pv_surface_pinch(void);
 PVSize pv_surface_size(void);
 int pv_surface_limit(void);
-int pv_surface_begin(int width, int height, int scale);
+/* Captured frames omit hover chrome while retaining pointer and button state. */
+int pv_surface_begin(int width, int height, int scale, int omit_hover);
 /* A retryable result (1) occurs before drawing, so the same frame can be retried. */
 int pv_surface_present(void);
 int pv_surface_raise(void);

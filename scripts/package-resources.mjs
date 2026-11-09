@@ -36,6 +36,14 @@ export function copyResources(root, source, release, sdlLicense) {
       );
   }
   copyFileSync(sdlLicense, join(notices, "sdl3-LICENSE.txt"));
+  for (const [source, name] of [
+    ["LICENSE.TXT", "LICENSE.txt"],
+    ["docs/FTL.TXT", "FTL.txt"],
+  ])
+    copyFileSync(
+      join(root, ".cache/deps/freetype", source),
+      join(notices, `freetype-${name}`),
+    );
   for (const file of ["stb_image.h", "stb_image_write.h"]) {
     const header = readFileSync(join(root, ".cache/deps", file), "utf8");
     const start = header.lastIndexOf("ALTERNATIVE A - MIT License");

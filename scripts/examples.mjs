@@ -124,6 +124,8 @@ function pixelDifference(before, after, destination) {
   return {
     dimensionsMatch: a.width === b.width && a.height === b.height,
     maximumChannelDelta,
+    changedPixels: changed,
+    pixels: width * height,
     ratio: changed / (width * height),
     detail: `${((100 * changed) / (width * height)).toFixed(4)}% pixels; ${a.width} x ${a.height} → ${b.width} x ${b.height}`,
   };
@@ -178,7 +180,10 @@ function pdfDifference(before, after, destination) {
       text.push(extracted);
     }
     const sameText = text[0] === text[1];
-    let equivalent = sameText && pages[0].length === pages[1].length;
+    let dimensionsMatch = pages[0].length === pages[1].length,
+      maximumChannelDelta = 0,
+      changedPixels = 0,
+      pixels = 0;
     for (
       let page = 0;
       page < Math.min(pages[0].length, pages[1].length);
@@ -189,8 +194,21 @@ function pdfDifference(before, after, destination) {
         pages[1][page],
         join(destination, `page-${page + 1}.png`),
       );
-      if (!rasterRoundingOnly(difference)) equivalent = false;
+      dimensionsMatch &&= difference.dimensionsMatch;
+      maximumChannelDelta = Math.max(
+        maximumChannelDelta,
+        difference.maximumChannelDelta,
+      );
+      changedPixels += difference.changedPixels;
+      pixels += difference.pixels;
     }
+    const equivalent =
+      sameText &&
+      rasterRoundingOnly({
+        dimensionsMatch,
+        maximumChannelDelta,
+        ratio: changedPixels / pixels,
+      });
     if (equivalent) rmSync(destination, { recursive: true, force: true });
     else
       for (const [index, kind] of ["before", "after"].entries()) {

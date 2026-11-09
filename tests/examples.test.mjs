@@ -14,6 +14,7 @@ import {
   PDFDocument,
   popGraphicsState,
   pushGraphicsState,
+  rgb,
   StandardFonts,
   setTextRenderingMode,
   TextRenderingMode,
@@ -26,7 +27,7 @@ const examples = catalogue();
 function blocks(values) {
   return values.flatMap((block) => [block, ...blocks(block.children ?? [])]);
 }
-function exportWorkspace(t) {
+function exportWorkspace(t, example = "text") {
   const directory = mkdtempSync(join(tmpdir(), "visualize-export-regression-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   return {
@@ -38,7 +39,7 @@ function exportWorkspace(t) {
           "scripts/examples.mjs",
           mode,
           "--only",
-          "text",
+          example,
           "--references",
           directory,
         ],
@@ -263,6 +264,32 @@ test("export checks reject changed searchable text even when PDF appearance matc
     ["text/light-1280.pdf"],
   );
 });
+
+for (const [name, tall, status] of [
+  ["PDF checks tolerate small rounding concentrated on one page", false, 0],
+  ["PDF checks reject widespread rounding across a document", true, 1],
+]) {
+  test(name, async (t) => {
+    const { directory, run } = exportWorkspace(t, "diagram-flowchart");
+    const update = run("update");
+    assert.equal(update.status, 0, update.stderr);
+    const file = join(directory, "diagram-flowchart/light-390.pdf");
+    const pdf = await PDFDocument.load(readFileSync(file), {
+      updateMetadata: false,
+    });
+    const page = pdf.getPages()[1];
+    page.drawRectangle({
+      x: 2,
+      y: 2,
+      width: 12,
+      height: tall ? page.getHeight() - 4 : 10,
+      color: rgb(254 / 255, 254 / 255, 254 / 255),
+    });
+    writeFileSync(file, await pdf.save());
+    const check = run("check");
+    assert.equal(check.status, status, check.stdout + check.stderr);
+  });
+}
 
 test("export updates are repeatable and regression checks reject changed or stale files", async (t) => {
   const { directory, run } = exportWorkspace(t);

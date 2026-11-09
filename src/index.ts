@@ -205,6 +205,27 @@ async function main() {
     if (!controller) return;
     try {
       openViewer(root, {}, controller);
+    } catch (error) {
+      try {
+        writeFileSync(
+          join(controller.directory, "last-error.json"),
+          `${JSON.stringify(
+            {
+              time: new Date().toISOString(),
+              pid: process.pid,
+              executable: executablePath,
+              error:
+                error instanceof Error
+                  ? (error.stack ?? error.message)
+                  : String(error),
+            },
+            null,
+            2,
+          )}\n`,
+          { mode: 0o600 },
+        );
+      } catch {}
+      throw error;
     } finally {
       controller.close();
     }

@@ -47,7 +47,7 @@ try {
   let focusInput = false;
   let first, last, lastEnd;
   function frame() {
-    checked(pv_surface_begin(481, 160, 1));
+    checked(pv_surface_begin(481, 160, 1, 0));
     pushTheme();
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize({ x: 481, y: 160 }, 0);

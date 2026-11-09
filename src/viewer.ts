@@ -100,7 +100,7 @@ import { mkdirSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { controls, isAll, parameterValue } from "./data.ts";
-import { libraryGroups } from "./library.ts";
+import { archiveNeighbor, libraryGroups } from "./library.ts";
 import type { Theme } from "./model.ts";
 import { readSettings, type Settings, saveSettings } from "./settings.ts";
 import { archive, type Entry, list, load } from "./store.ts";
@@ -422,6 +422,7 @@ export function openViewer(
       canvas,
       window: size.x > 0 && size.y > 0 ? size : undefined,
       presented: size.x > 0 && size.y > 0 && !unpresented,
+      log: join(controller.directory, "viewer.log"),
     };
   }
   function applyRequest(request: ViewerRequest) {
@@ -547,13 +548,24 @@ export function openViewer(
             : (!options.project || entry.project === options.project) &&
               (!options.artifact || entry.artifact === options.artifact),
         );
-        const entry = followPresented
-          ? (matching.find((entry) => entry.currentPresentation) ?? matching[0])
-          : followLatest
-            ? matching[0]
-            : entries.find((entry) => entry.directory === current?.directory);
+        const justArchived =
+          current &&
+          !current.archivedAt &&
+          matching.some((entry) => entry.archivedAt);
+        const entry = justArchived
+          ? archiveNeighbor(entries, current)
+          : followPresented
+            ? (matching.find((entry) => entry.currentPresentation) ??
+              matching[0])
+            : followLatest
+              ? matching[0]
+              : entries.find((entry) => entry.directory === current?.directory);
         previous = signature;
-        select(entry, followLatest, followPresented);
+        select(
+          entry,
+          justArchived ? true : followLatest,
+          justArchived ? true : followPresented,
+        );
       }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -775,9 +787,9 @@ export function openViewer(
           select(
             current.archivedAt
               ? entries.find((entry) => entry.directory === current.directory)
-              : undefined,
-            followLatest,
-            followPresented,
+              : archiveNeighbor(entries, current),
+            current.archivedAt ? followLatest : true,
+            current.archivedAt ? followPresented : true,
           );
         },
       });
@@ -1216,7 +1228,7 @@ export function openViewer(
         continue;
       }
       if (pending > 0) pending--;
-      checked(pv_surface_begin(0, 0, 1));
+      checked(pv_surface_begin(0, 0, 1, capture ? 1 : 0));
       pushTheme();
       draw();
       popTheme();
@@ -1276,6 +1288,7 @@ export function openViewer(
               });
               capture = undefined;
               scrollTarget = undefined;
+              pending = 2;
             }
           }
         } catch (error) {
@@ -1286,6 +1299,7 @@ export function openViewer(
           );
           capture = undefined;
           scrollTarget = undefined;
+          pending = 2;
         }
       }
     }

@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
+import { setTimeout } from "node:timers/promises";
 import { promisify } from "node:util";
 
 const execute = promisify(execFile);
@@ -13,10 +14,11 @@ async function workspace(t) {
   const binary = resolve(
     process.env.VISUALIZE_TEST_BINARY ?? "dist/bin/visualize",
   );
-  const raw = (args) =>
+  const raw = (args, options = {}) =>
     execute(binary, [...args, "--store", store], {
       encoding: "utf8",
       timeout: 70_000,
+      ...options,
     });
   const cli = async (args) => JSON.parse((await raw(args)).stdout);
   t.after(async () => {
@@ -54,11 +56,11 @@ async function workspace(t) {
   const file = join(directory, "artifact.json");
   const { writeFileSync } = await import("node:fs");
   writeFileSync(file, JSON.stringify(document));
-  const render = (artifact) =>
+  const render = (artifact, project = "orbital") =>
     cli([
       "render",
       "--project",
-      "orbital",
+      project,
       "--artifact",
       artifact,
       "--file",
@@ -128,6 +130,49 @@ test("presenting another artifact navigates the already running viewer to that e
   assert.equal(presented.viewer.pid, running.pid);
   assert.equal(presented.viewer.selected.version, second.version);
   assert.equal(presented.viewer.selected.artifact, second.artifact);
+});
+
+test("archiving the viewed artifact continues with its project's adjacent active item", async (t) => {
+  const w = await workspace(t);
+  await w.render("older");
+  const current = await w.render("review");
+  const neighbor = await w.render("newer");
+  await w.render("elsewhere", "field");
+  const running = await w.open(current);
+  await w.cli([
+    "archive",
+    "--project",
+    current.project,
+    "--artifact",
+    current.artifact,
+  ]);
+  let status;
+  const deadline = Date.now() + 5000;
+  do {
+    status = await w.cli(["viewer", "--action", "status"]);
+    if (status.selected?.artifact === neighbor.artifact) break;
+    await setTimeout(100);
+  } while (Date.now() < deadline);
+  assert.equal(status.pid, running.pid);
+  assert.equal(status.selected.project, current.project);
+  assert.equal(status.selected.artifact, neighbor.artifact);
+});
+
+test("a failed viewer launch retains its diagnostic error", async (t) => {
+  const w = await workspace(t);
+  await assert.rejects(
+    w.raw(["open", "--focus", "false"], {
+      env: { ...process.env, SDL_VIDEODRIVER: "visualize-invalid-driver" },
+    }),
+  );
+  const diagnostic = JSON.parse(
+    readFileSync(join(w.directory, "library/.viewer/last-error.json"), "utf8"),
+  );
+  assert.match(diagnostic.error, /visualize-invalid-driver/);
+  assert.match(
+    readFileSync(join(w.directory, "library/.viewer/viewer.log"), "utf8"),
+    /visualize-invalid-driver/,
+  );
 });
 
 test("simultaneous opens create one viewer and a crashed owner can be replaced", async (t) => {

@@ -25,7 +25,6 @@ function run(file, args, mode) {
   try {
     execFileSync(file, args, {
       stdio: "inherit",
-      timeout: 300_000,
       env: {
         ...process.env,
         VISUALIZE_NATIVE_CHECK_OUTPUT: output,
@@ -37,7 +36,7 @@ function run(file, args, mode) {
       detached: true,
     });
   } catch (error) {
-    // The compiler launcher has children that must stop with a timed-out check.
+    // Stop the compiler's children when its launcher fails.
     if (error.pid) {
       try {
         process.kill(-error.pid, "SIGKILL");

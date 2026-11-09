@@ -40,7 +40,7 @@ public:
   ~Gpu();
   void init(bool viewer);
   void check();
-  void begin(float width, float height, int scale = 1);
+  void begin(float width, float height, int scale, bool omit_hover);
   void draw(WGPUTextureView view);
   void capture(int width, int height, unsigned char *pixels);
   std::unique_ptr<Image> load_image(const std::string &file);

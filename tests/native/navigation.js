@@ -11,6 +11,7 @@ import {
   ImPlot_GetPlotLimits,
   ImPlot_GetPlotPos,
   ImPlot_GetPlotSize,
+  ImPlot_IsPlotHovered,
   ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
   igBegin,
@@ -45,12 +46,12 @@ const plots = new Plots(),
   x = new Float64Array([0, 1, 2]),
   y = new Float64Array([3, 6, 12]);
 const color = { x: 0.2, y: 0.6, z: 0.4, w: 1 };
-let limits, position, size;
+let limits, position, size, hovered;
 try {
   checked(pv_surface_input_policy(0.2, ImGuiMod_Ctrl));
   const io = igGetIO_Nil();
-  function frame(fit = false) {
-    checked(pv_surface_begin(481, 160, 1));
+  function frame(fit = false, capture = false) {
+    checked(pv_surface_begin(481, 160, 1, capture ? 1 : 0));
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize({ x: 481, y: 160 }, 0);
     igBegin(
@@ -67,6 +68,7 @@ try {
     limits = ImPlot_GetPlotLimits(-1, -1);
     position = ImPlot_GetPlotPos();
     size = ImPlot_GetPlotSize();
+    hovered = ImPlot_IsPlotHovered();
     ImPlot_EndPlot();
     igEnd();
     igRender();
@@ -81,6 +83,17 @@ try {
     position.y + size.y / 2,
   );
   frame();
+  frame();
+  expect(hovered, "The pointer did not hover the plot");
+  frame(false, true);
+  expect(!hovered, "A capture retained pointer hover effects");
+  expect(
+    Math.abs(limits.X.Max - limits.X.Min - fitted) < 0.000001,
+    "Capturing changed the fitted view",
+  );
+  frame();
+  frame();
+  expect(hovered, "Pointer hover did not return after capturing");
   ImGuiIO_AddMouseWheelEvent(io, 0, 1);
   frame();
   expect(
@@ -146,5 +159,6 @@ console.log(
     modifiedZoom: true,
     reset: true,
     pinch: true,
+    neutralCapture: true,
   }),
 );

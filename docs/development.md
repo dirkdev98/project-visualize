@@ -65,7 +65,8 @@ run this mode under Xvfb or a headless Wayland compositor.
 PNG, rasterized PDF pages and the interactive app. It covers light/dark appearance,
 responsive widths, layout boundaries and screenshot density. App captures use the
 same content widths as exports and scroll through long artifacts. They replay the
-actual viewer's draw data; the headed presentation check covers the window surface.
+actual viewer's draw data with transient pointer hover effects omitted; the headed
+presentation check covers the window surface.
 Run this suite in a graphical session with Poppler's `pdftoppm` installed. The
 `check:html` command provides the browser/PNG subset.
 
@@ -103,11 +104,11 @@ generated exports in the repository.
 Use `-- --only text` to work on one example. `.cache/example-results` contains the
 before/after exports, changed-file summary and PNG difference images. The checker
 normalizes the generated revision identity in HTML and compares its remaining content
-exactly. PNGs and rendered PDF pages require equal dimensions and allow at most one
-channel level of rounding across 0.01% of pixels. PDF page counts and searchable text
-positions must match. Browser previews also allow minor form-control rasterization
-variation when their HTML is identical. Poppler renders PDF comparisons and extracts
-their text bounds.
+exactly. Images and every rendered PDF page require equal dimensions. Allow at most
+one channel level of rounding across 0.01% of the image or complete PDF's pixels.
+PDF page counts and searchable text positions must match. Browser previews also allow
+minor form-control rasterization variation when their HTML is identical. Poppler
+renders PDF comparisons and extracts their text bounds.
 
 The **Rendering regression** GitHub workflow uses the Linux container and runs CLI
 contracts, catalogue exports and the visual suite in bounded shards. Failed checks
@@ -116,6 +117,13 @@ from `main` with **update** enabled. It regenerates exports and visual reference
 then opens or updates a draft PR with the changed-file summary. It does not merge.
 The repository must allow Actions to create pull requests; if that permission is
 disabled, the generated updates and reports remain available as workflow artifacts.
+
+## Viewer diagnostics
+
+Viewer output is retained in the library's `.viewer/viewer.log`, with a previous log
+rotated at launch when it reaches 1 MiB. `visualize viewer --action status` reports its
+path. Unexpected viewer errors also leave `.viewer/last-error.json` with the time,
+executable and stack trace.
 
 ## Architecture
 

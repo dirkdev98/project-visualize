@@ -53,3 +53,21 @@ export function libraryGroups(entries: Entry[]): LibraryProject[] {
     })
     .sort((a, b) => recent(a, b) || a.project.localeCompare(b.project));
 }
+
+export function archiveNeighbor(
+  entries: Entry[],
+  current: Pick<Entry, "project" | "artifact">,
+): Entry | undefined {
+  const artifacts = libraryGroups(entries)
+    .find(({ project }) => project === current.project)
+    ?.artifacts.filter(
+      ({ artifact, entry }) =>
+        artifact === current.artifact || !entry.archivedAt,
+    );
+  if (!artifacts) return undefined;
+  const index = artifacts.findIndex(
+    ({ artifact }) => artifact === current.artifact,
+  );
+  if (index < 0) return undefined;
+  return (artifacts[index - 1] ?? artifacts[index + 1])?.entry;
+}

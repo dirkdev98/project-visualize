@@ -148,8 +148,11 @@ export function exportHtml(
   }
   const theme = copy.theme ?? "light";
   const vars = themeStyle(theme);
+  const horizontal =
+    width < 480 ? (options.partial ? 24 : 16) : options.partial ? 48 : 36;
+  const vertical = options.partial ? 40 : 32;
   const padding =
-    options.mode === "standalone" ? `32px ${width < 480 ? 16 : 36}px` : "0";
+    options.mode === "standalone" ? `${vertical}px ${horizontal}px` : "0";
   const content = renderDocument(payload, htmlState(payload), width);
   const json = JSON.stringify(payload).replace(
     /[<>&\u2028\u2029]/g,

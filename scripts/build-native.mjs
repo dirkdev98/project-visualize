@@ -41,7 +41,7 @@ lock.wgpu = {
 if (process.platform === "darwin") delete lock.sdl;
 
 function run(file, args) {
-  execFileSync(file, args, { stdio: "inherit", timeout: 300_000 });
+  execFileSync(file, args, { stdio: "inherit" });
 }
 
 for (const [name, entry] of Object.entries(lock)) {

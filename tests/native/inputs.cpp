@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     bool focus = true;
     ImGuiID input_id = 0;
     const auto frame = [&] {
-      if (call_pv_surface_begin(481, 160, 1) < 0) throw std::runtime_error(call_pv_error());
+      if (call_pv_surface_begin(481, 160, 1, 0) < 0) throw std::runtime_error(call_pv_error());
       call_igSetNextWindowPos({0, 0}, 0, {0, 0});
       call_igSetNextWindowSize({481, 160}, 0);
       call_igBegin("Editing", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);

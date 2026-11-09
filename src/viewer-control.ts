@@ -6,13 +6,16 @@ import {
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
+  closeSync,
   existsSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -156,12 +159,24 @@ export async function requestViewer(
     if (viewerRunning(root)) return;
     if (!launch)
       throw new Error("No viewer is running for this library; use open first");
-    const child = spawn(
-      executablePath,
-      ["viewer-host", "--store", realpathSync(root)],
-      { detached: true, stdio: "ignore" },
-    );
-    child.unref();
+    const logFile = join(location, "viewer.log");
+    if (existsSync(logFile) && statSync(logFile).size >= 1024 * 1024)
+      renameSync(logFile, `${logFile}.previous`);
+    const log = openSync(logFile, "a", 0o600);
+    try {
+      writeFileSync(
+        log,
+        `${new Date().toISOString()} Launching ${executablePath}\n`,
+      );
+      const child = spawn(
+        executablePath,
+        ["viewer-host", "--store", realpathSync(root)],
+        { detached: true, stdio: ["ignore", log, log] },
+      );
+      child.unref();
+    } finally {
+      closeSync(log);
+    }
   }
   startIfAbsent();
   while (Date.now() < deadline) {

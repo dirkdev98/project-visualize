@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     int count = 0; auto windows = call_SDL_GetWindows(&count);
     if (!windows || count != 1) throw std::runtime_error("Expected one probe window");
     auto window = windows[0]; call_SDL_free(windows);
-    if (call_pv_surface_begin(0,0,1)<0) throw std::runtime_error(call_pv_error());
+    if (call_pv_surface_begin(0,0,1, 0)<0) throw std::runtime_error(call_pv_error());
     call_igSetNextWindowPos({0,0},0,{0,0}); call_igSetNextWindowSize({1440,960},0);
     call_igBegin("Presentation lifecycle",nullptr,ImGuiWindowFlags_NoDecoration);
     call_igTextUnformatted("Retain this frame while the surface is unavailable",nullptr);

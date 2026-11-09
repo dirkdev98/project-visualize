@@ -1,11 +1,47 @@
 # Decisions
 
+## 2026-11-09 monitoring and execution budgets
+
+- Replace the cold production build budget and measured cold production phases
+  decisions with separate monitoring and execution policies. An agent's wait limit
+  must not terminate a compiler or regression step.
+- Let build commands complete under the hosted job's overall guard, with progress
+  recorded in their logs. Keep operation-specific IPC and network deadlines.
+
 ## 2026-11-09 Maligator workarounds get issues
 
 - Every Maligator limitation that needs a workaround gets a focused upstream issue and an
   entry in `mal_workarounds.md`. The decision log described about ten workarounds while
   that file listed none, and nine still reproduced without an issue, so the next bump
   would have skipped them.
+
+## 2026-11-09 pointer-neutral viewer captures
+
+- Omit transient pointer hover effects while drawing CLI capture frames. Crosshairs,
+  tooltips and zoom affordances must not depend on the desktop cursor's location.
+- Keep queued pointer events and button state intact, and redraw normally after a
+  capture so ordinary interaction resumes without moving the cursor.
+
+## 2026-11-09 complete PDF raster comparison
+
+- Apply the export raster rounding allowance across the complete PDF while checking
+  every page's dimensions and maximum channel difference. Page cropping and scaling
+  can concentrate an artifact's isolated rounding differences on a single page.
+- Keep searchable text positions and page counts exact, and retain the one-level
+  channel bound and small changed-pixel allowance.
+
+## 2026-11-09 archive continuation and export presentation
+
+- Continue with the preceding active artifact in the same project after archiving,
+  falling forward to the next one when needed. Leave the selection empty when that
+  project has no other active artifacts.
+- Give whole-widget exports more outer padding while preserving the requested image
+  width. Keep standalone HTML and native widget exports aligned.
+- Use FreeType with light hinting for the native viewer and exports at the existing
+  capture density. Link the pinned font rasterizer statically to keep packages
+  independent of system font libraries.
+- Retain viewer stderr and unexpected JavaScript errors in the library's diagnostic
+  directory so unexpected exits can be investigated.
 
 ## 2026-11-09 hosted rendering disk capacity
 

@@ -1,4 +1,5 @@
 #include "gpu.hpp"
+#include "misc/freetype/imgui_freetype.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_wgpu.h"
 #include "implot.h"
@@ -187,6 +188,7 @@ void Gpu::init(bool viewer) {
   auto &io = ImGui::GetIO();
   io.IniFilename = nullptr;
   io.LogFilename = nullptr;
+  io.Fonts->FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LightHinting;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   if (viewer) {
     if (!ImGui_ImplSDL3_InitForOther(window)) throw std::runtime_error("Cannot initialize window input");
@@ -201,7 +203,7 @@ void Gpu::init(bool viewer) {
   if (viewer) SDL_RaiseWindow(window);
 }
 
-void Gpu::begin(float width, float height, int scale) {
+void Gpu::begin(float width, float height, int scale, bool omit_hover) {
   ImGui_ImplWGPU_NewFrame();
   if (platform) ImGui_ImplSDL3_NewFrame();
   else {
@@ -210,7 +212,12 @@ void Gpu::begin(float width, float height, int scale) {
     io.DisplayFramebufferScale = ImVec2(scale, scale);
     io.DeltaTime = 1.0f / 60;
   }
+  auto &io = ImGui::GetIO();
+  const auto flags = io.ConfigFlags;
+  if (omit_hover) io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+  // NewFrame resolves hover; restore the input policy without discarding pointer events.
   ImGui::NewFrame();
+  io.ConfigFlags = flags;
 }
 
 void Gpu::draw(WGPUTextureView view) {

@@ -32,13 +32,11 @@ function canvas(
   renderer: DocumentRenderer,
   width: number,
   height: number,
+  padding: { x: number; y: number },
 ): number {
   igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
   igSetNextWindowSize({ x: width, y: height }, 0);
-  igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding, {
-    x: width < 480 ? 16 : 36,
-    y: 32,
-  });
+  igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding, padding);
   igBegin(
     "artifact",
     ImGuiWindowFlags_NoDecoration |
@@ -47,7 +45,7 @@ function canvas(
       ImGuiWindowFlags_NoScrollbar,
   );
   renderer.body(true);
-  const used = igGetCursorPosY() + 32;
+  const used = igGetCursorPosY() + padding.y;
   igEnd();
   igPopStyleVar(1);
   return used;
@@ -63,6 +61,11 @@ export async function renderArtifact(
   options: { header?: boolean } = {},
 ): Promise<number> {
   const state = documentState(document, parameters);
+  const partial = options.header === false;
+  const padding = {
+    x: width < 480 ? (partial ? 24 : 16) : partial ? 48 : 36,
+    y: partial ? 40 : 32,
+  };
   checked(pv_surface_open(0));
   let renderer: DocumentRenderer | undefined;
   let height = 0;
@@ -73,9 +76,9 @@ export async function renderArtifact(
     renderer = new DocumentRenderer(document, state, options);
     const limit = pv_surface_limit();
     for (let pass = 0; pass < 2; pass++) {
-      checked(pv_surface_begin(width, limit / scale, scale));
+      checked(pv_surface_begin(width, limit / scale, scale, 1));
       pushTheme();
-      height = Math.ceil(canvas(renderer, width, limit / scale));
+      height = Math.ceil(canvas(renderer, width, limit / scale, padding));
       popTheme();
       igRender();
     }
@@ -84,10 +87,10 @@ export async function renderArtifact(
       throw new Error(
         "Artifact is too tall to export at this scale; split it into smaller artifacts",
       );
-    checked(pv_surface_begin(width, height, scale));
+    checked(pv_surface_begin(width, height, scale, 1));
     pushTheme();
     layout = captureLayout(() =>
-      canvas(renderer as DocumentRenderer, width, height),
+      canvas(renderer as DocumentRenderer, width, height, padding),
     );
     popTheme();
     igRender();

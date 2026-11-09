@@ -46,7 +46,7 @@ try {
   const size = pv_image_size(image);
   expect(size.x === 12 && size.y === 4, "Image dimensions changed");
   for (let frame = 0; frame < 3; frame++) {
-    checked(pv_surface_begin(width, height, 1));
+    checked(pv_surface_begin(width, height, 1, 0));
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize({ x: width, y: height }, 0);
     igBegin("Image sampling", ImGuiWindowFlags_NoDecoration);

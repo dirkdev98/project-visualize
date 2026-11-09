@@ -89,7 +89,7 @@ try {
     "Oversized capture wrote pixels",
   );
   for (let frame = 0; frame < 3; frame++) {
-    checked(pv_surface_begin(width, height, 1));
+    checked(pv_surface_begin(width, height, 1, 0));
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize({ x: width, y: height }, 0);
     igBegin("Borrowed pixel capture", ImGuiWindowFlags_NoDecoration);

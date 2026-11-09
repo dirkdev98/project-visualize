@@ -15,11 +15,15 @@ carries them in `Contents/Resources/`.
 | [cimgui](https://github.com/cimgui/cimgui)           | Generated widget C bindings     | MIT                                  |
 | [cimplot](https://github.com/cimgui/cimplot)         | Generated chart C bindings      | MIT                                  |
 | [SDL3](https://github.com/libsdl-org/SDL)            | Native windows and input        | zlib                                 |
+| [FreeType](https://freetype.org/)                    | Native font rasterization       | FreeType License                     |
 | [stb](https://github.com/nothings/stb)               | Image decoding and PNG encoding | MIT or public domain                 |
 | [zlib](https://zlib.net/)                            | System image compression        | zlib                                 |
 
 JS dependencies provide Markdown parsing, character references and Shiki syntax highlighting.
 Their notices are included in the runtime artifact.
+
+Portions of this software are copyright 1996-2026 The FreeType Project
+(https://freetype.org/). All rights reserved.
 
 - [Marked](https://github.com/markedjs/marked) provides Markdown tokens under the MIT license.
 - [Shiki](https://github.com/shikijs/shiki) provides syntax highlighting, grammars and themes
