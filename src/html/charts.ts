@@ -1,8 +1,18 @@
 import type { Block, Cell, Series, Theme } from "../model.ts";
 import { chartColors } from "../palette.ts";
-import { crowdedCategories } from "../ui/chart-layout.ts";
+import {
+  analyticalRange,
+  chartBounds,
+  chartTicks,
+  crowdedCategories,
+} from "../ui/chart-layout.ts";
 import { formatNumber } from "../ui/number-format.ts";
-import { boxplot, histogram, waterfall } from "../ui/statistics.ts";
+import {
+  boxplot,
+  histogram,
+  waterfall,
+  waterfallGroups,
+} from "../ui/statistics.ts";
 import { escapeHtml, label, svg, wrap } from "./markup.ts";
 
 type Chart = Extract<Block, { type: "chart" }>;
@@ -19,24 +29,6 @@ export const defaultPlot = (): PlotState => ({
   y: 0,
 });
 const number = (value: number) => formatNumber(Number(value.toPrecision(4)));
-function ticks(min: number, max: number): number[] {
-  const raw = (max - min) / 5,
-    power = 10 ** Math.floor(Math.log10(raw)),
-    scaled = raw / power;
-  const step =
-    (scaled < 1.5 ? 1 : scaled < 3 ? 2 : scaled < 7 ? 5 : 10) * power;
-  if (!Number.isFinite(step) || step <= 0) return [];
-  const values: number[] = [];
-  for (
-    let value = Math.ceil(min / step) * step;
-    value <= max + step * 0.001;
-    value += step
-  )
-    values.push(
-      Math.abs(value) < step * 0.001 ? 0 : Number(value.toPrecision(12)),
-    );
-  return values;
-}
 
 export function plot(
   block: Chart,
@@ -90,27 +82,10 @@ export function plot(
   };
   const pw = Math.max(20, width - margin.left - margin.right),
     ph = Math.max(30, height - margin.top - margin.bottom);
-  let xmin = Math.min(...coordinates.map((point) => point.x)),
-    xmax = Math.max(...coordinates.map((point) => point.x));
-  let ymin = Math.min(...coordinates.map((point) => point.y)),
-    ymax = Math.max(...coordinates.map((point) => point.y));
-  if (!coordinates.length) {
-    xmin = 0;
-    xmax = 1;
-    ymin = 0;
-    ymax = 1;
-  }
-  if (block.kind === "bar" || block.kind === "area") {
-    ymin = Math.min(0, ymin);
-    ymax = Math.max(0, ymax);
-  }
-  const dx = xmax === xmin ? 1 : xmax - xmin,
-    dy = ymax === ymin ? Math.max(1, Math.abs(ymax) * 0.1) : ymax - ymin;
-  xmin -= block.kind === "bar" ? 0.6 : dx * 0.06;
-  xmax += block.kind === "bar" ? 0.6 : dx * 0.06;
-  ymin = block.kind === "bar" && ymin === 0 ? 0 : ymin - dy * 0.1;
-  ymax = block.kind === "bar" && ymax === 0 ? 0 : ymax + dy * 0.1;
-  if (ymin === ymax) ymax = ymin + 1;
+  let { xmin, xmax, ymin, ymax, xWhole, yWhole } = chartBounds(
+    coordinates,
+    block.kind,
+  );
   const centerX = (xmin + xmax) / 2 + state.x * (xmax - xmin),
     centerY = (ymin + ymax) / 2 + state.y * (ymax - ymin);
   const spanX = (xmax - xmin) / state.zoom,
@@ -128,7 +103,7 @@ export function plot(
   const hy = (value: number) =>
     margin.top + ((value - xmin) / (xmax - xmin)) * ph;
   let drawing = `<rect x="${margin.left}" y="${margin.top}" width="${pw}" height="${ph}" fill="var(--pv-surface)" stroke="var(--pv-border)"/>`;
-  for (const value of ticks(ymin, ymax)) {
+  for (const value of chartTicks(ymin, ymax, yWhole)) {
     if (horizontal) {
       const at = hx(value);
       drawing += `<path d="M${at},${margin.top}v${ph}" stroke="var(--pv-border)" stroke-width=".7"/>${label(at, margin.top + ph + 20, number(value), 18)}`;
@@ -139,7 +114,7 @@ export function plot(
   }
   const xticks =
     block.labels?.map((value, index) => ({ value, at: index })) ??
-    ticks(xmin, xmax).map((at) => ({ value: number(at), at }));
+    chartTicks(xmin, xmax, xWhole).map((at) => ({ value: number(at), at }));
   const stride = horizontal
     ? Math.max(
         1,
@@ -288,18 +263,16 @@ export function analytical(
   const colors = chartColors(theme);
   const series: Series[] = block.type === "boxplot" ? (block.series ?? []) : [];
   const boxes = series.map((item) => boxplot(item.values));
-  const steps = block.type === "waterfall" ? waterfall(block.steps) : [];
-  const values =
-    block.type === "boxplot"
-      ? series
-          .filter((item) => !state.hidden.includes(item.name))
-          .flatMap((item) => item.values)
-      : steps.flatMap((step) => [step.start, step.end]);
-  const min = values.length ? Math.min(...values) : 0,
-    max = values.length ? Math.max(...values) : 1,
-    span = Math.max(1, max - min);
-  let low = block.type === "waterfall" && min === 0 ? 0 : min - span * 0.1,
-    high = max + span * 0.1;
+  if (block.type === "boxplot" && !boxes.some(Boolean))
+    return '<p class="pv-empty">No observations in this view.</p>';
+  const layout = block.type === "waterfall" ? waterfall(block.steps) : null;
+  const steps = layout?.bars ?? [];
+  const values = layout
+    ? [layout.low, layout.high]
+    : series
+        .filter((item) => !state.hidden.includes(item.name))
+        .flatMap((item) => item.values);
+  let { low, high } = analyticalRange(values, block.type === "waterfall");
   const center = (low + high) / 2 + state.y * (high - low),
     half = (high - low) / 2 / state.zoom;
   low = center - half;
@@ -310,7 +283,11 @@ export function analytical(
   const x = (index: number) =>
     left + pw / 2 + (index + 0.5 - count / 2 - state.x * count) * band;
   let drawing = `<rect x="${left}" y="${top}" width="${pw}" height="${ph}" fill="var(--pv-surface)" stroke="var(--pv-border)"/>`;
-  for (const value of ticks(low, high))
+  for (const value of chartTicks(
+    low,
+    high,
+    block.type === "boxplot" && values.every(Number.isInteger),
+  ))
     drawing += `<path d="M${left},${y(value)}h${pw}" stroke="var(--pv-border)" stroke-width=".7"/>${label(left - 7, y(value) + 4, number(value), 18, "end")}`;
   if (block.yLabel)
     drawing += label(
@@ -339,32 +316,42 @@ export function analytical(
         color = colors[index % colors.length];
       drawing += `<g data-tooltip="${escapeHtml(`${series[index].name}: median ${number(box.median)}, Q1 ${number(box.q1)}, Q3 ${number(box.q3)}`)}"><path d="M${at},${y(box.low)}V${y(box.high)} M${at - w / 3},${y(box.low)}h${(w * 2) / 3} M${at - w / 3},${y(box.high)}h${(w * 2) / 3}" stroke="${color}"/><rect x="${at - w / 2}" y="${y(box.q3)}" width="${w}" height="${Math.max(1, y(box.q1) - y(box.q3))}" fill="${color}" fill-opacity=".2" stroke="${color}"/><path d="M${at - w / 2},${y(box.median)}h${w}" stroke="${color}" stroke-width="2"/>${box.outliers.map((value) => `<circle cx="${at}" cy="${y(value)}" r="3" fill="${color}"/>`).join("")}</g>`;
     });
-  const waterfallName = block.title ?? "Balance";
-  if (block.type === "waterfall" && !state.hidden.includes(waterfallName))
-    steps.forEach((step, index) => {
-      const at = x(index) - band * 0.3,
-        w = band * 0.6,
-        color =
-          block.steps[index].kind === "total"
-            ? colors[0]
-            : step.end >= step.start
-              ? "var(--pv-positive)"
-              : "var(--pv-negative)";
-      drawing += `<rect x="${at}" y="${y(Math.max(step.start, step.end))}" width="${w}" height="${Math.max(1, Math.abs(y(step.start) - y(step.end)))}" fill="${color}" data-tooltip="${escapeHtml(`${block.steps[index].label}: ${number(block.steps[index].value)}`)}"/>`;
-      if (index + 1 < steps.length)
-        drawing += `<path d="M${at + w},${y(step.end)}h${band - w}" stroke="var(--pv-muted)" stroke-dasharray="3 3"/>`;
-    });
+  const groupColors = {
+    increase: "var(--pv-positive)",
+    decrease: "var(--pv-negative)",
+    total: colors[0],
+  };
+  const groups = waterfallGroups.filter((group) =>
+    steps.some((step) => step.group === group.id),
+  );
+  steps.forEach((step, index) => {
+    const at = x(index) - band * 0.3,
+      w = band * 0.6;
+    if (index + 1 < steps.length)
+      drawing += `<path d="M${at + w},${y(step.end)}h${band - w}" stroke="var(--pv-muted)" stroke-dasharray="4 3"/>`;
+    const group = groups.find((item) => item.id === step.group);
+    if (!group || state.hidden.includes(group.name)) return;
+    const top = y(Math.max(step.start, step.end)),
+      bottom = y(Math.min(step.start, step.end));
+    drawing += `<rect x="${at}" y="${top}" width="${w}" height="${Math.max(1, bottom - top)}" fill="${groupColors[step.group]}" data-tooltip="${escapeHtml(`${names[index]}: ${step.label}`)}"/>`;
+    drawing += `<text x="${at + w / 2}" y="${step.below ? bottom + 19 : top - 6}" text-anchor="middle" font-size="16" fill="var(--pv-ink)">${escapeHtml(step.label)}</text>`;
+  });
   drawing += "</g>";
   if (!values.length)
     drawing += label(left + pw / 2, top + ph / 2, "No observations", 16);
-  const legendNames =
-    block.type === "boxplot"
-      ? series.map((item) => item.name)
-      : [waterfallName];
-  const legend = legendNames
+  const legendEntries = layout
+    ? groups.map((group) => ({
+        name: group.name,
+        color: groupColors[group.id],
+      }))
+    : series.map((item, index) => ({
+        name: item.name,
+        color: colors[index % colors.length],
+      }));
+  const legend = legendEntries
     .map(
-      (name, index) =>
-        `<button type="button" data-series="${escapeHtml(name)}" aria-pressed="${!state.hidden.includes(name)}"><i style="background:${colors[index % colors.length]}"></i>${escapeHtml(name)}</button>`,
+      ({ name, color }) =>
+        `<button type="button" data-series="${escapeHtml(name)}" aria-pressed="${!state.hidden.includes(name)}"><i style="background:${color}"></i>${escapeHtml(name)}</button>`,
     )
     .join("");
   return `<figure class="pv-plot" data-plot="${escapeHtml(key)}">${svg(width, height, block.title ?? block.type, drawing)}<div class="pv-legend">${legend}</div><div class="pv-zoom"><button type="button" data-zoom="in" aria-label="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out">−</button><button type="button" data-zoom="fit" aria-label="Fit chart">⌖</button></div></figure>`;

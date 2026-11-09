@@ -51,14 +51,15 @@ test("box plots use interpolated quartiles and observed Tukey whiskers", () => {
 });
 
 test("waterfall totals reset the baseline while signed deltas accumulate", () => {
+  const { bars } = waterfall([
+    { value: 100, kind: "total" },
+    { value: 20 },
+    { value: -45 },
+    { value: 75, kind: "total" },
+    { value: -10 },
+  ]);
   assert.deepEqual(
-    waterfall([
-      { value: 100, kind: "total" },
-      { value: 20 },
-      { value: -45 },
-      { value: 75, kind: "total" },
-      { value: -10 },
-    ]),
+    bars.map(({ start, end }) => ({ start, end })),
     [
       { start: 0, end: 100 },
       { start: 100, end: 120 },
@@ -67,4 +68,31 @@ test("waterfall totals reset the baseline while signed deltas accumulate", () =>
       { start: 75, end: 65 },
     ],
   );
+});
+
+test("waterfall bars are grouped and labelled by direction", () => {
+  const { bars } = waterfall([
+    { value: 12, kind: "total" },
+    { value: 5 },
+    { value: -21 },
+    { value: -4, kind: "total" },
+    { value: 0 },
+  ]);
+  assert.deepEqual(
+    bars.map(({ group, label, below }) => ({ group, label, below })),
+    [
+      { group: "total", label: "12", below: false },
+      { group: "increase", label: "+5", below: false },
+      { group: "decrease", label: "-21", below: true },
+      { group: "total", label: "-4", below: true },
+      { group: "increase", label: "0", below: false },
+    ],
+  );
+});
+
+test("waterfall bounds leave room for labels beyond the bars", () => {
+  const { low, high } = waterfall([{ value: 10 }, { value: -15 }]);
+  assert.ok(low < -5, "a decrease label below the lowest bar needs room");
+  assert.ok(high > 10, "an increase label above the highest bar needs room");
+  assert.equal(waterfall([{ value: 4 }, { value: 6 }]).low, 0);
 });

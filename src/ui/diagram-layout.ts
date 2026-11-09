@@ -14,50 +14,42 @@ export interface GraphLayout {
   height: number;
 }
 
+/**
+ * Assigns each node a layer by longest path. A depth-first search from the
+ * nodes nothing points to drops edges back into the active path, so a retry
+ * loop keeps its forward steps in successive layers and returns upwards.
+ */
 function ranks(nodes: DiagramNode[], edges: DiagramEdge[]) {
   const indices = new Map(nodes.map((node, i) => [node.id, i]));
-  const links = nodes.map(() => [] as number[]);
-  for (const edge of edges)
-    links[indices.get(edge.from) ?? 0].push(indices.get(edge.to) ?? 0);
-  const stack: number[] = [],
+  const links = nodes.map(() => [] as number[]),
+    incoming = nodes.map(() => 0);
+  for (const edge of edges) {
+    const from = indices.get(edge.from) ?? 0,
+      to = indices.get(edge.to) ?? 0;
+    links[from].push(to);
+    if (from !== to) incoming[to]++;
+  }
+  const visited = nodes.map(() => false),
     active = new Set<number>(),
-    order = nodes.map(() => -1),
-    low = [...order],
-    components = [...order];
-  let cursor = 0,
-    component = 0;
+    forward: [number, number][] = [];
   const visit = (v: number) => {
-    low[v] = order[v] = cursor++;
-    stack.push(v);
+    visited[v] = true;
     active.add(v);
     for (const next of links[v]) {
-      if (order[next] < 0) {
-        visit(next);
-        low[v] = Math.min(low[v], low[next]);
-      } else if (active.has(next)) low[v] = Math.min(low[v], order[next]);
+      if (active.has(next)) continue;
+      forward.push([v, next]);
+      if (!visited[next]) visit(next);
     }
-    if (low[v] === order[v]) {
-      let member: number;
-      do {
-        member = stack.pop() ?? v;
-        active.delete(member);
-        components[member] = component;
-      } while (member !== v);
-      component++;
-    }
+    active.delete(v);
   };
-  for (let i = 0; i < nodes.length; i++) if (order[i] < 0) visit(i);
-  const levels = new Array<number>(component).fill(0);
-  for (let round = 0; round < component; round++)
-    for (let i = 0; i < links.length; i++)
-      for (const next of links[i]) {
-        if (components[i] !== components[next])
-          levels[components[next]] = Math.max(
-            levels[components[next]],
-            levels[components[i]] + 1,
-          );
-      }
-  return components.map((c) => levels[c]);
+  for (const roots of [true, false])
+    for (let i = 0; i < nodes.length; i++)
+      if (!visited[i] && (incoming[i] === 0) === roots) visit(i);
+  const levels = nodes.map(() => 0);
+  for (let round = 0; round < nodes.length; round++)
+    for (const [from, to] of forward)
+      levels[to] = Math.max(levels[to], levels[from] + 1);
+  return levels;
 }
 
 function route(
@@ -68,6 +60,7 @@ function route(
   height: number,
   right: boolean,
   index: number,
+  back = false,
 ): Point[] {
   if (a === b) {
     const x = a.x + a.width,
@@ -86,20 +79,34 @@ function route(
     (right || !(a.y + a.height <= b.y || b.y + b.height <= a.y));
   const forward = horizontal ? b.x > a.x : b.y > a.y;
   const sign = forward ? 1 : -1;
-  const start = horizontal
+  let start = horizontal
     ? { x: forward ? a.x + a.width : a.x, y: a.y + a.height / 2 }
     : { x: a.x + a.width / 2, y: forward ? a.y + a.height : a.y };
-  const end = horizontal
+  let end = horizontal
     ? { x: forward ? b.x : b.x + b.width, y: b.y + b.height / 2 }
     : { x: b.x + b.width / 2, y: forward ? b.y : b.y + b.height };
-  const from = {
+  let from = {
     x: start.x + (horizontal ? sign * 10 : 0),
     y: start.y + (horizontal ? 0 : sign * 10),
   };
-  const to = {
+  let to = {
     x: end.x - (horizontal ? sign * 10 : 0),
     y: end.y - (horizontal ? 0 : sign * 10),
   };
+  // An edge against the flow leaves and enters beside it, on the right in a
+  // vertical layout and underneath in a horizontal one, so it loops around
+  // instead of sharing a port with the forward connector.
+  if (back) {
+    start = right
+      ? { x: a.x + a.width / 2, y: a.y + a.height }
+      : { x: a.x + a.width, y: a.y + a.height / 2 };
+    end = right
+      ? { x: b.x + b.width / 2, y: b.y + b.height }
+      : { x: b.x + b.width, y: b.y + b.height / 2 };
+    const offset = right ? { x: 0, y: 10 } : { x: 10, y: 0 };
+    from = { x: start.x + offset.x, y: start.y + offset.y };
+    to = { x: end.x + offset.x, y: end.y + offset.y };
+  }
   const expanded = obstacles.map((box) => ({
     x: box.x - 6,
     y: box.y - 6,
@@ -205,12 +212,74 @@ function route(
   );
 }
 
+/**
+ * Start positions for one layer of boxes along the cross axis. Boxes centre on
+ * their target, usually their parents' average position, and siblings sharing a
+ * target centre as a group. A layer without targets centres within `extent`, or
+ * starts at the margin when the extent is open. Boxes keep `gap` apart and stay
+ * within the 24px margin.
+ */
+function placeLayer(
+  targets: (number | undefined)[],
+  sizes: number[],
+  gap: number,
+  extent: number,
+): number[] {
+  const total = sizes.reduce((sum, size) => sum + size + gap, -gap);
+  const packed = (start: number) => {
+    let at = start;
+    return sizes.map((size) => {
+      const position = at;
+      at += size + gap;
+      return position;
+    });
+  };
+  if (targets.some((target) => target === undefined))
+    return packed(Number.isFinite(extent) ? (extent - total) / 2 : 24);
+  const order = targets
+    .map((target, i) => ({ target: target ?? 0, i }))
+    .sort((a, b) => a.target - b.target);
+  const starts: number[] = [];
+  let cursor = 24;
+  for (let first = 0; first < order.length; ) {
+    let end = first + 1;
+    while (
+      end < order.length &&
+      Math.abs(order[end].target - order[first].target) < 0.5
+    )
+      end++;
+    const span = order
+      .slice(first, end)
+      .reduce((sum, { i }) => sum + sizes[i] + gap, -gap);
+    let at = Math.max(cursor, order[first].target - span / 2);
+    for (let k = first; k < end; k++) {
+      starts[k] = at;
+      at += sizes[order[k].i] + gap;
+    }
+    cursor = at;
+    first = end;
+  }
+  const last = order[order.length - 1];
+  const overflow = Math.max(
+    0,
+    starts[starts.length - 1] + sizes[last.i] - (extent - 24),
+  );
+  const result: number[] = [];
+  let minimum = 24;
+  for (const [k, { i }] of order.entries()) {
+    result[i] = Math.max(starts[k] - overflow, minimum);
+    minimum = result[i] + sizes[i] + gap;
+  }
+  return result;
+}
+
 export function graphLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
   width: number,
   measure: (node: DiagramNode, width: number) => number,
   direction = "down",
+  gap = 64,
 ): GraphLayout {
   const levels = ranks(nodes, edges),
     layers = new Map<number, number[]>();
@@ -221,50 +290,85 @@ export function graphLayout(
     layer.push(i);
     layers.set(levels[i], layer);
   }
+  const indices = new Map(nodes.map((node, i) => [node.id, i]));
+  const parents = nodes.map(() => [] as number[]),
+    children = nodes.map(() => [] as number[]);
+  for (const edge of edges) {
+    const from = indices.get(edge.from) ?? 0,
+      to = indices.get(edge.to) ?? 0;
+    if (levels[from] < levels[to]) {
+      parents[to].push(from);
+      children[from].push(to);
+    }
+  }
+  const sorted = [...layers].sort((a, b) => a[0] - b[0]);
   const boxes: Box[] = [];
+  // The centre of the span that a node's parents or children cover.
+  const middle = (members: number[], axis: "x" | "y") => {
+    if (!members.length) return undefined;
+    const size = (i: number) =>
+      axis === "x" ? boxes[i].width : boxes[i].height;
+    return (
+      (Math.min(...members.map((i) => boxes[i][axis])) +
+        Math.max(...members.map((i) => boxes[i][axis] + size(i)))) /
+      2
+    );
+  };
   let y = 24;
   if (right) {
     const count = layers.size,
-      boxWidth = Math.min(190, (width - 48 - (count - 1) * 64) / count);
-    if (boxWidth >= 100)
-      for (const [level, indices] of layers) {
-        let top = 24;
-        for (const i of indices) {
+      boxWidth = Math.min(190, (width - 48 - (count - 1) * gap) / count);
+    if (boxWidth >= 100) {
+      for (const [level, layer] of sorted) {
+        const heights = layer.map((i) => measure(nodes[i], boxWidth));
+        const tops = placeLayer(
+          layer.map((i) => middle(parents[i], "y")),
+          heights,
+          48,
+          Infinity,
+        );
+        for (const [k, i] of layer.entries())
           boxes[i] = {
             x:
-              (width - count * boxWidth - (count - 1) * 64) / 2 +
-              level * (boxWidth + 64),
-            y: top,
+              (width - count * boxWidth - (count - 1) * gap) / 2 +
+              level * (boxWidth + gap),
+            y: tops[k],
             width: boxWidth,
-            height: measure(nodes[i], boxWidth),
+            height: heights[k],
           };
-          top += boxes[i].height + 48;
-        }
-        y = Math.max(y, top);
       }
-    if (boxes.length) {
-      const bottom = Math.max(...boxes.map((box) => box.y + box.height));
-      for (const indices of layers.values()) {
-        const last = boxes[indices[indices.length - 1]];
-        const offset = (bottom - last.y - last.height) / 2;
-        for (const i of indices) boxes[i].y += offset;
+      // Then centre each parent on its children, deepest layers first.
+      for (const [, layer] of sorted.slice(0, -1).reverse()) {
+        const tops = placeLayer(
+          layer.map(
+            (i) => middle(children[i], "y") ?? boxes[i].y + boxes[i].height / 2,
+          ),
+          layer.map((i) => boxes[i].height),
+          48,
+          Infinity,
+        );
+        for (const [k, i] of layer.entries()) boxes[i].y = tops[k];
       }
     }
   }
   if (!boxes.length) {
     const columns = Math.max(1, Math.floor((width - 32) / 210));
-    for (const [, indices] of [...layers].sort((a, b) => a[0] - b[0]))
-      for (let row = 0; row < indices.length; row += columns) {
-        const group = indices.slice(row, row + columns),
+    for (const [, layer] of sorted)
+      for (let row = 0; row < layer.length; row += columns) {
+        const group = layer.slice(row, row + columns),
           boxWidth = Math.min(
             210,
             (width - 48 - (group.length - 1) * 40) / group.length,
           );
-        const left =
-          (width - group.length * boxWidth - (group.length - 1) * 40) / 2;
+        const left = placeLayer(
+          group.map((i) => middle(parents[i], "x")),
+          group.map(() => boxWidth),
+          40,
+          width,
+        );
         for (const [column, i] of group.entries())
           boxes[i] = {
-            x: left + column * (boxWidth + 40),
+            x: left[column],
             y,
             width: boxWidth,
             height: measure(nodes[i], boxWidth),
@@ -294,22 +398,41 @@ export function graphLayout(
     ),
   );
   if (!crowded) for (let i = 0; i < boxes.length; i++) boxes[i] = positioned[i];
-  const indices = new Map(nodes.map((node, i) => [node.id, i]));
   return {
     nodes: boxes,
     height,
-    edges: edges.map((edge, i) =>
-      route(
-        boxes[indices.get(edge.from) ?? 0],
-        boxes[indices.get(edge.to) ?? 0],
+    edges: edges.map((edge, i) => {
+      const from = indices.get(edge.from) ?? 0,
+        to = indices.get(edge.to) ?? 0;
+      return route(
+        boxes[from],
+        boxes[to],
         boxes,
         width,
         height,
         right,
         i,
-      ),
-    ),
+        from !== to && levels[from] >= levels[to],
+      );
+    }),
   };
+}
+
+/**
+ * Gap between the columns of a horizontal layout, wide enough to keep each
+ * connector label on its connector, clear of the endpoint cardinalities that
+ * sit beside both ends.
+ */
+export function layerGap(
+  labelWidths: readonly (number | undefined)[],
+  cardinalities: boolean,
+): number {
+  return Math.max(
+    64,
+    ...labelWidths.map((width) =>
+      width === undefined ? 0 : width + 12 + (cardinalities ? 80 : 0),
+    ),
+  );
 }
 
 export function edgeLabelLayout(
@@ -386,4 +509,60 @@ export function edgeLabelLayout(
     return best;
   });
   return { boxes, height };
+}
+
+const day = 86_400_000;
+
+/**
+ * Gridlines for a Gantt axis over `[start, end)`, on day boundaries so bars
+ * start and end on a line. Each line labels the day that follows it when the
+ * column leaves room for the label; the closing line at `end` has none.
+ */
+export function ganttTicks(start: number, end: number, width: number) {
+  const days = Math.max(1, Math.round((end - start) / day)),
+    perDay = width / days;
+  const step =
+    [1, 2, 7, 14, 28, 91, 182, 364].find((n) => n * perDay >= 56) ??
+    Math.ceil(56 / perDay);
+  const ticks: { time: number; label?: string }[] = [];
+  for (let offset = 0; offset < days; offset += step) {
+    const time = start + offset * day;
+    ticks.push({
+      time,
+      label:
+        (days - offset) * perDay >= 40
+          ? new Date(time).toISOString().slice(5, 10)
+          : undefined,
+    });
+  }
+  ticks.push({ time: start + days * day });
+  return ticks;
+}
+
+/**
+ * Route for a finish-to-start dependency. It enters the dependent bar from the
+ * left when there is room, and otherwise drops onto the bar's edge, so the
+ * arrowhead never sits on the bar's fill.
+ */
+export function ganttDependency(
+  from: Point,
+  to: Box,
+): { points: Point[]; head: [Point, Point] } {
+  const lane = from.x + 8;
+  if (to.x >= lane + 8) {
+    const end = { x: to.x, y: to.y + to.height / 2 },
+      turn = { x: lane, y: end.y };
+    return {
+      points: [from, { x: lane, y: from.y }, turn, end],
+      head: [turn, end],
+    };
+  }
+  const x = Math.max(to.x + 6, Math.min(lane, to.x + to.width - 6)),
+    below = to.y + to.height / 2 < from.y;
+  const end = { x, y: below ? to.y + to.height : to.y },
+    corner = { x, y: from.y };
+  return {
+    points: [from, corner, end],
+    head: [corner, end],
+  };
 }

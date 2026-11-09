@@ -1,5 +1,34 @@
 # Decisions
 
+## 2026-11-09 consistent axes, readable waterfalls and widget polish
+
+- Start native charts, box plots and waterfalls from the same fitted bounds and round
+  ticks as HTML exports, about five per axis and whole numbers for whole-number data.
+  ImPlot's automatic ticks produced half steps for counts and categories and crowded
+  labels for a single observation. In the viewer the ticks follow the previous frame's
+  view, so pan and zoom keep them current.
+- Label each waterfall bar with its signed change or total and group bars in the
+  legend as increase, decrease or total. The single legend entry repeated the title and
+  left the colors unexplained.
+- Place Gantt gridlines on day boundaries and label the day after each line, stepping
+  to two days, weeks or longer when columns get narrow. Dependencies drop onto the
+  dependent bar when it starts at the prerequisite's end, so the arrowhead never sits
+  on the progress fill.
+- Rank flowchart layers after dropping edges back into the active depth-first path. A
+  retry loop now flows in the layout direction and returns, instead of collapsing its
+  steps into one layer. Edges against the flow leave and enter beside the nodes, so
+  they never share a port with a forward connector. Nodes centre on the span of their
+  parents, and in horizontal layouts parents then centre on their children.
+- Widen a horizontal diagram's column gap to fit the widest connector label, plus
+  cardinalities in entity diagrams, so labels stay on their connector.
+- Render controls in PNG and PDF exports with the viewer's widgets, inert and not
+  dimmed, and keep their text searchable. Draw control labels at the top of a row cell,
+  since ImGui otherwise offsets later columns to a framed widget's baseline, and line a
+  toggle in a row up with its neighbours' fields.
+- Right-align headers of right-aligned table columns, including Markdown `---:`
+  columns. Use the same empty-table wording, select option and control label style in
+  HTML as in the viewer, and drop the HTML row inset that ImGui rows do not have.
+
 ## 2026-11-09 visual answers at every size
 
 - Describe the skill as covering everything from one table, chart or diagram to a

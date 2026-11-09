@@ -21,7 +21,10 @@ import {
   type Box,
   edgeLabelLayout,
   type GraphLayout,
+  ganttDependency,
+  ganttTicks,
   graphLayout,
+  layerGap,
   type Point,
 } from "./diagram-layout.ts";
 import { windowDrawList } from "./draw-list.ts";
@@ -129,6 +132,11 @@ export class Diagrams {
       draw = windowDrawList();
     let cached = this.cache.get(value);
     if (!cached || cached.width !== width) {
+      const labels = (value.edges ?? []).map((edge) => {
+        if (!edge.label) return undefined;
+        const size = this.measure(edge.label, Math.min(160, width - 48), 14);
+        return { width: size.x + 12, height: size.y + 8 };
+      });
       const layout = graphLayout(
         value.nodes,
         value.edges ?? [],
@@ -153,16 +161,12 @@ export class Diagrams {
             : Math.max(60, labelHeight + fieldHeight + 32);
         },
         value.direction,
+        layerGap(
+          labels.map((label) => label?.width),
+          value.kind === "er",
+        ),
       );
-      const placement = edgeLabelLayout(
-        layout,
-        width,
-        (value.edges ?? []).map((edge) => {
-          if (!edge.label) return undefined;
-          const size = this.measure(edge.label, Math.min(160, width - 48), 14);
-          return { width: size.x + 12, height: size.y + 8 };
-        }),
-      );
+      const placement = edgeLabelLayout(layout, width, labels);
       layout.height = placement.height;
       cached = { width, layout, labels: placement.boxes };
       this.cache.set(value, cached);
@@ -360,7 +364,7 @@ export class Diagrams {
         this.measure(
           m.label,
           m.from === m.to
-            ? step - 40
+            ? step - Math.min(42, step / 3) - 24
             : Math.max(
                 100,
                 Math.abs(
@@ -382,9 +386,19 @@ export class Diagrams {
         7,
         0,
       );
+      ImDrawList_AddRect(
+        draw,
+        { x: x - step / 2 + 8, y: origin.y },
+        { x: x + step / 2 - 8, y: origin.y + header - 8 },
+        packed(palette.border),
+        7,
+        1,
+        0,
+      );
+      const name = this.measure(p.label, step - 32, 15, "bold");
       this.label(
         p.label,
-        { x: x - step / 2 + 16, y: origin.y + 9 },
+        { x: x - name.x / 2, y: origin.y + 9 },
         step - 32,
         15,
         "bold",
@@ -392,7 +406,7 @@ export class Diagrams {
       this.line(
         { x, y: origin.y + header },
         { x, y: origin.y + height },
-        palette.border,
+        palette.diagramBorder,
         true,
       );
     }
@@ -401,14 +415,24 @@ export class Diagrams {
       const from = positions.get(m.from) ?? origin.x,
         to = positions.get(m.to) ?? origin.x;
       const labelWidth =
-        m.from === m.to ? step - 40 : Math.max(100, Math.abs(to - from) - 24);
+        m.from === m.to
+          ? step - Math.min(42, step / 3) - 24
+          : Math.max(100, Math.abs(to - from) - 24);
+      const lineY = y + rows[i] - 12,
+        labelHeight = this.measure(m.label, labelWidth, 13).y;
+      // A label sits right above its arrow, or beside a self-message loop,
+      // so the gap separates it from the previous message.
       this.label(
         m.label,
-        { x: m.from === m.to ? from + 8 : Math.min(from, to) + 12, y: y + 5 },
+        m.from === m.to
+          ? {
+              x: from + Math.min(42, step / 3) + 8,
+              y: lineY - 7 - labelHeight / 2,
+            }
+          : { x: Math.min(from, to) + 12, y: lineY - 6 - labelHeight },
         labelWidth,
         13,
       );
-      const lineY = y + rows[i] - 12;
       if (m.from === m.to) {
         const side = from + Math.min(42, step / 3);
         this.line({ x: from, y: lineY - 14 }, { x: side, y: lineY - 14 });
@@ -460,26 +484,24 @@ export class Diagrams {
       Math.max(42, this.measure(task.label, labelWidth - 16, 14).y + 18),
     );
     const height = rows.reduce((a, b) => a + b, 0) + 44;
-    const ticks = Math.max(2, Math.floor(plotWidth / 110));
-    for (let i = 0; i < ticks; i++) {
-      const time = min + ((max - min) * i) / (ticks - 1),
-        label = new Date(time).toISOString().slice(5, 10);
-      const position = x(time);
-      this.label(
-        label,
-        { x: i === ticks - 1 ? position - 42 : position, y: origin.y },
-        50,
-        12,
-        "regular",
-        palette.muted,
-      );
+    for (const tick of ganttTicks(min, max, plotWidth)) {
+      const position = x(tick.time);
+      if (tick.label)
+        this.label(
+          tick.label,
+          { x: position + 4, y: origin.y },
+          50,
+          12,
+          "regular",
+          palette.muted,
+        );
       this.line(
         { x: position, y: origin.y + 24 },
         { x: position, y: origin.y + height },
         palette.border,
       );
     }
-    const points = new Map<string, { start: Point; end: Point }>();
+    const bars = new Map<string, Box>();
     let top = origin.y + 32;
     for (const [i, task] of value.tasks.entries()) {
       const y = top + rows[i] / 2;
@@ -506,7 +528,12 @@ export class Diagrams {
           4,
           0,
         );
-      points.set(task.id, { start: { x: a.x, y }, end: { x: b.x, y } });
+      bars.set(task.id, {
+        x: a.x,
+        y: a.y,
+        width: b.x - a.x,
+        height: b.y - a.y,
+      });
       keepTogether(top, top + rows[i]);
       if (!exporting) {
         igSetCursorScreenPos({ x: origin.x, y: top });
@@ -532,14 +559,16 @@ export class Diagrams {
     }
     for (const task of value.tasks)
       for (const dependency of task.dependsOn ?? []) {
-        const a = points.get(dependency)?.end,
-          b = points.get(task.id)?.start;
-        if (!a || !b) continue;
-        const lane = Math.min(origin.x + width - 4, a.x + 8);
-        this.line(a, { x: lane, y: a.y });
-        this.line({ x: lane, y: a.y }, { x: lane, y: b.y });
-        this.line({ x: lane, y: b.y }, b);
-        this.arrow({ x: lane, y: b.y }, b);
+        const from = bars.get(dependency),
+          to = bars.get(task.id);
+        if (!from || !to) continue;
+        const route = ganttDependency(
+          { x: from.x + from.width, y: from.y + from.height / 2 },
+          to,
+        );
+        for (let i = 1; i < route.points.length; i++)
+          this.line(route.points[i - 1], route.points[i]);
+        this.arrow(...route.head);
       }
     igSetCursorScreenPos(origin);
     igDummy({ x: width, y: height });

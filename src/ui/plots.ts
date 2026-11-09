@@ -2,6 +2,7 @@ import {
   ImDrawList_AddCircleFilled,
   ImDrawList_AddLine,
   ImDrawList_AddRectFilled,
+  ImDrawList_AddText_FontPtr,
   ImPlot_BeginItem,
   ImPlot_EndItem,
   ImPlot_FitPoint,
@@ -28,10 +29,19 @@ import {
   ImPlotSpec_SetProp_Float,
   ImPlotSpec_SetProp_S32,
   ImPlotSpec_SetProp_Vec4,
+  igCalcTextSize,
+  igPopFont,
+  igPushFont,
 } from "maligator:ffi/visualize";
 import { plotDrawList } from "./draw-list.ts";
-import type { boxplot } from "./statistics.ts";
-import { type Color, currentTheme, packed } from "./theme.ts";
+import { captureText } from "./primitives.ts";
+import {
+  type boxplot,
+  type WaterfallGroup,
+  type waterfall,
+  waterfallGroups,
+} from "./statistics.ts";
+import { type Color, currentTheme, fonts, packed, palette } from "./theme.ts";
 
 export class Plots {
   private styles = new Map<string, ImPlotSpec_c>();
@@ -94,7 +104,10 @@ export class Plots {
     }
     const style = this.style(
       color,
-      kind === "scatter" ? ImPlotMarker_Circle : ImPlotMarker_None,
+      // A single observation has no segment to draw, so mark the point.
+      kind === "scatter" || (kind !== "bar" && x.length === 1)
+        ? ImPlotMarker_Circle
+        : ImPlotMarker_None,
       false,
       horizontal,
     );
@@ -179,51 +192,77 @@ export class Plots {
     }
   }
   waterfall(
-    label: string,
-    steps: { start: number; end: number }[],
-    colors: Color[],
+    layout: ReturnType<typeof waterfall>,
+    colors: Record<WaterfallGroup, Color>,
   ) {
-    const color = colors[0];
-    if (
-      !ImPlot_BeginItem(
-        label,
-        this.style(color, ImPlotMarker_None, false),
-        color,
-        ImPlotMarker_None,
+    const p = (x: number, y: number) =>
+      ImPlot_PlotToPixels_double(x, y, -1, -1);
+    const face = fonts.regular;
+    if (!face) throw new Error("Fonts are not initialized");
+    for (const group of waterfallGroups) {
+      const bars = [...layout.bars.entries()].filter(
+        ([, bar]) => bar.group === group.id,
+      );
+      if (!bars.length) continue;
+      const color = colors[group.id];
+      if (
+        !ImPlot_BeginItem(
+          group.name,
+          this.style(color, ImPlotMarker_None, false),
+          color,
+          ImPlotMarker_None,
+        )
       )
-    )
-      return;
-    try {
-      const draw = plotDrawList();
-      const p = (x: number, y: number) =>
-        ImPlot_PlotToPixels_double(x, y, -1, -1);
-      for (const [i, step] of steps.entries()) {
-        ImPlot_FitPoint({ x: i - 0.45, y: Math.min(step.start, step.end) });
-        ImPlot_FitPoint({ x: i + 0.45, y: Math.max(step.start, step.end) });
-      }
-      ImPlot_PushPlotClipRect(0);
-      for (const [i, step] of steps.entries()) {
-        ImDrawList_AddRectFilled(
-          draw,
-          p(i - 0.34, Math.max(step.start, step.end)),
-          p(i + 0.34, Math.min(step.start, step.end)),
-          packed(colors[i]),
-          2,
-          0,
-        );
-        if (i < steps.length - 1)
-          ImDrawList_AddLine(
+        continue;
+      try {
+        for (const [i] of bars) {
+          ImPlot_FitPoint({ x: i - 0.45, y: layout.low });
+          ImPlot_FitPoint({ x: i + 0.45, y: layout.high });
+        }
+        const draw = plotDrawList();
+        ImPlot_PushPlotClipRect(0);
+        igPushFont(face, 16);
+        for (const [i, bar] of bars) {
+          const top = p(i - 0.34, Math.max(bar.start, bar.end)),
+            bottom = p(i + 0.34, Math.min(bar.start, bar.end));
+          ImDrawList_AddRectFilled(draw, top, bottom, packed(color), 2, 0);
+          const size = igCalcTextSize(bar.label, false, -1);
+          const point = {
+            x: (top.x + bottom.x - size.x) / 2,
+            y: bar.below ? bottom.y + 4 : top.y - 4 - size.y,
+          };
+          ImDrawList_AddText_FontPtr(
             draw,
-            p(i + 0.34, step.end),
-            p(i + 0.66, step.end),
-            packed({ ...color, w: 0.5 }),
-            1,
+            face,
+            16,
+            point,
+            packed(palette.ink),
+            bar.label,
             0,
           );
+          captureText(bar.label, "regular", 16, point, size.x);
+        }
+        igPopFont();
+        ImPlot_PopPlotClipRect();
+      } finally {
+        ImPlot_EndItem();
       }
-      ImPlot_PopPlotClipRect();
-    } finally {
-      ImPlot_EndItem();
     }
+    const draw = plotDrawList();
+    ImPlot_PushPlotClipRect(0);
+    for (let i = 0; i + 1 < layout.bars.length; i++) {
+      const from = p(i + 0.34, layout.bars[i].end),
+        to = p(i + 0.66, layout.bars[i].end);
+      for (let x = from.x; x < to.x; x += 7)
+        ImDrawList_AddLine(
+          draw,
+          { x, y: from.y },
+          { x: Math.min(to.x, x + 4), y: from.y },
+          packed(palette.muted),
+          1,
+          0,
+        );
+    }
+    ImPlot_PopPlotClipRect();
   }
 }

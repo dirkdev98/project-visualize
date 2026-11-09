@@ -58,7 +58,14 @@ import {
   text,
 } from "./primitives.ts";
 import { draggingText, selectionBreak, selectionText } from "./selection.ts";
-import { currentTheme, type Font, fonts, packed, palette } from "./theme.ts";
+import {
+  currentTheme,
+  type Font,
+  fonts,
+  itemSpacing,
+  packed,
+  palette,
+} from "./theme.ts";
 
 interface Run {
   value: string;
@@ -122,6 +129,30 @@ function runs(
   return out;
 }
 
+function runFont(run: Run): Font {
+  return run.code
+    ? "mono"
+    : run.strong
+      ? "bold"
+      : run.emphasis
+        ? "italic"
+        : "regular";
+}
+
+/** Single-line width of inline content, or `Infinity` when it cannot fit one line. */
+function inlineWidth(tokens: Token[], size: number, strong: boolean): number {
+  let width = 0;
+  for (const run of runs(tokens, { strong })) {
+    if (run.image || run.value.includes("\n")) return Infinity;
+    const face = fonts[runFont(run)];
+    if (!face) throw new Error("Fonts are not initialized");
+    igPushFont(face, run.code ? size * 0.92 : size);
+    width += igCalcTextSize(run.value, false, -1).x;
+    igPopFont();
+  }
+  return width;
+}
+
 function fittingPrefix(value: string, width: number): string {
   const points = Array.from(value);
   let low = 1,
@@ -179,17 +210,13 @@ export class RichText {
         y += this.image(run.image.slice(6), width) + 12;
         continue;
       }
-      const font: Font = run.code
-        ? "mono"
-        : run.strong
-          ? "bold"
-          : run.emphasis
-            ? "italic"
-            : "regular";
+      const font = runFont(run);
       const face = fonts[font];
       if (!face) throw new Error("Fonts are not initialized");
       const fontSize = run.code ? size * 0.92 : size;
       igPushFont(face, fontSize);
+      // Code chips extend past their text, so keep them clear of neighbours.
+      if (run.code && x > 0) x += 4;
       const pieces = run.value.match(/\n|[^\S\n]+|[^\s]+/g) ?? [];
       for (let piece of pieces) {
         if (piece === "\n") {
@@ -281,6 +308,7 @@ export class RichText {
           }
         }
       }
+      if (run.code) x += 4;
       igPopFont();
     }
     igSetCursorScreenPos(origin);
@@ -441,7 +469,8 @@ export class RichText {
         case "code":
           this.code(token.text, token.lang?.split(/\s/)[0] ?? "", exporting);
           break;
-        case "blockquote":
+        case "blockquote": {
+          const top = igGetCursorScreenPos();
           igIndent(20);
           this.blocks(
             token.tokens,
@@ -449,7 +478,16 @@ export class RichText {
             headings[headings.length - 1]?.index ?? parentHeading,
           );
           igUnindent(20);
+          ImDrawList_AddRectFilled(
+            windowDrawList(),
+            { x: top.x, y: top.y + 2 },
+            { x: top.x + 2, y: igGetCursorScreenPos().y - itemSpacing.y - 2 },
+            packed(palette.border),
+            0,
+            0,
+          );
           break;
+        }
         case "list": {
           let index = token.start === "" ? 1 : token.start;
           for (let n = 0; n < token.items.length; n++) {
@@ -542,18 +580,34 @@ export class RichText {
               0,
             )
           ) {
+            const aligned = (
+              tokens: Token[],
+              column: number,
+              strong: boolean,
+            ) => {
+              const align = token.align[column];
+              const room = available() - inlineWidth(tokens, 16, strong);
+              if ((align === "right" || align === "center") && room > 0) {
+                const at = igGetCursorScreenPos();
+                igSetCursorScreenPos({
+                  x: at.x + Math.floor(align === "right" ? room : room / 2),
+                  y: at.y,
+                });
+              }
+              this.inline(tokens, 16, strong);
+            };
             igTableNextRow(ImGuiTableRowFlags_Headers, 0);
-            for (const cell of token.header) {
+            for (const [i, cell] of token.header.entries()) {
               igTableNextColumn();
-              this.inline(cell.tokens, 16, true);
+              aligned(cell.tokens, i, true);
             }
             const textEnd = capture?.text.length ?? 0;
             for (const row of token.rows) {
               igTableNextRow(0, 0);
               if (capture) rowStarts.push(igGetCursorScreenPos().y);
-              for (const cell of row) {
+              for (const [i, cell] of row.entries()) {
                 igTableNextColumn();
-                this.inline(cell.tokens, 16);
+                aligned(cell.tokens, i, false);
               }
             }
             igEndTable();

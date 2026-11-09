@@ -155,3 +155,93 @@ test("explicit diagram positions fall back to readable automatic placement when 
       }
   }
 });
+
+const center = (box) => box.x + box.width / 2;
+
+test("a retry loop keeps its forward steps flowing in the layout direction", () => {
+  const nodes = ["receive", "check", "save", "review"].map((id) => ({
+    id,
+    label: id,
+  }));
+  const edges = [
+    { from: "receive", to: "check" },
+    { from: "check", to: "save" },
+    { from: "check", to: "review" },
+    { from: "review", to: "receive" },
+  ];
+  const down = graphLayout(nodes, edges, 1200, () => 60).nodes;
+  assert.ok(down[0].y < down[1].y && down[1].y < down[2].y);
+  assert.equal(down[2].y, down[3].y, "both outcomes share a layer");
+  const right = graphLayout(nodes, edges, 1200, () => 60, "right").nodes;
+  assert.ok(right[0].x < right[1].x && right[1].x < right[2].x);
+});
+
+test("a connector against the flow never runs along another connector", () => {
+  const nodes = ["receive", "check", "save", "review"].map((id) => ({
+    id,
+    label: id,
+  }));
+  const edges = [
+    { from: "receive", to: "check" },
+    { from: "check", to: "save" },
+    { from: "check", to: "review" },
+    { from: "review", to: "receive" },
+  ];
+  const segments = (path) => path.slice(1).map((b, i) => [path[i], b]);
+  const overlap = ([a, b], [c, d]) =>
+    a.x === b.x && c.x === d.x && a.x === c.x
+      ? Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) >
+        Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y))
+      : a.y === b.y && c.y === d.y && a.y === c.y
+        ? Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) >
+          Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x))
+        : false;
+  for (const direction of ["down", "right"]) {
+    const { edges: paths } = graphLayout(
+      nodes,
+      edges,
+      1200,
+      () => 60,
+      direction,
+    );
+    const back = segments(paths[3]);
+    for (const path of paths.slice(0, 3))
+      for (const segment of segments(path))
+        assert.ok(
+          back.every((other) => !overlap(segment, other)),
+          `${direction} retry overlaps a forward connector`,
+        );
+  }
+});
+
+test("children centre under their parent instead of the canvas", () => {
+  const nodes = ["network", "cedar", "birch", "sensor"].map((id) => ({
+    id,
+    label: id,
+  }));
+  const edges = [
+    { from: "network", to: "cedar" },
+    { from: "network", to: "birch" },
+    { from: "cedar", to: "sensor" },
+  ];
+  const [network, cedar, birch, sensor] = graphLayout(
+    nodes,
+    edges,
+    1200,
+    () => 60,
+  ).nodes;
+  assert.equal(center(sensor), center(cedar));
+  assert.equal((center(cedar) + center(birch)) / 2, center(network));
+});
+
+test("a child lines up with its own parent in a horizontal layout", () => {
+  const nodes = ["first", "second", "child"].map((id) => ({ id, label: id }));
+  const [first, , child] = graphLayout(
+    nodes,
+    [{ from: "first", to: "child" }],
+    1200,
+    () => 60,
+    "right",
+  ).nodes;
+  assert.equal(child.y, first.y);
+});

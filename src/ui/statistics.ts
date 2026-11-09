@@ -1,3 +1,5 @@
+import { formatNumber } from "./number-format.ts";
+
 export function histogram(groups: number[][], count?: number) {
   let min = Infinity,
     max = -Infinity,
@@ -62,13 +64,60 @@ export function boxplot(input: number[]) {
   };
 }
 
+export const waterfallGroups = [
+  { id: "increase", name: "Increase" },
+  { id: "decrease", name: "Decrease" },
+  { id: "total", name: "Total" },
+] as const;
+export type WaterfallGroup = (typeof waterfallGroups)[number]["id"];
+
+/**
+ * Lays out waterfall bars with their legend group and value label. Labels sit
+ * past the bar end that points away from zero, so `low` and `high` reserve
+ * room for them beyond the bars.
+ */
 export function waterfall(
   steps: { value: number; kind?: "delta" | "total" }[],
 ) {
   let total = 0;
-  return steps.map((step) => {
+  const bars = steps.map((step) => {
     const start = step.kind === "total" ? 0 : total;
-    total = step.kind === "total" ? step.value : total + step.value;
-    return { start, end: total };
+    // Rounding keeps decimal steps such as 14.2 - 3.1 from showing float noise.
+    total =
+      step.kind === "total"
+        ? step.value
+        : Number((total + step.value).toPrecision(12));
+    const group: WaterfallGroup =
+      step.kind === "total"
+        ? "total"
+        : step.value >= 0
+          ? "increase"
+          : "decrease";
+    return {
+      start,
+      end: total,
+      group,
+      label: `${group === "increase" && step.value > 0 ? "+" : ""}${formatNumber(step.value)}`,
+      below: step.value < 0,
+    };
   });
+  const ends = bars.flatMap((bar) => [bar.start, bar.end]);
+  const min = Math.min(0, ...ends),
+    max = Math.max(0, ...ends);
+  const room = (max - min || 1) * 0.16;
+  return {
+    bars,
+    low: Math.min(
+      min,
+      ...bars
+        .filter((bar) => bar.below)
+        .map((bar) => Math.min(bar.start, bar.end) - room),
+    ),
+    high: Math.max(
+      max,
+      ...bars
+        .filter((bar) => !bar.below)
+        .map((bar) => Math.max(bar.start, bar.end) + room),
+    ),
+  };
 }

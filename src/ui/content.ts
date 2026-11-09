@@ -4,13 +4,16 @@ import {
   ImDrawList_AddLine,
   ImDrawList_AddRect,
   ImDrawList_AddRectFilled,
+  ImDrawList_AddText_FontPtr,
   ImGuiCol_PlotHistogram,
   ImGuiCond_Always,
   ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
   ImGuiMod_Shift,
   ImGuiSliderFlags_AlwaysClamp,
   ImGuiStyleVar_CellPadding,
+  ImGuiStyleVar_DisabledAlpha,
   ImGuiTableBgTarget_CellBg,
+  ImGuiTableColumnFlags_IsSorted,
   ImGuiTableColumnFlags_WidthFixed,
   ImGuiTableColumnFlags_WidthStretch,
   ImGuiTableFlags_BordersInnerH,
@@ -35,11 +38,12 @@ import {
   ImPlot_PopPlotClipRect,
   ImPlot_PushPlotClipRect,
   ImPlot_SetNextAxesLimits,
-  ImPlot_SetNextAxesToFit,
   ImPlot_SetupAxes,
   ImPlot_SetupAxisTicks_doublePtr,
   ImPlot_SetupLegend,
   ImPlotAxisFlags_Invert,
+  ImPlotAxisFlags_NoGridLines,
+  ImPlotAxisFlags_NoTickMarks,
   ImPlotFlags_Crosshairs,
   ImPlotFlags_NoInputs,
   ImPlotFlags_NoMenus,
@@ -63,6 +67,8 @@ import {
   igEndDisabled,
   igEndTable,
   igGetCursorScreenPos,
+  igGetFontSize,
+  igGetFrameHeight,
   igGetItemRectMax,
   igGetItemRectMin,
   igGetMouseDragDelta,
@@ -85,6 +91,7 @@ import {
   igPushID_Int,
   igPushID_Str,
   igPushStyleColor_Vec4,
+  igPushStyleVar_Float,
   igPushStyleVar_Vec2,
   igSelectable_Bool,
   igSeparator,
@@ -93,6 +100,7 @@ import {
   igSliderDouble,
   igSmallButton,
   igSpacing,
+  igTableGetColumnFlags,
   igTableGetSortSpecs,
   igTableHeader,
   igTableNextColumn,
@@ -131,7 +139,13 @@ import type {
   Tone,
 } from "../model.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
-import { crowdedCategories } from "./chart-layout.ts";
+import {
+  analyticalRange,
+  type ChartBounds,
+  chartBounds,
+  chartTicks,
+  crowdedCategories,
+} from "./chart-layout.ts";
 import { Diagrams } from "./diagrams.ts";
 import { plotDrawList, windowDrawList } from "./draw-list.ts";
 import { type Icon, iconButton } from "./icons.ts";
@@ -146,6 +160,7 @@ import { formatNumber } from "./number-format.ts";
 import { Plots } from "./plots.ts";
 import {
   available,
+  captureText,
   input,
   inputBuffer,
   inputValue,
@@ -163,7 +178,9 @@ import {
   type Color,
   color,
   currentTheme,
+  type Font,
   fonts,
+  framePadding,
   packed,
   palette,
   seriesColors,
@@ -193,6 +210,61 @@ export function documentState(
     chartFits: new Map(),
   };
 }
+interface PlotView {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}
+
+/** Labels every `stride`th round value of an axis, matching HTML exports. */
+function roundTicks(
+  axis: number,
+  min: number,
+  max: number,
+  integer: boolean,
+  stride = 1,
+) {
+  const values = chartTicks(min, max, integer).filter(
+    (_, i) => i % stride === 0,
+  );
+  if (values.length)
+    ImPlot_SetupAxisTicks_doublePtr(
+      axis,
+      values,
+      values.map((value) => formatNumber(Number(value.toPrecision(4)))),
+      false,
+    );
+}
+
+/** Draws one line of text centred in the remaining width, as in HTML tables. */
+function centered(value: string, size: number, font: Font, tint?: Color) {
+  const face = fonts[font];
+  if (!face) throw new Error("Fonts are not initialized");
+  igPushFont(face, size);
+  const width = igCalcTextSize(value, false, -1).x;
+  igPopFont();
+  const at = igGetCursorScreenPos();
+  igSetCursorScreenPos({
+    x: at.x + Math.max(0, (available() - width) / 2),
+    y: at.y,
+  });
+  text(value, size, font, tint);
+}
+
+/** Records the text a framed widget shows so PDF exports keep it searchable. */
+function captureField(value: string, inset = framePadding.x) {
+  if (!value || !currentCapture()) return;
+  const min = igGetItemRectMin();
+  captureText(
+    value,
+    "regular",
+    igGetFontSize(),
+    { x: min.x + inset, y: min.y + framePadding.y },
+    igCalcTextSize(value, false, -1).x,
+  );
+}
+
 function tone(value: Tone | undefined): Color {
   return value && value !== "neutral" ? palette[value] : palette.muted;
 }
@@ -277,6 +349,10 @@ export class DocumentRenderer {
   private selection = new TextSelection();
   private view: ResolvedView | undefined;
   private viewRevision = -1;
+  private rowDepth = 0;
+  private rowDetail = false;
+  private chartBounds = new Map<ChartBlock, ChartBounds>();
+  private chartLimits = new Map<string, PlotView>();
   private controlChoices = new Map<
     string,
     { values: Cell[]; labels: string[] }
@@ -476,7 +552,8 @@ export class DocumentRenderer {
           if (typeof value.value === "number")
             display = formatNumber(value.value, value);
           text(display, 36, "bold");
-          text(value.detail ?? "", 15, "regular", tone(value.tone));
+          if (value.detail || this.rowDetail)
+            text(value.detail ?? "", 15, "regular", tone(value.tone));
         });
         break;
       case "control":
@@ -542,6 +619,12 @@ export class DocumentRenderer {
                 0,
               );
             igTableNextRow(0, 0);
+            this.rowDepth++;
+            // Metrics beside one with a detail keep its line so the cards align.
+            const rowDetail = this.rowDetail;
+            this.rowDetail = value.children.some(
+              (child) => child.type === "metric" && !!child.detail,
+            );
             for (let i = 0; i < value.children.length; i++) {
               igTableNextColumn();
               igPushID_Int(i);
@@ -553,6 +636,8 @@ export class DocumentRenderer {
               );
               igPopID();
             }
+            this.rowDepth--;
+            this.rowDetail = rowDetail;
             igEndTable();
           }
           igPopStyleVar(1);
@@ -724,20 +809,59 @@ export class DocumentRenderer {
           : selected >= 0
             ? options.labels[selected]
             : scalar(current);
+    // Exports draw the viewer's own widgets, inert but not dimmed, so a
+    // capture shows the controls as they appear on screen.
     if (exporting) {
-      text(control.label, 12, "bold", palette.muted);
-      text(preview || "All", 17);
-      return;
+      igPushStyleVar_Float(ImGuiStyleVar_DisabledAlpha, 1);
+      igBeginDisabled(true);
     }
+    try {
+      this.controlWidgets(control, current, options, preview);
+    } finally {
+      if (exporting) {
+        igEndDisabled();
+        igPopStyleVar(1);
+      }
+    }
+  }
+  private controlWidgets(
+    control: ControlBlock,
+    current: ParameterValue,
+    options: { values: Cell[]; labels: string[] },
+    preview: string,
+  ) {
+    const face = fonts.bold;
+    if (!face) throw new Error("Fonts are not initialized");
+    igPushFont(face, 12);
+    const labelSize = igCalcTextSize(control.label, false, -1);
+    igPopFont();
     if (control.kind === "toggle") {
+      // Line the checkbox up with the fields of neighbouring controls.
+      if (this.rowDepth) igDummy({ x: 0, y: labelSize.y });
       const result = igCheckbox(control.label, current === true);
+      captureField(control.label, igGetFrameHeight() + 6);
       if (result.result) this.parameter(control, result.v);
       return;
     }
-    text(control.label, 12, "bold", palette.muted);
+    // Draw the label at the cell's top: ImGui would offset text in later row
+    // columns to the baseline of a framed widget in an earlier column.
+    const at = igGetCursorScreenPos();
+    ImDrawList_AddText_FontPtr(
+      windowDrawList(),
+      face,
+      12,
+      at,
+      packed(palette.muted),
+      control.label,
+      0,
+    );
+    captureText(control.label, "bold", 12, at, labelSize.x);
+    igDummy(labelSize);
     igSetNextItemWidth(-1);
     if (control.kind === "select") {
-      if (igBeginCombo("##value", preview, 0)) {
+      const open = igBeginCombo("##value", preview, 0);
+      captureField(preview);
+      if (open) {
         if (igSelectable_Bool("All values", isAll(current), 0, { x: 0, y: 0 }))
           this.parameter(control, ALL);
         for (let i = 0; i < options.values.length; i++)
@@ -760,6 +884,7 @@ export class DocumentRenderer {
       }
       if (input("##value", "Search…", buffer))
         this.parameter(control, inputValue(buffer));
+      captureField(inputValue(buffer));
     } else {
       const bounds = numericBounds(this.document, control);
       const range =
@@ -779,7 +904,15 @@ export class DocumentRenderer {
       let min = range.min ?? bounds.min,
         max = range.max ?? bounds.max;
       igBeginDisabled(bounds.min === bounds.max);
-      igSetNextItemWidth(Math.max(80, available() - 60));
+      const sliderWidth = Math.max(80, available() - 60);
+      const sliderValue = (value: number) =>
+        captureField(
+          String(Number(value.toPrecision(6))),
+          (sliderWidth -
+            igCalcTextSize(String(Number(value.toPrecision(6))), false, -1).x) /
+            2,
+        );
+      igSetNextItemWidth(sliderWidth);
       const lower = igSliderDouble(
         "From",
         min,
@@ -788,11 +921,12 @@ export class DocumentRenderer {
         "%.6g",
         ImGuiSliderFlags_AlwaysClamp,
       );
+      sliderValue(min);
       if (lower.result) {
         min = lower.p_data;
         this.parameter(control, { min, max });
       }
-      igSetNextItemWidth(Math.max(80, available() - 60));
+      igSetNextItemWidth(sliderWidth);
       const upper = igSliderDouble(
         "To",
         max,
@@ -801,6 +935,7 @@ export class DocumentRenderer {
         "%.6g",
         ImGuiSliderFlags_AlwaysClamp,
       );
+      sliderValue(max);
       if (upper.result) {
         max = upper.p_data;
         this.parameter(control, { min, max });
@@ -918,10 +1053,35 @@ export class DocumentRenderer {
         const face = fonts.bold;
         if (!face) throw new Error("Fonts are not initialized");
         igPushFont(face, 16);
-        for (const column of value.columns) {
+        for (const [i, column] of value.columns.entries()) {
           igTableNextColumn();
-          if (exporting) text(column.label, 16, "bold");
-          else igTableHeader(column.label);
+          const at = igGetCursorScreenPos();
+          const indent = cells.right[i]
+            ? Math.max(
+                0,
+                available() - igCalcTextSize(column.label, false, -1).x,
+              )
+            : 0;
+          if (exporting) {
+            igSetCursorScreenPos({ x: at.x + indent, y: at.y });
+            text(column.label, 16, "bold");
+          } else if (!indent) igTableHeader(column.label);
+          else {
+            // ImGui headers only align left, so draw a right-aligned label
+            // and step it clear of the sort arrow ImGui adds at the edge.
+            igTableHeader(`##header-${i}`);
+            const sorted =
+              (igTableGetColumnFlags(i) & ImGuiTableColumnFlags_IsSorted) !== 0;
+            ImDrawList_AddText_FontPtr(
+              windowDrawList(),
+              face,
+              16,
+              { x: at.x + Math.max(0, indent - (sorted ? 22 : 0)), y: at.y },
+              packed(palette.ink),
+              column.label,
+              0,
+            );
+          }
         }
         igPopFont();
         textEnd = capture?.text.length ?? 0;
@@ -1091,7 +1251,7 @@ export class DocumentRenderer {
         text(value.yLabel ?? "", 14, "bold");
         for (let column = first; column < first + count; column++) {
           igTableNextColumn();
-          text(xLabels[column], 14, "bold");
+          centered(xLabels[column], 14, "bold");
         }
         const textEnd = capture?.text.length ?? 0;
         for (let row = 0; row < ys.length; row++) {
@@ -1105,7 +1265,7 @@ export class DocumentRenderer {
             const fill =
               cell === null ? palette.code : heatColor(cell, min, max);
             igTableSetBgColor(ImGuiTableBgTarget_CellBg, packed(fill), -1);
-            text(
+            centered(
               cell === null ? "Missing" : format(cell),
               15,
               cell === null ? "regular" : "mono",
@@ -1225,15 +1385,40 @@ export class DocumentRenderer {
       this.state.chartFits.get(interactionKey) !== fitKey;
     const pinch = this.pinchViews.get(interactionKey);
     this.pinchViews.delete(interactionKey);
-    if (exporting || refit || reset) ImPlot_SetNextAxesToFit();
-    else if (pinch)
+    let bounds = this.chartBounds.get(value);
+    if (!bounds) {
+      bounds = chartBounds(
+        series.flatMap((item) =>
+          item.values.map((y, i) => ({ x: item.x?.[i] ?? i, y })),
+        ),
+        value.kind,
+      );
+      this.chartBounds.set(value, bounds);
+    }
+    const fitted = horizontalBars
+      ? {
+          xMin: bounds.ymin,
+          xMax: bounds.ymax,
+          yMin: bounds.xmin,
+          yMax: bounds.xmax,
+        }
+      : {
+          xMin: bounds.xmin,
+          xMax: bounds.xmax,
+          yMin: bounds.ymin,
+          yMax: bounds.ymax,
+        };
+    const next = exporting || refit || reset ? fitted : pinch;
+    if (next)
       ImPlot_SetNextAxesLimits(
-        pinch.xMin,
-        pinch.xMax,
-        pinch.yMin,
-        pinch.yMax,
+        next.xMin,
+        next.xMax,
+        next.yMin,
+        next.yMax,
         ImGuiCond_Always,
       );
+    // Ticks follow the view of the previous frame, which pan and zoom change.
+    const limits = next ?? this.chartLimits.get(interactionKey) ?? fitted;
     if (reset) this.barPress = undefined;
     const selection = this.view?.chartSelections.get(key);
     const choosing =
@@ -1255,11 +1440,16 @@ export class DocumentRenderer {
       return;
     if (refit && fitKey !== undefined)
       this.state.chartFits.set(interactionKey, fitKey);
+    // Like HTML exports, only the value axis carries gridlines.
     ImPlot_SetupAxes(
       horizontalBars ? (value.yLabel ?? "") : (value.xLabel ?? ""),
       horizontalBars ? (value.xLabel ?? "") : (value.yLabel ?? ""),
-      0,
-      horizontalBars ? ImPlotAxisFlags_Invert : 0,
+      ImPlotAxisFlags_NoTickMarks |
+        (horizontalBars ? 0 : ImPlotAxisFlags_NoGridLines),
+      ImPlotAxisFlags_NoTickMarks |
+        (horizontalBars
+          ? ImPlotAxisFlags_Invert | ImPlotAxisFlags_NoGridLines
+          : 0),
     );
     const horizontal =
       series.reduce(
@@ -1286,6 +1476,22 @@ export class DocumentRenderer {
             [categories?.labels[i] ?? value.labels[i]],
             false,
           );
+    roundTicks(
+      horizontalBars ? 0 : ImAxis_Y1,
+      horizontalBars ? limits.xMin : limits.yMin,
+      horizontalBars ? limits.xMax : limits.yMax,
+      bounds.yWhole,
+    );
+    if (!value.labels) {
+      const values = chartTicks(limits.xMin, limits.xMax, bounds.xWhole);
+      const stride = Math.max(
+        1,
+        Math.ceil(
+          values.length / Math.max(1, Math.floor((available() - 80) / 80)),
+        ),
+      );
+      roundTicks(0, limits.xMin, limits.xMax, bounds.xWhole, stride);
+    }
     const selected = selection
       ? parameterValue(this.state.parameters, selection.control)
       : ALL;
@@ -1541,6 +1747,13 @@ export class DocumentRenderer {
           size: ImPlot_GetPlotSize(),
           limits: ImPlot_GetPlotLimits(-1, -1),
         };
+    const view = ImPlot_GetPlotLimits(-1, -1);
+    this.chartLimits.set(interactionKey, {
+      xMin: view.X.Min,
+      xMax: view.X.Max,
+      yMin: view.Y.Min,
+      yMax: view.Y.Max,
+    });
     ImPlot_EndPlot();
     if (area) overlay(() => this.zoomControls(interactionKey, area));
     keepTogether(plotTop, igGetCursorScreenPos().y);
@@ -1670,18 +1883,38 @@ export class DocumentRenderer {
       this.chart(prepared.chart, exporting, key);
       return;
     }
+    if (value.type === "boxplot" && !prepared.boxes?.some(Boolean)) {
+      text("No observations in this view.", 16, "regular", palette.muted);
+      return;
+    }
     const reset = this.fitRequests.delete(key),
       pinch = this.pinchViews.get(key);
     this.pinchViews.delete(key);
-    if (exporting || fresh || reset) ImPlot_SetNextAxesToFit();
-    else if (pinch)
+    const range = analyticalRange(
+      value.type === "waterfall"
+        ? [prepared.waterfall?.low ?? 0, prepared.waterfall?.high ?? 1]
+        : (value.series ?? []).flatMap((series) => series.values),
+      value.type === "waterfall",
+    );
+    const fitted = {
+      xMin: -0.5,
+      xMax:
+        (value.type === "waterfall"
+          ? value.steps.length
+          : (value.series ?? []).length) - 0.5,
+      yMin: range.low,
+      yMax: range.high,
+    };
+    const next = exporting || fresh || reset ? fitted : pinch;
+    if (next)
       ImPlot_SetNextAxesLimits(
-        pinch.xMin,
-        pinch.xMax,
-        pinch.yMin,
-        pinch.yMax,
+        next.xMin,
+        next.xMax,
+        next.yMin,
+        next.yMax,
         ImGuiCond_Always,
       );
+    const limits = next ?? this.chartLimits.get(key) ?? fitted;
     if (
       !ImPlot_BeginPlot(
         "##analysis",
@@ -1692,7 +1925,21 @@ export class DocumentRenderer {
       )
     )
       return;
-    ImPlot_SetupAxes("", value.yLabel ?? "", 0, 0);
+    ImPlot_SetupAxes(
+      "",
+      value.yLabel ?? "",
+      ImPlotAxisFlags_NoTickMarks | ImPlotAxisFlags_NoGridLines,
+      ImPlotAxisFlags_NoTickMarks,
+    );
+    roundTicks(
+      ImAxis_Y1,
+      limits.yMin,
+      limits.yMax,
+      value.type === "boxplot" &&
+        (value.series ?? []).every((series) =>
+          series.values.every(Number.isInteger),
+        ),
+    );
     ImPlot_SetupLegend(
       ImPlotLocation_South,
       ImPlotLegendFlags_Horizontal |
@@ -1715,17 +1962,11 @@ export class DocumentRenderer {
     } else {
       for (const [i, step] of value.steps.entries())
         ImPlot_SetupAxisTicks_doublePtr(0, [i], [step.label], false);
-      this.plotDrawing.waterfall(
-        value.title ?? "Change",
-        prepared.waterfall ?? [],
-        value.steps.map((step) =>
-          step.kind === "total"
-            ? palette.accent
-            : step.value >= 0
-              ? palette.positive
-              : palette.negative,
-        ),
-      );
+      this.plotDrawing.waterfall(prepared.waterfall ?? waterfall([]), {
+        increase: palette.positive,
+        decrease: palette.negative,
+        total: palette.accent,
+      });
     }
     if (!exporting && ImPlot_IsPlotHovered()) {
       const mouse = ImPlot_GetPlotMousePos(-1, -1),
@@ -1751,7 +1992,7 @@ export class DocumentRenderer {
           });
       } else {
         const step = value.steps[index],
-          total = prepared.waterfall?.[index];
+          total = prepared.waterfall?.bars[index];
         if (step && total)
           tooltip({
             title: step.label,
@@ -1797,6 +2038,12 @@ export class DocumentRenderer {
       size: ImPlot_GetPlotSize(),
       limits: ImPlot_GetPlotLimits(-1, -1),
     };
+    this.chartLimits.set(key, {
+      xMin: area.limits.X.Min,
+      xMax: area.limits.X.Max,
+      yMin: area.limits.Y.Min,
+      yMax: area.limits.Y.Max,
+    });
     ImPlot_EndPlot();
     if (!exporting) overlay(() => this.zoomControls(key, area));
   }

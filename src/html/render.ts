@@ -127,27 +127,34 @@ export function renderDocument(
         (sum, column) => sum + (column.weight ?? 1),
         0,
       );
-      content = `<table><colgroup>${value.columns.map((column) => `<col style="width:${((column.weight ?? 1) / weight) * 100}%">`).join("")}</colgroup><thead><tr>${value.columns.map((column) => `<th scope="col" aria-sort="${state.sort === column.key ? (state.descending ? "descending" : "ascending") : "none"}"><button type="button" data-sort="${escapeHtml(column.key)}" data-table="${escapeHtml(key)}">${escapeHtml(column.label)}${state.sort === column.key ? (state.descending ? " ↓" : " ↑") : ""}</button></th>`).join("")}</tr></thead><tbody>${filtered
+      const numeric = value.columns.map(
+        (column) =>
+          column.align === "right" ||
+          (column.align === undefined &&
+            rows.some((row) => typeof row[column.key] === "number") &&
+            rows.every(
+              (row) =>
+                row[column.key] == null || typeof row[column.key] === "number",
+            )),
+      );
+      const align = (index: number) =>
+        numeric[index] ? ' class="pv-numeric"' : "";
+      content = `<table><colgroup>${value.columns.map((column) => `<col style="width:${((column.weight ?? 1) / weight) * 100}%">`).join("")}</colgroup><thead><tr>${value.columns.map((column, index) => `<th scope="col"${align(index)} aria-sort="${state.sort === column.key ? (state.descending ? "descending" : "ascending") : "none"}"><button type="button" data-sort="${escapeHtml(column.key)}" data-table="${escapeHtml(key)}">${escapeHtml(column.label)}${state.sort === column.key ? (state.descending ? " ↓" : " ↑") : ""}</button></th>`).join("")}</tr></thead><tbody>${filtered
         .map(
           (row) =>
             `<tr>${value.columns
-              .map((column) => {
-                const numeric =
-                  column.align === "right" ||
-                  (column.align === undefined &&
-                    rows.some((row) => typeof row[column.key] === "number") &&
-                    rows.every(
-                      (row) =>
-                        row[column.key] == null ||
-                        typeof row[column.key] === "number",
-                    ));
-                return `<td${numeric ? ' class="pv-numeric"' : ""}>${cell(row[column.key], column)}</td>`;
-              })
+              .map(
+                (column, index) =>
+                  `<td${align(index)}>${cell(row[column.key], column)}</td>`,
+              )
               .join("")}</tr>`,
         )
         .join("")}</tbody></table>`;
     }
-    return `${search}${content}${filtered.length ? "" : '<p class="pv-muted">No matching rows</p>'}`;
+    const empty = filtered.length
+      ? ""
+      : `<p class="pv-muted pv-table-empty">${rows.length ? "No rows match this search." : "No rows in this view."}</p>`;
+    return `${search}${content}${empty}`;
   }
   function tableState(key: string) {
     return state.tables[key] ?? { query: "", descending: false };
@@ -188,7 +195,7 @@ export function renderDocument(
           0,
         );
         content = horizontal
-          ? `<div class="pv-row" style="grid-template-columns:${value.children.map((_, index) => `${value.weights?.[index] ?? 1}fr`).join(" ")}">${value.children.map((child, index) => block(child, ((width - 16 * value.children.length) * (value.weights?.[index] ?? 1)) / total, `${key}.${child.id ?? index}`)).join("")}</div>`
+          ? `<div class="pv-row" style="grid-template-columns:${value.children.map((_, index) => `${value.weights?.[index] ?? 1}fr`).join(" ")}">${value.children.map((child, index) => block(child, ((width - 16 * (value.children.length - 1)) * (value.weights?.[index] ?? 1)) / total, `${key}.${child.id ?? index}`)).join("")}</div>`
           : blocks(value.children, width, key);
         break;
       }
@@ -216,7 +223,7 @@ export function renderDocument(
         if (value.kind === "select") {
           const values = choices(document, value),
             names = labels(values);
-          content = `<label class="pv-control">${escapeHtml(value.label)}<select data-control="${escapeHtml(value.id)}"><option value="${escapeHtml(JSON.stringify(ALL))}"${isAll(parameter) ? " selected" : ""}>All</option>${values.map((item, index) => `<option value="${escapeHtml(JSON.stringify(item))}"${JSON.stringify(item) === selected ? " selected" : ""}>${escapeHtml(names[index])}</option>`).join("")}</select></label>`;
+          content = `<label class="pv-control">${escapeHtml(value.label)}<select data-control="${escapeHtml(value.id)}"><option value="${escapeHtml(JSON.stringify(ALL))}"${isAll(parameter) ? " selected" : ""}>All values</option>${values.map((item, index) => `<option value="${escapeHtml(JSON.stringify(item))}"${JSON.stringify(item) === selected ? " selected" : ""}>${escapeHtml(names[index])}</option>`).join("")}</select></label>`;
         } else if (value.kind === "search")
           content = `<label class="pv-control">${escapeHtml(value.label)}<input type="search" data-control="${escapeHtml(value.id)}" value="${escapeHtml(typeof parameter === "string" ? parameter : "")}"></label>`;
         else if (value.kind === "toggle")

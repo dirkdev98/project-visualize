@@ -92,7 +92,6 @@
   display: grid;
   gap: 16px;
   min-width: 0;
-  padding: 0 8px;
 }
 .pv .pv-block {
   min-width: 0;
@@ -120,6 +119,17 @@
   font-size: 15px;
   min-height: 15px;
 }
+/* Metrics beside one with a detail keep its line so the cards align. */
+.pv .pv-metric p:empty {
+  display: none;
+}
+.pv
+  .pv-row:has(> .pv-block > .pv-metric > p:not(:empty))
+  > .pv-block
+  > .pv-metric
+  > p:empty {
+  display: block;
+}
 .pv .pv-caption {
   font-size: 15px;
   color: var(--pv-muted);
@@ -127,6 +137,10 @@
 }
 .pv .pv-muted {
   color: var(--pv-muted);
+}
+.pv .pv-table-empty {
+  margin: 12px 0 0;
+  font-size: 16px;
 }
 .pv .pv-text {
   white-space: pre-wrap;
@@ -330,12 +344,14 @@
   display: flex;
   flex-direction: column;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 12px;
+  color: var(--pv-muted);
   gap: 8px;
 }
 .pv .pv-control :where(input, select) {
   font-weight: 400;
   font-size: 16px;
+  color: var(--pv-ink);
   width: 100%;
 }
 .pv .pv-toggle {
@@ -344,12 +360,18 @@
   gap: 10px;
   font-size: 16px;
 }
+/* Line a checkbox up with the fields of labelled controls beside it. */
+.pv .pv-row .pv-toggle {
+  margin-top: 24px;
+  min-height: 39px;
+}
 .pv .pv-toggle input {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
 }
 .pv .pv-range {
+  margin: 0;
   padding: 0;
   border: 0;
   display: flex;
@@ -359,7 +381,10 @@
   min-width: 0;
 }
 .pv .pv-range legend {
+  padding: 0;
   font-weight: 600;
+  font-size: 12px;
+  color: var(--pv-muted);
   margin-bottom: 8px;
 }
 .pv .pv-range label {

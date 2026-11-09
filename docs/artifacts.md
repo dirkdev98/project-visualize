@@ -308,7 +308,8 @@ missing measurements are omitted without coercion.
 A `waterfall` takes ordered `steps` with a `label`, numeric `value` and optional
 `kind`. The default `delta` adds to the running total. A `total` step draws from zero
 and resets the running total to its explicit value. Use totals for opening and
-closing balances instead of implying a total from the last step's position.
+closing balances instead of implying a total from the last step's position. Bars
+show their value, colored and grouped in the legend as increase, decrease or total.
 
 ## Heatmaps
 

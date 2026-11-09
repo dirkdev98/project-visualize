@@ -1,5 +1,11 @@
 import type { Diagram } from "../model.ts";
-import { edgeLabelLayout, graphLayout } from "../ui/diagram-layout.ts";
+import {
+  edgeLabelLayout,
+  ganttDependency,
+  ganttTicks,
+  graphLayout,
+  layerGap,
+} from "../ui/diagram-layout.ts";
 import { escapeHtml, label, svg, wrap } from "./markup.ts";
 
 export type Measure = (
@@ -64,7 +70,7 @@ export function diagram(
       const text = wrap(
         message.label,
         from === to
-          ? lane - 40
+          ? lane - Math.min(42, lane / 3) - 24
           : Math.max(100, Math.abs(from - to) * lane - 24),
         13,
         measure,
@@ -77,7 +83,7 @@ export function diagram(
     participants.forEach((participant, index) => {
       const x = lane * (index + 0.5),
         w = lane - 16;
-      drawing += `<path d="M${x},${header}V${height}" stroke="var(--pv-border)" stroke-dasharray="5 5"/><rect x="${x - w / 2}" y="0" width="${w}" height="${header - 8}" rx="7" fill="var(--pv-surface)"/>${lines(index * lane + 16, 21, wrap(participant.label, lane - 32, 15, measure), 15, "start", 600)}`;
+      drawing += `<path d="M${x},${header}V${height}" stroke="var(--pv-diagramBorder)" stroke-dasharray="5 5"/><rect x="${x - w / 2 + 0.5}" y="0.5" width="${w - 1}" height="${header - 9}" rx="7" fill="var(--pv-surface)" stroke="var(--pv-border)"/>${lines(x, 21, wrap(participant.label, lane - 32, 15, measure), 15, "middle", 600)}`;
     });
     value.messages.forEach((message, index) => {
       const x1 = lane * ((indices.get(message.from) ?? 0) + 0.5),
@@ -92,8 +98,10 @@ export function diagram(
       drawing +=
         arrow(path, id, message.kind === "return", message.kind === "event") +
         lines(
-          x1 === x2 ? x1 + 8 : Math.min(x1, x2) + 12,
-          row.y + 15,
+          x1 === x2 ? x1 + side + 8 : Math.min(x1, x2) + 12,
+          x1 === x2
+            ? lineY - 7 - (row.lines.length * 13) / 2 + 11
+            : lineY - 6 - row.lines.length * 13 + 11,
           row.lines,
           13,
           "start",
@@ -121,12 +129,22 @@ export function diagram(
       y += row;
     }
     height = y + 12;
-    for (let i = 0; i <= 4; i++) {
-      const time = start + ((end - start) * i) / 4,
-        x = at(time);
-      drawing += `<path d="M${x},32V${height - 12}" stroke="var(--pv-border)"/>${label(x, 20, new Date(time).toISOString().slice(5, 10), 11)}`;
+    for (const tick of ganttTicks(start, end, plotWidth)) {
+      const x = at(tick.time);
+      drawing += `<path d="M${x},32V${height - 12}" stroke="var(--pv-border)"/>`;
+      if (tick.label) drawing += label(x + 4, 20, tick.label, 12, "start");
     }
     const indices = new Map(tasks.map((task, index) => [task.id, index]));
+    const bars = tasks.map((task, index) => {
+      const x = at(date(task.start));
+      return {
+        x,
+        y: tops[index] + rows[index] / 2 - 9,
+        width: Math.max(1, at(date(task.end) + day) - x),
+        height: 18,
+      };
+    });
+    let dependencies = "";
     tasks.forEach((task, index) => {
       const y = tops[index] + rows[index] / 2,
         x = at(date(task.start)),
@@ -141,15 +159,34 @@ export function diagram(
         "start",
       );
       for (const dependency of task.dependsOn ?? []) {
-        const previous = indices.get(dependency);
-        if (previous === undefined) continue;
-        const sx = at(date(tasks[previous].end) + day),
-          sy = tops[previous] + rows[previous] / 2;
-        drawing += arrow(`M${sx},${sy}H${sx + 8}V${y}H${x}`, id);
+        const previous = bars[indices.get(dependency) ?? -1];
+        if (!previous) continue;
+        const route = ganttDependency(
+          { x: previous.x + previous.width, y: previous.y + 9 },
+          bars[index],
+        );
+        dependencies += arrow(
+          `M${route.points.map((point) => `${point.x},${point.y}`).join("L")}`,
+          id,
+        );
       }
       drawing += `<rect x="${x}" y="${y - 9}" width="${Math.max(1, w)}" height="18" rx="4" fill="var(--pv-accent)" fill-opacity=".3"/>${task.progress === undefined ? "" : `<rect x="${x}" y="${y - 9}" width="${w * task.progress}" height="18" rx="4" fill="var(--pv-accent)"/>`}</g>`;
     });
+    drawing += dependencies;
   } else {
+    const labels = (value.edges ?? []).map((edge) =>
+      edge.label
+        ? wrap(edge.label, Math.min(160, width - 48), 14, measure)
+        : [],
+    );
+    const labelSizes = labels.map((text) =>
+      text.length
+        ? {
+            width: Math.max(...text.map((line) => measure(line, 14))) + 12,
+            height: text.length * 14 + 8,
+          }
+        : undefined,
+    );
     const layout = graphLayout(
       value.nodes,
       value.edges ?? [],
@@ -179,24 +216,12 @@ export function diagram(
           : Math.max(60, lh + fields + 32);
       },
       value.direction,
-    );
-    const labels = (value.edges ?? []).map((edge) =>
-      edge.label
-        ? wrap(edge.label, Math.min(160, width - 48), 14, measure)
-        : [],
-    );
-    const placement = edgeLabelLayout(
-      layout,
-      width,
-      labels.map((text) =>
-        text.length
-          ? {
-              width: Math.max(...text.map((line) => measure(line, 14))) + 12,
-              height: text.length * 14 + 8,
-            }
-          : undefined,
+      layerGap(
+        labelSizes.map((size) => size?.width),
+        value.kind === "er",
       ),
     );
+    const placement = edgeLabelLayout(layout, width, labelSizes);
     height = placement.height;
     const cardinality = (value: string) =>
       ({ one: "1", "zero-or-one": "0..1", many: "*", "one-or-many": "1..*" })[
