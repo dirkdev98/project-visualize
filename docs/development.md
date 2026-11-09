@@ -102,10 +102,12 @@ generated exports in the repository.
 
 Use `-- --only text` to work on one example. `.cache/example-results` contains the
 before/after exports, changed-file summary and PNG difference images. The checker
-normalizes the generated revision identity in HTML; it compares all other exported
-content, including PDF bytes and the bundled browser code. Browser previews allow
-minor rasterization variation only when their HTML is identical; native exports
-remain byte-exact.
+normalizes the generated revision identity in HTML and compares its remaining content
+exactly. PNGs and rendered PDF pages require equal dimensions and allow at most one
+channel level of rounding across 0.01% of pixels. PDF page counts and searchable text
+positions must match. Browser previews also allow minor form-control rasterization
+variation when their HTML is identical. Poppler renders PDF comparisons and extracts
+their text bounds.
 
 The **Rendering regression** GitHub workflow uses the Linux container and runs CLI
 contracts, catalogue exports and the visual suite in bounded shards. Failed checks

@@ -1,5 +1,14 @@
 # Decisions
 
+## 2026-11-09 export raster rounding
+
+- Replace the byte-exact native export comparison from the widget catalogue and
+  export proposals decision with rendered comparisons. Different CPUs can round an
+  isolated raster channel by one level without changing the content or layout.
+- Require equal image dimensions and limit rounding to one channel level across
+  0.01% of pixels. Compare every PDF page and its searchable text positions while
+  retaining exact HTML comparison and reporting material differences.
+
 ## 2026-11-09 measured cold production phases
 
 - Replace the cold production build budget decision with a fifteen-minute compiler

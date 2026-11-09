@@ -93,19 +93,21 @@ function pixelDifference(before, after, destination) {
   const width = Math.max(a.width, b.width),
     height = Math.max(a.height, b.height);
   const diff = new PNG({ width, height });
-  let changed = 0;
+  let changed = 0,
+    maximumChannelDelta = 0;
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const ai = (y * a.width + x) * 4,
         bi = (y * b.width + x) * 4;
       const insideA = x < a.width && y < a.height,
         insideB = x < b.width && y < b.height;
-      const different =
-        !insideA ||
-        !insideB ||
-        [0, 1, 2, 3].some(
-          (channel) => a.data[ai + channel] !== b.data[bi + channel],
-        );
+      let different = !insideA || !insideB;
+      if (insideA && insideB)
+        for (let channel = 0; channel < 4; channel++) {
+          const delta = Math.abs(a.data[ai + channel] - b.data[bi + channel]);
+          maximumChannelDelta = Math.max(maximumChannelDelta, delta);
+          if (delta) different = true;
+        }
       const out = (y * width + x) * 4;
       if (different) {
         changed++;
@@ -120,9 +122,89 @@ function pixelDifference(before, after, destination) {
   mkdirSync(dirname(destination), { recursive: true });
   writeFileSync(destination, PNG.sync.write(diff));
   return {
+    dimensionsMatch: a.width === b.width && a.height === b.height,
+    maximumChannelDelta,
     ratio: changed / (width * height),
-    detail: `${((100 * changed) / (width * height)).toFixed(2)}% pixels; ${a.width} x ${a.height} → ${b.width} x ${b.height}`,
+    detail: `${((100 * changed) / (width * height)).toFixed(4)}% pixels; ${a.width} x ${a.height} → ${b.width} x ${b.height}`,
   };
+}
+function rasterRoundingOnly(difference) {
+  // Software rasterizers can round an isolated channel differently across CPUs.
+  return (
+    difference.dimensionsMatch &&
+    difference.maximumChannelDelta <= 1 &&
+    difference.ratio <= 0.0001
+  );
+}
+function pdfDifference(before, after, destination) {
+  const directory = mkdtempSync(join(scratch, "pdf-"));
+  try {
+    const pages = [],
+      text = [];
+    for (const [name, file] of [
+      ["before", before],
+      ["after", after],
+    ]) {
+      execFileSync(
+        "pdftoppm",
+        [
+          "-png",
+          "-r",
+          "96",
+          "-aa",
+          "yes",
+          "-aaVector",
+          "yes",
+          file,
+          join(directory, name),
+        ],
+        { timeout: 60_000, stdio: "pipe" },
+      );
+      pages.push(
+        files(directory)
+          .filter(
+            (file) => file.startsWith(`${name}-`) && file.endsWith(".png"),
+          )
+          .sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
+          .map((file) => join(directory, file)),
+      );
+      const extracted = execFileSync(
+        "pdftotext",
+        ["-bbox-layout", "-enc", "UTF-8", file, "-"],
+        { encoding: "utf8", timeout: 60_000, maxBuffer: 16 * 1024 * 1024 },
+      ).match(/<doc>[\s\S]*<\/doc>/)?.[0];
+      if (!extracted)
+        throw new Error(`PDF text bounds are unavailable: ${file}`);
+      text.push(extracted);
+    }
+    const sameText = text[0] === text[1];
+    let equivalent = sameText && pages[0].length === pages[1].length;
+    for (
+      let page = 0;
+      page < Math.min(pages[0].length, pages[1].length);
+      page++
+    ) {
+      const difference = pixelDifference(
+        pages[0][page],
+        pages[1][page],
+        join(destination, `page-${page + 1}.png`),
+      );
+      if (!rasterRoundingOnly(difference)) equivalent = false;
+    }
+    if (equivalent) rmSync(destination, { recursive: true, force: true });
+    else
+      for (const [index, kind] of ["before", "after"].entries()) {
+        mkdirSync(join(destination, kind), { recursive: true });
+        for (const [page, file] of pages[index].entries())
+          copyFileSync(file, join(destination, kind, `page-${page + 1}.png`));
+      }
+    return {
+      equivalent,
+      detail: `${pages[0].length} → ${pages[1].length} pages${sameText ? "" : "; searchable text or positions changed"}`,
+    };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 let browser;
 const changes = [];
@@ -231,17 +313,32 @@ try {
         join(report, "diff", name),
       );
       const html = name.replace(/\.browser\.png$/, ".html");
-      // Native form controls can vary by a few corner pixels with identical HTML.
-      if (
+      const htmlMatches =
         name.endsWith(".browser.png") &&
-        difference.ratio <= 0.0001 &&
+        existsSync(join(references, html)) &&
+        existsSync(join(actual, html)) &&
         readFileSync(join(references, html)).equals(
           readFileSync(join(actual, html)),
-        )
+        );
+      // Native form controls can vary by a few corner pixels with identical HTML.
+      if (
+        rasterRoundingOnly(difference) ||
+        (htmlMatches &&
+          difference.dimensionsMatch &&
+          difference.ratio <= 0.0001)
       ) {
         rmSync(join(report, "diff", name));
         continue;
       }
+      change.detail = difference.detail;
+    }
+    if (old && current && name.endsWith(".pdf")) {
+      const difference = pdfDifference(
+        before,
+        after,
+        join(report, "diff", name.replace(/\.pdf$/, "-pdf")),
+      );
+      if (difference.equivalent) continue;
       change.detail = difference.detail;
     }
     for (const [kind, file, present] of [
@@ -253,12 +350,6 @@ try {
         mkdirSync(dirname(output), { recursive: true });
         copyFileSync(file, output);
       }
-    if (old && current && name.endsWith(".pdf")) {
-      const { PDFDocument } = await import("pdf-lib");
-      const a = await PDFDocument.load(readFileSync(before));
-      const b = await PDFDocument.load(readFileSync(after));
-      change.detail = `${a.getPageCount()} → ${b.getPageCount()} pages`;
-    }
     changes.push(change);
   }
   writeFileSync(

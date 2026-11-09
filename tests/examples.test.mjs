@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -10,7 +10,14 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
-import { PDFDocument } from "pdf-lib";
+import {
+  PDFDocument,
+  popGraphicsState,
+  pushGraphicsState,
+  StandardFonts,
+  setTextRenderingMode,
+  TextRenderingMode,
+} from "pdf-lib";
 import { PNG } from "pngjs";
 import ts from "typescript";
 import { catalogue } from "../scripts/example-catalogue.mjs";
@@ -18,6 +25,27 @@ import { catalogue } from "../scripts/example-catalogue.mjs";
 const examples = catalogue();
 function blocks(values) {
   return values.flatMap((block) => [block, ...blocks(block.children ?? [])]);
+}
+function exportWorkspace(t) {
+  const directory = mkdtempSync(join(tmpdir(), "visualize-export-regression-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  return {
+    directory,
+    run(mode) {
+      return spawnSync(
+        process.execPath,
+        [
+          "scripts/examples.mjs",
+          mode,
+          "--only",
+          "text",
+          "--references",
+          directory,
+        ],
+        { encoding: "utf8", timeout: 90_000, maxBuffer: 2 * 1024 * 1024 },
+      );
+    },
+  };
 }
 
 test("the proposal reports image differences without treating PDF page counts as percentages", (t) => {
@@ -155,27 +183,89 @@ for (const { name, source } of examples) {
   });
 }
 
-test("export updates are repeatable and regression checks reject changed or stale files", async (t) => {
-  const directory = mkdtempSync(join(tmpdir(), "visualize-export-regression-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  function run(mode) {
-    return spawnSync(
-      process.execPath,
-      [
-        "scripts/examples.mjs",
-        mode,
-        "--only",
-        "text",
-        "--references",
-        directory,
-      ],
-      {
-        encoding: "utf8",
-        timeout: 90_000,
-        maxBuffer: 2 * 1024 * 1024,
-      },
-    );
+test("export checks tolerate encoding differences and isolated raster rounding", async (t) => {
+  const { directory, run } = exportWorkspace(t);
+  const update = run("update");
+  assert.equal(update.status, 0, update.stderr);
+  const pngFile = join(directory, "text/light-1280.png");
+  const png = PNG.sync.read(readFileSync(pngFile));
+  png.data[0] ^= 1;
+  writeFileSync(pngFile, PNG.sync.write(png));
+  const pdfFile = join(directory, "text/light-1280.pdf");
+  const pdf = await PDFDocument.load(readFileSync(pdfFile), {
+    updateMetadata: false,
+  });
+  pdf.setProducer("Fixture export encoder");
+  writeFileSync(pdfFile, await pdf.save({ useObjectStreams: false }));
+  const check = run("check");
+  assert.equal(check.status, 0, check.stdout + check.stderr);
+});
+
+test("export checks reject widespread one-level color changes", (t) => {
+  const { directory, run } = exportWorkspace(t);
+  const update = run("update");
+  assert.equal(update.status, 0, update.stderr);
+  const file = join(directory, "text/light-1280.png");
+  const png = PNG.sync.read(readFileSync(file));
+  for (let pixel = 0; pixel < png.data.length; pixel += 4) png.data[pixel] ^= 1;
+  writeFileSync(file, PNG.sync.write(png));
+  const check = run("check");
+  assert.equal(check.status, 1, check.stdout + check.stderr);
+  const changes = JSON.parse(
+    readFileSync(".cache/example-results/changes.json", "utf8"),
+  );
+  assert.deepEqual(
+    changes.map(({ file }) => file),
+    ["text/light-1280.png"],
+  );
+});
+
+test("export checks reject changed searchable text even when PDF appearance matches", async (t) => {
+  const { directory, run } = exportWorkspace(t);
+  const update = run("update");
+  assert.equal(update.status, 0, update.stderr);
+  const file = join(directory, "text/light-1280.pdf");
+  const original = readFileSync(file);
+  const pdf = await PDFDocument.load(original, { updateMetadata: false });
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const page = pdf.getPages()[0];
+  page.pushOperators(
+    pushGraphicsState(),
+    setTextRenderingMode(TextRenderingMode.Invisible),
+  );
+  page.drawText("Unexpected searchable label", {
+    x: 10,
+    y: 10,
+    size: 12,
+    font,
+  });
+  page.pushOperators(popGraphicsState());
+  writeFileSync(file, await pdf.save());
+  const baseline = join(directory, "original.pdf");
+  writeFileSync(baseline, original);
+  function pixels(file) {
+    return PNG.sync.read(
+      execFileSync("pdftoppm", ["-singlefile", "-png", "-r", "96", file], {
+        timeout: 30_000,
+        maxBuffer: 8 * 1024 * 1024,
+      }),
+    ).data;
   }
+  assert.deepEqual(pixels(file), pixels(baseline));
+  rmSync(baseline);
+  const check = run("check");
+  assert.equal(check.status, 1, check.stdout + check.stderr);
+  const changes = JSON.parse(
+    readFileSync(".cache/example-results/changes.json", "utf8"),
+  );
+  assert.deepEqual(
+    changes.map(({ file }) => file),
+    ["text/light-1280.pdf"],
+  );
+});
+
+test("export updates are repeatable and regression checks reject changed or stale files", async (t) => {
+  const { directory, run } = exportWorkspace(t);
   const update = run("update");
   assert.equal(update.status, 0, update.stderr);
   const check = run("check");
