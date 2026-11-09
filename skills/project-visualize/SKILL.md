@@ -1,4 +1,5 @@
 ---
+
 name: project-visualize
 description: Show answers visually with Project Visualize, from a single table, chart or diagram to a few linked widgets or a full briefing, report or dashboard, saved as a versioned artifact and delivered as interactive HTML, PNG or PDF. Use it whenever an answer compares values or explains structure, such as benchmark and before/after results, measurements across runs, hosts or versions, options with trade-offs, trends over time, or how a system, flow or sequence works. Use it even when the user did not ask for a visual or name the app, and even when the result is one table. Do not use it to build or edit a website, app or existing UI.
 ---
