@@ -30,7 +30,6 @@ if (!existsSync(join(source, "bin/visualize")))
 function run(command, args, options = {}) {
   return execFileSync(command, args, {
     encoding: "utf8",
-    timeout: 300_000,
     ...options,
   });
 }

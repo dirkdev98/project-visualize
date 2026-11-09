@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-11-09 Linux packaging execution budget
+
+- Extend the monitoring and execution budgets decision to Linux packaging. Let
+  archive creation and dependency inspection finish under the hosted job's guard
+  rather than applying the agent's wait limit to each child process.
+
 ## 2026-11-09 sparse raster rounding allowance
 
 - Replace the changed-pixel limit in the export raster rounding decision with a
