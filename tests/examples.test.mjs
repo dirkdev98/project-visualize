@@ -190,7 +190,8 @@ test("export checks tolerate encoding differences and isolated raster rounding",
   assert.equal(update.status, 0, update.stderr);
   const pngFile = join(directory, "text/light-1280.png");
   const png = PNG.sync.read(readFileSync(pngFile));
-  png.data[0] ^= 1;
+  for (let pixel = 0; pixel < png.width * png.height * 0.00015; pixel++)
+    png.data[pixel * 4] ^= 1;
   writeFileSync(pngFile, PNG.sync.write(png));
   const pdfFile = join(directory, "text/light-1280.pdf");
   const pdf = await PDFDocument.load(readFileSync(pdfFile), {
@@ -208,7 +209,8 @@ test("export checks reject widespread one-level color changes", (t) => {
   assert.equal(update.status, 0, update.stderr);
   const file = join(directory, "text/light-1280.png");
   const png = PNG.sync.read(readFileSync(file));
-  for (let pixel = 0; pixel < png.data.length; pixel += 4) png.data[pixel] ^= 1;
+  for (let pixel = 0; pixel < png.width * png.height * 0.0005; pixel++)
+    png.data[pixel * 4] ^= 1;
   writeFileSync(file, PNG.sync.write(png));
   const check = run("check");
   assert.equal(check.status, 1, check.stdout + check.stderr);

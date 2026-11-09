@@ -105,7 +105,7 @@ Use `-- --only text` to work on one example. `.cache/example-results` contains t
 before/after exports, changed-file summary and PNG difference images. The checker
 normalizes the generated revision identity in HTML and compares its remaining content
 exactly. Images and every rendered PDF page require equal dimensions. Allow at most
-one channel level of rounding across 0.01% of the image or complete PDF's pixels.
+one channel level of rounding across 0.02% of the image or complete PDF's pixels.
 PDF page counts and searchable text positions must match. Browser previews also allow
 minor form-control rasterization variation when their HTML is identical. Poppler
 renders PDF comparisons and extracts their text bounds.

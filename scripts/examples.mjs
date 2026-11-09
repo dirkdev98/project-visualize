@@ -135,7 +135,7 @@ function rasterRoundingOnly(difference) {
   return (
     difference.dimensionsMatch &&
     difference.maximumChannelDelta <= 1 &&
-    difference.ratio <= 0.0001
+    difference.ratio <= 0.0002
   );
 }
 function pdfDifference(before, after, destination) {

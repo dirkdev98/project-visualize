@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-09 sparse raster rounding allowance
+
+- Replace the changed-pixel limit in the export raster rounding decision with a
+  small allowance that covers measured differences across hosted software renderers.
+- Keep image dimensions, searchable text positions and PDF page counts exact, and
+  reject channel differences larger than one level or widespread color changes.
+
 ## 2026-11-09 native source download retries
 
 - Allow a slow native dependency transfer enough time to finish, with a separate
