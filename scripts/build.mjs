@@ -21,6 +21,6 @@ run(
     ".cache/release",
     ...(process.env.CI ? ["--verbose"] : []),
   ],
-  600_000,
+  900_000,
 );
 run(process.execPath, ["scripts/package.mjs"]);

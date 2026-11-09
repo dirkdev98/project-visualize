@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-09 measured cold production phases
+
+- Replace the cold production build budget decision with a fifteen-minute compiler
+  deadline. A cold Linux build spends almost eight minutes on frontend, runtime and
+  generated object compilation before its final ThinLTO link starts.
+- Keep the regression check deadlines separate from the compiler budget.
+
 ## 2026-11-09 native dependency downloads
 
 - Retry transient download failures within a bounded deadline before failing a native
