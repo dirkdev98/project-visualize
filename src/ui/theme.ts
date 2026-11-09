@@ -103,6 +103,8 @@ export const palette = {
   surface: color(palettes.light.surface),
   onAccent: color(palettes.light.onAccent),
   border: color(palettes.light.border),
+  diagramBorder: color(palettes.light.diagramBorder),
+  diagramLabel: color(palettes.light.diagramLabel),
   blue: color(palettes.light.blue),
   positive: color(palettes.light.positive),
   negative: color(palettes.light.negative),

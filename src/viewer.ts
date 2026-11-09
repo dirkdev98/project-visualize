@@ -45,7 +45,6 @@ import {
   igGetCursorScreenPos,
   igGetScrollMaxY,
   igGetScrollY,
-  igGetWindowDrawList,
   igGetWindowPos,
   igGetWindowSize,
   igGetWindowWidth,
@@ -96,6 +95,7 @@ import {
   SDL_OpenURL,
   SDL_SYSTEM_THEME_DARK,
 } from "maligator:ffi/visualize";
+import { execFile } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -109,6 +109,7 @@ import {
   type DocumentState,
   documentState,
 } from "./ui/content.ts";
+import { windowDrawList } from "./ui/draw-list.ts";
 import { artifactIcon, drawIcon, type Icon, iconButton } from "./ui/icons.ts";
 import {
   available,
@@ -138,6 +139,7 @@ import type {
   ViewerOptions,
   ViewerRequest,
 } from "./viewer-control.ts";
+import { executablePath } from "./workflow.ts";
 
 function compactLabel(
   value: string,
@@ -217,8 +219,8 @@ function projectHeader(project: string, collapsed: boolean): boolean {
     ImGuiButtonFlags_EnableNav,
   );
   const hovered = igIsItemHovered(0);
-  const draw = igGetWindowDrawList();
-  if (!draw || !fonts.bold) throw new Error("Cannot access the library canvas");
+  const draw = windowDrawList();
+  if (!fonts.bold) throw new Error("Cannot access the library canvas");
   if (hovered)
     ImDrawList_AddRectFilled(
       draw,
@@ -261,9 +263,8 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
   igPushStyleColor_Vec4(ImGuiCol_ButtonActive, { ...palette.accent, w: 0.24 });
   const clicked = igButton(`##${entry.artifact}`, { x: width, y: height });
   igPopStyleColor(3);
-  const draw = igGetWindowDrawList();
-  if (!draw || !fonts.regular)
-    throw new Error("Cannot access the library canvas");
+  const draw = windowDrawList();
+  if (!fonts.regular) throw new Error("Cannot access the library canvas");
   const middle = start.y + height / 2;
   drawIcon(
     draw,
@@ -320,9 +321,8 @@ function moreRow(label: string): boolean {
     ImGuiButtonFlags_EnableNav,
   );
   const hovered = igIsItemHovered(0);
-  const draw = igGetWindowDrawList();
-  if (!draw || !fonts.regular)
-    throw new Error("Cannot access the library canvas");
+  const draw = windowDrawList();
+  if (!fonts.regular) throw new Error("Cannot access the library canvas");
   ImDrawList_AddText_FontPtr(
     draw,
     fonts.regular,
@@ -335,7 +335,7 @@ function moreRow(label: string): boolean {
   return clicked;
 }
 
-export function openViewer(
+export async function openViewer(
   root: string,
   options: ViewerOptions,
   controller: ViewerController,
@@ -387,6 +387,7 @@ export function openViewer(
   let search = inputBuffer(options.search);
   const states = new Map<string, DocumentState>();
   let closing = false;
+  let exportingPdf = false;
   let navigation: { request: ViewerRequest; frames: number } | undefined;
   let canvas:
     | {
@@ -755,8 +756,8 @@ export function openViewer(
         rowWidth = available(),
         rowHeight = 32,
         middle = rowStart.y + rowHeight / 2,
-        draw = igGetWindowDrawList();
-      if (!draw || !fonts.regular || !fonts.bold)
+        draw = windowDrawList();
+      if (!fonts.regular || !fonts.bold)
         throw new Error("Cannot access the toolbar canvas");
       const now = Date.now();
       const copy = (what: string, value: string) => {
@@ -834,11 +835,59 @@ export function openViewer(
         {
           id: "pdf",
           icon: "pdf",
-          hint: "Open saved PDF",
-          run: () =>
-            SDL_OpenURL(
-              pathToFileURL(join(current.directory, "snapshot.pdf")).href,
-            ),
+          hint: exportingPdf
+            ? "Exporting PDF…"
+            : "Export PDF with the current appearance and controls",
+          active: exportingPdf,
+          run: () => {
+            if (exportingPdf) return;
+            exportingPdf = true;
+            pending = 2;
+            try {
+              execFile(
+                executablePath,
+                [
+                  "export",
+                  "--store",
+                  resolve(root),
+                  "--project",
+                  current.project,
+                  "--artifact",
+                  current.artifact,
+                  "--version",
+                  current.version,
+                  "--format",
+                  "pdf",
+                  "--theme",
+                  currentTheme(),
+                  "--width",
+                  String(current.width),
+                  "--scale",
+                  String(current.scale),
+                  "--params",
+                  JSON.stringify(
+                    Object.fromEntries(view?.state.parameters ?? []),
+                  ),
+                ],
+                { encoding: "utf8" },
+                (cause, stdout) => {
+                  exportingPdf = false;
+                  if (closing) return;
+                  try {
+                    if (cause) throw cause;
+                    SDL_OpenURL(pathToFileURL(JSON.parse(stdout).output).href);
+                  } catch (cause) {
+                    error =
+                      cause instanceof Error ? cause.message : String(cause);
+                  }
+                  pending = 2;
+                },
+              );
+            } catch (cause) {
+              exportingPdf = false;
+              error = cause instanceof Error ? cause.message : String(cause);
+            }
+          },
         },
       );
       if (view)
@@ -1146,13 +1195,22 @@ export function openViewer(
     checked(pv_surface_input_policy(preferences.wheelScale, ImGuiMod_Ctrl));
     select(selected, followLatest, followPresented);
     while (true) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
       const inputState = pv_surface_input();
       const processing = capture !== undefined || navigation !== undefined;
       const animating = Date.now() < animateUntil || (inputState & 1) !== 0;
       const editing = (inputState & 2) !== 0;
       const status = checked(
         pv_surface_wait(
-          pending > 0 || processing ? 0 : animating ? 16 : editing ? 250 : 1000,
+          pending > 0 || processing
+            ? 0
+            : animating
+              ? 16
+              : exportingPdf
+                ? 50
+                : editing
+                  ? 250
+                  : 1000,
         ),
       );
       if (status === 0) break;
@@ -1304,6 +1362,7 @@ export function openViewer(
       }
     }
   } finally {
+    closing = true;
     pv_viewer_stop();
     renderer?.dispose();
     releasePanels();

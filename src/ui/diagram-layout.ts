@@ -81,31 +81,25 @@ function route(
       { x: x - 18, y: a.y + a.height },
     ];
   }
-  const forward = right ? b.x > a.x : b.y > a.y;
-  const start =
-    right && forward
-      ? { x: a.x + a.width, y: a.y + a.height / 2 }
-      : forward
-        ? { x: a.x + a.width / 2, y: a.y + a.height }
-        : { x: a.x, y: a.y + a.height / 2 };
-  const end =
-    right && forward
-      ? { x: b.x, y: b.y + b.height / 2 }
-      : forward
-        ? { x: b.x + b.width / 2, y: b.y }
-        : { x: b.x, y: b.y + b.height / 2 };
-  const from =
-    right && forward
-      ? { x: start.x + 10, y: start.y }
-      : forward
-        ? { x: start.x, y: start.y + 10 }
-        : { x: start.x - 10, y: start.y };
-  const to =
-    right && forward
-      ? { x: end.x - 10, y: end.y }
-      : forward
-        ? { x: end.x, y: end.y - 10 }
-        : { x: end.x - 10, y: end.y };
+  const horizontal =
+    (a.x + a.width <= b.x || b.x + b.width <= a.x) &&
+    (right || !(a.y + a.height <= b.y || b.y + b.height <= a.y));
+  const forward = horizontal ? b.x > a.x : b.y > a.y;
+  const sign = forward ? 1 : -1;
+  const start = horizontal
+    ? { x: forward ? a.x + a.width : a.x, y: a.y + a.height / 2 }
+    : { x: a.x + a.width / 2, y: forward ? a.y + a.height : a.y };
+  const end = horizontal
+    ? { x: forward ? b.x : b.x + b.width, y: b.y + b.height / 2 }
+    : { x: b.x + b.width / 2, y: forward ? b.y : b.y + b.height };
+  const from = {
+    x: start.x + (horizontal ? sign * 10 : 0),
+    y: start.y + (horizontal ? 0 : sign * 10),
+  };
+  const to = {
+    x: end.x - (horizontal ? sign * 10 : 0),
+    y: end.y - (horizontal ? 0 : sign * 10),
+  };
   const expanded = obstacles.map((box) => ({
     x: box.x - 6,
     y: box.y - 6,
@@ -215,7 +209,7 @@ export function graphLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
   width: number,
-  heights: number[],
+  measure: (node: DiagramNode, width: number) => number,
   direction = "down",
 ): GraphLayout {
   const levels = ranks(nodes, edges),
@@ -242,12 +236,20 @@ export function graphLayout(
               level * (boxWidth + 64),
             y: top,
             width: boxWidth,
-            height: heights[i],
+            height: measure(nodes[i], boxWidth),
           };
-          top += heights[i] + 48;
+          top += boxes[i].height + 48;
         }
         y = Math.max(y, top);
       }
+    if (boxes.length) {
+      const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+      for (const indices of layers.values()) {
+        const last = boxes[indices[indices.length - 1]];
+        const offset = (bottom - last.y - last.height) / 2;
+        for (const i of indices) boxes[i].y += offset;
+      }
+    }
   }
   if (!boxes.length) {
     const columns = Math.max(1, Math.floor((width - 32) / 210));
@@ -265,18 +267,33 @@ export function graphLayout(
             x: left + column * (boxWidth + 40),
             y,
             width: boxWidth,
-            height: heights[i],
+            height: measure(nodes[i], boxWidth),
           };
-        y += Math.max(...group.map((i) => heights[i])) + 74;
+        const rowHeight = Math.max(...group.map((i) => boxes[i].height));
+        for (const i of group) boxes[i].y += (rowHeight - boxes[i].height) / 2;
+        y += rowHeight + 74;
       }
   }
-  const height = Math.max(160, y + 24);
+  const height = Math.max(160, ...boxes.map((box) => box.y + box.height + 24));
+  const positioned = boxes.map((box) => ({ ...box }));
   for (const [i, node] of nodes.entries()) {
     if (node.x !== undefined)
-      boxes[i].x = 24 + node.x * Math.max(0, width - boxes[i].width - 48);
+      positioned[i].x = 24 + node.x * Math.max(0, width - boxes[i].width - 48);
     if (node.y !== undefined)
-      boxes[i].y = 24 + node.y * Math.max(0, height - boxes[i].height - 48);
+      positioned[i].y =
+        24 + node.y * Math.max(0, height - boxes[i].height - 48);
   }
+  const crowded = positioned.some((box, i) =>
+    positioned.some(
+      (other, j) =>
+        j > i &&
+        box.x < other.x + other.width + 24 &&
+        box.x + box.width + 24 > other.x &&
+        box.y < other.y + other.height + 24 &&
+        box.y + box.height + 24 > other.y,
+    ),
+  );
+  if (!crowded) for (let i = 0; i < boxes.length; i++) boxes[i] = positioned[i];
   const indices = new Map(nodes.map((node, i) => [node.id, i]));
   return {
     nodes: boxes,
@@ -293,4 +310,80 @@ export function graphLayout(
       ),
     ),
   };
+}
+
+export function edgeLabelLayout(
+  layout: GraphLayout,
+  width: number,
+  sizes: ({ width: number; height: number } | undefined)[],
+): { boxes: (Box | undefined)[]; height: number } {
+  const occupied = [...layout.nodes];
+  let height = layout.height;
+  const overlaps = (a: Box, b: Box) =>
+    a.x < b.x + b.width + 6 &&
+    a.x + a.width + 6 > b.x &&
+    a.y < b.y + b.height + 6 &&
+    a.y + a.height + 6 > b.y;
+  const boxes = sizes.map((size, index) => {
+    if (!size) return undefined;
+    const path = layout.edges[index];
+    const segments = path
+      .slice(1)
+      .map((b, i) => ({
+        a: path[i],
+        b,
+        length: Math.abs(b.x - path[i].x) + Math.abs(b.y - path[i].y),
+      }))
+      .sort((a, b) => b.length - a.length);
+    const first = segments[0];
+    const anchor = {
+      x: (first.a.x + first.b.x) / 2,
+      y: (first.a.y + first.b.y) / 2,
+    };
+    let best: Box | undefined;
+    let cost = Infinity;
+    const consider = (x: number, y: number, score: number) => {
+      const box = {
+        ...size,
+        x: Math.max(8, Math.min(width - size.width - 8, x)),
+        y: Math.max(8, Math.min(height - size.height - 8, y)),
+      };
+      if (score >= cost || occupied.some((other) => overlaps(box, other)))
+        return;
+      best = box;
+      cost = score;
+    };
+    for (const { a, b, length } of segments)
+      for (const t of [0.5, 0.25, 0.75]) {
+        const x = a.x + (b.x - a.x) * t - size.width / 2;
+        const y = a.y + (b.y - a.y) * t - size.height / 2;
+        const score = first.length - length + Math.abs(t - 0.5) * length;
+        consider(x, y, score);
+        if (a.y === b.y) {
+          consider(x, y - size.height / 2 - 8, score + 8);
+          consider(x, y + size.height / 2 + 8, score + 8);
+        } else {
+          consider(x - size.width / 2 - 8, y, score + 8);
+          consider(x + size.width / 2 + 8, y, score + 8);
+        }
+      }
+    if (!best)
+      for (let y = 8; y + size.height <= height - 8; y += 16)
+        for (let x = 8; x + size.width <= width - 8; x += 16)
+          consider(
+            x,
+            y,
+            Math.hypot(
+              x + size.width / 2 - anchor.x,
+              y + size.height / 2 - anchor.y,
+            ),
+          );
+    if (!best) {
+      best = { ...size, x: 8, y: height + 8 };
+      height += size.height + 16;
+    }
+    occupied.push(best);
+    return best;
+  });
+  return { boxes, height };
 }

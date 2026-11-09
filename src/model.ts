@@ -110,6 +110,7 @@ export type Diagram =
       tasks: {
         id: string;
         label: string;
+        detail?: string;
         start: string;
         end: string;
         progress?: number;
@@ -963,6 +964,8 @@ export function validate(input: unknown): Artifact {
               fail(field("tasks"), "task IDs must be unique and nonempty");
             ids.add(id);
             string(task.label, field("task.label"), 240);
+            if (task.detail !== undefined)
+              string(task.detail, field("task.detail"));
             for (const key of ["start", "end"]) {
               const date = string(task[key], field(`task.${key}`), 10);
               const time = Date.parse(`${date}T00:00:00Z`);

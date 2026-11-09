@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { PDFArray, PDFDict, PDFDocument, PDFName } from "pdf-lib";
+import { PNG } from "pngjs";
 
 const executable = resolve(
   process.env.VISUALIZE_TEST_BINARY ?? "dist/bin/visualize",
@@ -2625,4 +2626,264 @@ test("linked distribution widgets retain raw observations after filtering", (t) 
     assert.deepEqual(block.series, [{ name: "North", values: [3, 7] }]);
   const empty = inspectView(ok, { station: "Absent" });
   for (const block of empty.body.slice(1)) assert.deepEqual(block.series, []);
+});
+
+test("flowing cards use the preceding PDF page while retaining headings and complete text", (t) => {
+  const { ok } = workspace(t);
+  const note = (marker) => ({
+    type: "text",
+    content: `${marker} ${"A fictional station records the instrument reading before the next observation. ".repeat(2)}`,
+  });
+  const entry = ok(
+    [
+      "render",
+      "--project",
+      "orbital",
+      "--artifact",
+      "review",
+      "--file",
+      "-",
+      "--width",
+      "640",
+    ],
+    {
+      ...minimal(),
+      body: [
+        { type: "card", title: "FIRST_CARD", children: [note("FIRST_MARKER")] },
+        {
+          type: "card",
+          title: "SECOND_CARD",
+          children: Array.from({ length: 5 }, (_, i) =>
+            note(`SECOND_MARKER_${i}`),
+          ),
+        },
+      ],
+    },
+  );
+  const pages = pdfTextPages(entry.pdf);
+  assert.ok(pages.length > 1);
+  const first = pages.find((page) => page.includes("FIRST_MARKER"));
+  assert.ok(first.includes("SECOND_CARD"));
+  assert.ok(first.includes("SECOND_MARKER_0"));
+  for (let i = 0; i < 5; i++)
+    assert.equal(pages.join(" ").split(`SECOND_MARKER_${i}`).length - 1, 1);
+});
+
+test("dark PDF margins retain the artifact background around short sections", (t) => {
+  const { render } = workspace(t);
+  const entry = render({
+    ...minimal(),
+    theme: "dark",
+    body: [
+      { type: "text", content: "First fictional finding." },
+      {
+        type: "text",
+        pageBreakBefore: true,
+        content: "Second fictional finding.",
+      },
+    ],
+  });
+  const expected = PNG.sync.read(readFileSync(entry.png)).data.subarray(0, 3);
+  const pages = pdfTextPages(entry.pdf);
+  assert.ok(pages.length > 1);
+  for (let pageNumber = 1; pageNumber <= pages.length; pageNumber++) {
+    const page = PNG.sync.read(
+      execFileSync(
+        "pdftoppm",
+        [
+          "-f",
+          String(pageNumber),
+          "-l",
+          String(pageNumber),
+          "-singlefile",
+          "-scale-to",
+          "64",
+          "-png",
+          entry.pdf,
+        ],
+        { timeout: 30000, maxBuffer: 1024 * 1024 },
+      ),
+    );
+    assert.deepEqual(page.data.subarray(0, 3), expected);
+  }
+});
+
+test("non-text Gantt descriptions are rejected", (t) => {
+  const { run } = workspace(t);
+  const result = run(
+    ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+    {
+      ...minimal(),
+      body: [
+        {
+          type: "diagram",
+          kind: "gantt",
+          tasks: [
+            {
+              id: "inspect",
+              label: "Inspect",
+              detail: 17,
+              start: "2026-04-06",
+              end: "2026-04-07",
+            },
+          ],
+        },
+      ],
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /task.detail/);
+});
+
+for (const [name, fields, nearFit] of [
+  ["a short PDF introduction stays with a near-fitting diagram", 6, true],
+  [
+    "large PDF diagrams keep a short introduction on one fitted page",
+    20,
+    false,
+  ],
+])
+  test(name, async (t) => {
+    const { ok } = workspace(t);
+    const names = ["STATION_RECORD", "READING_RECORD", "REVIEW_RECORD"];
+    for (const scale of ["1", "2"]) {
+      const entry = ok(
+        [
+          "render",
+          "--project",
+          "orbital",
+          "--artifact",
+          "review",
+          "--file",
+          "-",
+          "--scale",
+          scale,
+        ],
+        {
+          ...minimal(),
+          type: "document",
+          body: [
+            {
+              type: "markdown",
+              content:
+                "## DATA_MODEL\n\nA fictional station keeps the records below. [REFERENCE](https://example.com/guide).",
+            },
+            {
+              type: "diagram",
+              kind: "er",
+              nodes: names.map((label, i) => ({
+                id: String(i),
+                label,
+                fields: Array.from({ length: fields }, (_, f) => ({
+                  name: `PROPERTY_${i}_${f}`,
+                  type: "string",
+                })),
+              })),
+              edges: [
+                { from: "0", to: "1" },
+                { from: "1", to: "2" },
+              ],
+            },
+            ...(!nearFit
+              ? [
+                  {
+                    type: "text",
+                    pageBreakBefore: true,
+                    content: "NEXT_SECTION",
+                  },
+                ]
+              : []),
+          ],
+        },
+      );
+      const pages = pdfTextPages(entry.pdf);
+      if (nearFit) assert.equal(pages.length, 1);
+      else assert.ok(pages.length > 1);
+      for (const marker of [
+        "DATA_MODEL",
+        "REFERENCE",
+        ...names,
+        `PROPERTY_2_${fields - 1}`,
+      ])
+        assert.equal(pages.join(" ").split(marker).length - 1, 1, marker);
+      const diagramPage = pages.find((page) =>
+        names.every((name) => page.includes(name)),
+      );
+      assert.ok(diagramPage, "A diagram was divided between pages");
+      assert.ok(diagramPage.includes("DATA_MODEL"));
+      assert.ok(diagramPage.includes("REFERENCE"));
+      if (!nearFit) {
+        assert.ok(pages.at(-1).includes("NEXT_SECTION"));
+        assert.ok(!diagramPage.includes("NEXT_SECTION"));
+      }
+      for (let i = 0; i < names.length; i++)
+        for (let f = 0; f < fields; f++)
+          assert.match(diagramPage, new RegExp(`\\bPROPERTY_${i}_${f}\\b`));
+      const bookmarks = await pdfBookmarks(entry.pdf);
+      assert.ok(
+        bookmarks.some(
+          (bookmark) => bookmark.title === "DATA_MODEL" && bookmark.page === 0,
+        ),
+      );
+      const pdf = await PDFDocument.load(readFileSync(entry.pdf));
+      const page = pdf.getPage(0);
+      const annotations = page.node.Annots();
+      assert.ok(annotations && annotations.size() > 0);
+      for (let i = 0; i < annotations.size(); i++) {
+        const annotation = pdf.context.lookup(annotations.get(i), PDFDict);
+        const rect = annotation
+          .lookup(PDFName.of("Rect"), PDFArray)
+          .asArray()
+          .map((value) => value.asNumber());
+        assert.ok(rect[0] >= 0 && rect[2] <= page.getWidth());
+        assert.ok(rect[1] >= 0 && rect[3] <= page.getHeight());
+      }
+    }
+  });
+
+test("fresh PDF exports use the requested theme without changing the saved snapshot", (t) => {
+  const { render, ok, root } = workspace(t);
+  const entry = render({ ...minimal(), theme: "light" });
+  const original = digest(entry.pdf);
+  const args = [
+    "export",
+    "--project",
+    entry.project,
+    "--artifact",
+    entry.artifact,
+    "--version",
+    entry.version,
+    "--theme",
+    "dark",
+  ];
+  const pdf = ok([
+    ...args,
+    "--format",
+    "pdf",
+    "--out",
+    join(root, "current.pdf"),
+  ]);
+  const png = ok([
+    ...args,
+    "--format",
+    "png",
+    "--out",
+    join(root, "current.png"),
+  ]);
+  const page = PNG.sync.read(
+    execFileSync(
+      "pdftoppm",
+      ["-singlefile", "-scale-to", "64", "-png", pdf.output],
+      { timeout: 30000, maxBuffer: 1024 * 1024 },
+    ),
+  );
+  const background = PNG.sync
+    .read(readFileSync(png.output))
+    .data.subarray(0, 3);
+  assert.deepEqual(page.data.subarray(0, 3), background);
+  assert.notDeepEqual(
+    background,
+    PNG.sync.read(readFileSync(entry.png)).data.subarray(0, 3),
+  );
+  assert.equal(digest(entry.pdf), original);
 });

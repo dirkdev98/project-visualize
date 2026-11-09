@@ -155,9 +155,11 @@ numeric values without changing the underlying data.
 Diagrams use nodes with unique IDs and edges referring to them through `from` and
 `to`. Add normalized `x` and `y` coordinates for an explicit layout, or let nodes
 flow into a grid. Node `detail` text appears on hover. Keep labels short enough to
-read inside a node. Canvases stack nodes vertically when the grid cannot leave
-enough space for nodes and labeled connections. The [dashboard example](../examples/observatory.json) composes
-charts, tables and a diagram with their explanation.
+read inside a node. Explicit positions give way to automatic placement when the
+available width would crowd the nodes. Canvases stack nodes vertically when the grid
+cannot leave enough space for nodes and labeled connections. The
+[dashboard example](../examples/observatory.json) composes charts, tables and a
+diagram with their explanation.
 
 ## Linked views
 
@@ -279,8 +281,9 @@ sender, receiver and complete message.
 
 Gantt diagrams take `tasks` with an `id`, `label`, `start` and `end` as real ISO dates
 (`YYYY-MM-DD`). End dates are inclusive. Optional `progress` runs from zero to one;
-`dependsOn` names prerequisite task IDs. Dependencies draw connectors without
-rescheduling the supplied dates, and cannot contain cycles.
+`detail` supplies additional hover text, and `dependsOn` names prerequisite task IDs.
+Dependencies draw connectors without rescheduling the supplied dates, and cannot
+contain cycles.
 
 ## Distributions and changes
 
@@ -404,13 +407,18 @@ by project, artifact and source version. Its JSON result reports the output path
 source identifiers. Use `--out FILE` to choose another destination. Exporting leaves
 saved documents, snapshots and presentations unchanged.
 
+PDF pages use the artifact's background throughout. Flowing cards and sections can
+continue onto the next page. Diagrams use a complete fitted page when needed. A
+modest fit adjustment can keep a short introduction with a figure that almost fits;
+authored page breaks still start a fresh page.
+
 HTML contains its fonts, images, data, styles and interaction code. It works offline
 and provides linked controls, sortable tables, chart navigation and hover details.
 The browser uses the same data transforms and diagram layout as the native viewer;
 text measurement and rendering follow browser conventions. HTML accepts no imported
 scripts or arbitrary HTML in the source document.
 
-Use `--html-mode inline` for hosts that wrap a full HTML document, such as T3 Code.
+Use `--html-mode inline` for hosts that wrap a full HTML document.
 Use `--html-mode fragment` when a host requires only fragment markup. The default
 `standalone` mode includes the document background and margins for browser viewing.
 Host payload limits still apply to embedded data and images.
@@ -454,7 +462,8 @@ Settings. Drag the sidebar's right edge to resize it; project groups collapse
 independently and the footer identifies the library. Projects and their artifacts are
 ordered by latest activity, a new revision or a presentation. Each project lists its
 five most recent artifacts until **Show more…**; a search lists every match. The
-artifact header's PDF action opens the creation-time export.
+artifact header's PDF action generates and opens an export with the current theme
+and linked controls. Saved revision snapshots stay unchanged.
 
 Drag across document text to select it, then press Cmd+C to copy. Double-click a word
 or triple-click a paragraph or code line; keep dragging to extend by that unit.

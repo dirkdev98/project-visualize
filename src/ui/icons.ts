@@ -6,7 +6,6 @@ import {
   igCalcTextSize,
   igGetItemRectMax,
   igGetItemRectMin,
-  igGetWindowDrawList,
   igInvisibleButton,
   igIsItemActive,
   igIsItemHovered,
@@ -14,6 +13,7 @@ import {
   igPushFont,
 } from "maligator:ffi/visualize";
 import type { ArtifactType } from "../model.ts";
+import { windowDrawList } from "./draw-list.ts";
 import { type Color, fonts, packed, palette } from "./theme.ts";
 import { itemTooltip } from "./tooltips.ts";
 
@@ -87,8 +87,7 @@ export function iconButton(
     held = igIsItemActive();
   const min = igGetItemRectMin(),
     max = igGetItemRectMax();
-  const draw = igGetWindowDrawList();
-  if (!draw) throw new Error("Cannot access the button canvas");
+  const draw = windowDrawList();
   if (hovered || held || options.active)
     ImDrawList_AddRectFilled(
       draw,

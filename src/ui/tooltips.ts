@@ -10,7 +10,6 @@ import {
   igEndTooltip,
   igGetCursorPosX,
   igGetCursorScreenPos,
-  igGetWindowDrawList,
   igIsItemHovered,
   igIsMouseDown_Nil,
   igPopFont,
@@ -25,11 +24,13 @@ import {
   igSameLine,
   igTextUnformatted,
 } from "maligator:ffi/visualize";
+import { windowDrawList } from "./draw-list.ts";
 import { type Color, fonts, packed, palette } from "./theme.ts";
 
 export interface Tooltip {
   title?: string;
   subtitle?: string;
+  detail?: string;
   rows?: { label: string; value: string; color?: Color }[];
   shortcut?: string;
 }
@@ -50,6 +51,7 @@ export function tooltip(value: string | Tooltip) {
     igTextUnformatted(data.subtitle);
     igPopStyleColor(1);
   }
+  if (data.detail) igTextUnformatted(data.detail);
   const labelWidth = Math.min(
     200,
     Math.max(
@@ -62,17 +64,15 @@ export function tooltip(value: string | Tooltip) {
   for (const row of data.rows ?? []) {
     const left = igGetCursorPosX();
     if (row.color) {
-      const draw = igGetWindowDrawList();
       const point = igGetCursorScreenPos();
-      if (draw)
-        ImDrawList_AddRectFilled(
-          draw,
-          { x: point.x, y: point.y + 4 },
-          { x: point.x + 7, y: point.y + 11 },
-          packed(row.color),
-          2,
-          0,
-        );
+      ImDrawList_AddRectFilled(
+        windowDrawList(),
+        { x: point.x, y: point.y + 4 },
+        { x: point.x + 7, y: point.y + 11 },
+        packed(row.color),
+        2,
+        0,
+      );
       igDummy({ x: 7, y: 14 });
       igSameLine(0, 6);
     }

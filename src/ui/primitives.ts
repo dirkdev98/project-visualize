@@ -24,7 +24,6 @@ import {
   igGetItemID,
   igGetItemRectMax,
   igGetItemRectMin,
-  igGetWindowDrawList,
   igPopFont,
   igPopID,
   igPopStyleColor,
@@ -44,6 +43,7 @@ import {
   pv_input_clear,
   pv_input_text,
 } from "maligator:ffi/visualize";
+import { windowDrawList } from "./draw-list.ts";
 import { iconButton } from "./icons.ts";
 import { currentCapture, keepLineTogether } from "./layout.ts";
 import { selectingText, selectionBreak, selectionText } from "./selection.ts";
@@ -193,16 +193,14 @@ export function input(id: string, hint: string, buffer: Int8Array): boolean {
     if (igCalcTextSize(value, false, -1).x > max.x - min.x - 42)
       itemTooltip(value);
     overlay(() => {
-      const draw = igGetWindowDrawList();
-      if (draw)
-        ImDrawList_AddRectFilled(
-          draw,
-          { x: max.x - 29, y: min.y + 2 },
-          { x: max.x - 2, y: max.y - 2 },
-          igGetColorU32_Col(ImGuiCol_FrameBg, 1),
-          5,
-          0,
-        );
+      ImDrawList_AddRectFilled(
+        windowDrawList(),
+        { x: max.x - 29, y: min.y + 2 },
+        { x: max.x - 2, y: max.y - 2 },
+        igGetColorU32_Col(ImGuiCol_FrameBg, 1),
+        5,
+        0,
+      );
       igSetCursorScreenPos({
         x: max.x - 27,
         y: min.y + (max.y - min.y - 24) / 2,
@@ -223,8 +221,7 @@ export function releasePanels() {
   splitters.length = 0;
 }
 export function panel(body: () => void, background: Color = palette.surface) {
-  const draw = igGetWindowDrawList();
-  if (!draw) throw new Error("Cannot access the panel canvas");
+  const draw = windowDrawList();
   let splitter = splitters[panelDepth];
   if (!splitter) {
     const created = ImDrawListSplitter_ImDrawListSplitter();

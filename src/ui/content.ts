@@ -24,7 +24,6 @@ import {
   ImGuiTreeNodeFlags_DefaultOpen,
   ImPlot_BeginPlot,
   ImPlot_EndPlot,
-  ImPlot_GetPlotDrawList,
   ImPlot_GetPlotLimits,
   ImPlot_GetPlotMousePos,
   ImPlot_GetPlotPos,
@@ -68,7 +67,6 @@ import {
   igGetItemRectMin,
   igGetMouseDragDelta,
   igGetMousePos,
-  igGetWindowDrawList,
   igIndent,
   igIsItemHovered,
   igIsKeyDown_Nil,
@@ -135,6 +133,7 @@ import type {
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import { crowdedCategories } from "./chart-layout.ts";
 import { Diagrams } from "./diagrams.ts";
+import { plotDrawList, windowDrawList } from "./draw-list.ts";
 import { type Icon, iconButton } from "./icons.ts";
 import { layoutImage } from "./image-layout.ts";
 import {
@@ -328,8 +327,7 @@ export class DocumentRenderer {
     // Leave antialiased edges inside the recorded block bounds.
     const start = { x: cursor.x, y: cursor.y + 1 };
     const end = { x: start.x + layout.width, y: start.y + layout.height };
-    const draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the image canvas");
+    const draw = windowDrawList();
     if (frameHeight !== undefined)
       ImDrawList_AddRectFilled(
         draw,
@@ -445,6 +443,9 @@ export class DocumentRenderer {
     parentHeading?: number,
   ) {
     const top = igGetCursorScreenPos().y;
+    const flow =
+      ["column", "details", "card", "timeline"].includes(value.type) ||
+      (value.type === "row" && available() < 620);
     let heading = parentHeading;
     const capture = currentCapture();
     let bodyLineStart: number | undefined;
@@ -499,8 +500,7 @@ export class DocumentRenderer {
         igPushFont(face, 13);
         const size = igCalcTextSize(value.label, false, width);
         igPopFont();
-        const draw = igGetWindowDrawList();
-        if (!draw) throw new Error("Cannot access the badge canvas");
+        const draw = windowDrawList();
         const tint = tone(value.tone ?? "positive");
         ImDrawList_AddRectFilled(
           draw,
@@ -640,8 +640,24 @@ export class DocumentRenderer {
     }
     if (value.type !== "spacer") {
       const bottom = igGetCursorScreenPos().y;
-      // Event spans let a timeline flow beneath a parent title without one oversized chain.
-      if (value.type !== "timeline") keepTogether(top, bottom);
+      if (!flow)
+        keepTogether(
+          top,
+          bottom,
+          [
+            "diagram",
+            "chart",
+            "image",
+            "heatmap",
+            "histogram",
+            "boxplot",
+            "waterfall",
+          ].includes(value.type)
+            ? value.type === "diagram"
+              ? "diagram"
+              : "figure"
+            : undefined,
+        );
       keepTogether(top, Math.min(top + 48, bottom));
       keepTogether(Math.max(top, bottom - 48), bottom);
     }
@@ -652,8 +668,7 @@ export class DocumentRenderer {
     heading?: number,
   ) {
     const origin = igGetCursorScreenPos(),
-      draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the timeline canvas");
+      draw = windowDrawList();
     const points: { y: number; tint: Color }[] = [];
     igIndent(32);
     for (const [index, event] of value.events.entries()) {
@@ -1131,8 +1146,7 @@ export class DocumentRenderer {
       );
     else {
       const origin = igGetCursorScreenPos(),
-        draw = igGetWindowDrawList();
-      if (!draw) throw new Error("Cannot access the heatmap scale");
+        draw = windowDrawList();
       const legendWidth = Math.min(160, width * 0.3);
       for (let step = 0; step < 32; step++)
         ImDrawList_AddRectFilled(
@@ -1288,8 +1302,7 @@ export class DocumentRenderer {
       const right = horizontalBars
         ? ImPlot_PlotToPixels_double(0, selectedIndex + 0.4, -1, -1).y
         : ImPlot_PlotToPixels_double(selectedIndex + 0.4, 0, -1, -1).x;
-      const draw = ImPlot_GetPlotDrawList();
-      if (!draw) throw new Error("Cannot access the chart canvas");
+      const draw = plotDrawList();
       ImPlot_PushPlotClipRect(0);
       ImDrawList_AddRectFilled(
         draw,
@@ -1568,8 +1581,7 @@ export class DocumentRenderer {
         y: position.y + 8,
       };
     if (origin.x < position.x || size.y < button + inset * 2 + 16) return;
-    const draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the chart canvas");
+    const draw = windowDrawList();
     const end = { x: origin.x + width, y: origin.y + button + inset * 2 };
     ImDrawList_AddRectFilled(draw, origin, end, packed(palette.surface), 9, 0);
     ImDrawList_AddRect(draw, origin, end, packed(palette.border), 9, 1, 0);

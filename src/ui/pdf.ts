@@ -8,6 +8,8 @@ import {
 } from "./layout.ts";
 
 export interface PageSlice extends VerticalRange {
+  factor: number;
+  left: number;
   headerHeight: number;
   repeats: TableCapture[];
 }
@@ -15,7 +17,7 @@ export interface PdfPages {
   width: number;
   height: number;
   margin: number;
-  factor: number;
+  contentWidth: number;
   slices: PageSlice[];
 }
 export function pdfPages(
@@ -34,6 +36,35 @@ export function pdfPages(
     ...layout.regions,
     ...layout.tables.flatMap((table) => table.rows),
   ];
+  const figureGroups: (VerticalRange & { diagram: boolean })[] = [];
+  const textAndRows = [
+    ...layout.lines,
+    ...layout.tables.flatMap((table) => table.rows),
+  ];
+  for (const region of layout.regions
+    .filter((region) => region.kind)
+    .sort((a, b) => a.top - b.top)) {
+    let bottom = region.bottom;
+    // Authored breaks guard against antialiasing inside the preceding block's trailing space.
+    const guardedBottom = Math.max(0, Math.floor(bottom) - 1);
+    if (layout.breaks.includes(guardedBottom)) bottom = guardedBottom;
+    let previous: number;
+    do {
+      previous = bottom;
+      for (const range of textAndRows)
+        if (range.top < bottom && range.bottom > bottom) bottom = range.bottom;
+    } while (bottom > previous);
+    const last = figureGroups[figureGroups.length - 1];
+    if (last && region.top < last.bottom) {
+      last.bottom = Math.max(last.bottom, bottom);
+      last.diagram ||= region.kind === "diagram";
+    } else
+      figureGroups.push({
+        top: region.top,
+        bottom,
+        diagram: region.kind === "diagram",
+      });
+  }
   const slices: PageSlice[] = [];
   let contentBottom = 0;
   for (const region of layout.regions)
@@ -49,11 +80,36 @@ export function pdfPages(
   );
   let top = 0;
   while (top < height && top < contentBottom) {
-    const sectionBottom = boundaries.reduce(
+    const authoredBottom = boundaries.reduce(
       (bottom, boundary) =>
         boundary > top ? Math.min(bottom, boundary) : bottom,
       height,
     );
+    const diagram = figureGroups.find(
+      (group) =>
+        group.diagram &&
+        group.top >= top &&
+        group.bottom - group.top > capacity &&
+        group.bottom <= authoredBottom,
+    );
+    const prefix =
+      diagram &&
+      (layout.lines.some((line) => line.top >= top && line.top < diagram.top) ||
+        regions.some(
+          (region) =>
+            region.top >= top &&
+            region.bottom <= diagram.top &&
+            region.bottom > region.top,
+        ));
+    const fitsIntroduction =
+      diagram &&
+      diagram.top - top <= capacity * 0.4 &&
+      (diagram.bottom - diagram.top) / (diagram.bottom - top) >= 0.85;
+    const wholeDiagram = diagram && (!prefix || fitsIntroduction);
+    const sectionBottom =
+      diagram && prefix && !fitsIntroduction
+        ? Math.min(authoredBottom, diagram.top)
+        : authoredBottom;
     let repeats = layout.tables
       .filter(
         (table) =>
@@ -71,9 +127,23 @@ export function pdfPages(
     const nextLine = layout.lines
       .filter((line) => line.top >= top)
       .reduce((end, line) => Math.min(end, line.bottom), height);
-    if (headerHeight + nextLine - top >= capacity) {
+    if (!wholeDiagram && headerHeight + nextLine - top >= capacity) {
       repeats = [];
       headerHeight = 0;
+    }
+    if (wholeDiagram) {
+      const pageFactor =
+        (pageHeight - 2 * margin - 12) / (diagram.bottom - top + headerHeight);
+      slices.push({
+        top,
+        bottom: diagram.bottom,
+        factor: pageFactor,
+        left: (pageWidth - width * pageFactor) / 2,
+        headerHeight,
+        repeats,
+      });
+      top = diagram.bottom;
+      continue;
     }
     let bottom: number;
     try {
@@ -90,10 +160,60 @@ export function pdfPages(
       headerHeight = 0;
       bottom = pageBottom(top, sectionBottom, capacity, regions, layout.lines);
     }
-    slices.push({ top, bottom, headerHeight, repeats });
+    let pageFactor = factor;
+    // A modest fit adjustment keeps a short introduction with its near-fitting figure.
+    if (!headerHeight && bottom - top < capacity * 0.4) {
+      const candidates = figureGroups.filter(
+        (region) =>
+          region.top >= top &&
+          region.top <= bottom + 1 &&
+          region.bottom - region.top <= capacity &&
+          region.bottom > top + capacity &&
+          region.bottom <= Math.min(sectionBottom, top + capacity / 0.85),
+      );
+      if (candidates.length) {
+        const limit = Math.min(sectionBottom, top + capacity / 0.85);
+        const protectedRanges = [
+          ...regions.filter(
+            (region) => region.bottom - region.top <= capacity / 0.85,
+          ),
+          ...layout.lines,
+        ];
+        const ends = candidates
+          .map((candidate) => {
+            let end = candidate.bottom;
+            let previous: number;
+            do {
+              previous = end;
+              for (const range of protectedRanges)
+                if (range.top < end && range.bottom > end) end = range.bottom;
+            } while (end > previous && end <= limit);
+            return end;
+          })
+          .filter((end) => end <= limit);
+        if (ends.length) {
+          bottom = Math.min(...ends);
+          pageFactor = (pageHeight - 2 * margin - 12) / (bottom - top);
+        }
+      }
+    }
+    slices.push({
+      top,
+      bottom,
+      factor: pageFactor,
+      left: (pageWidth - width * pageFactor) / 2,
+      headerHeight,
+      repeats,
+    });
     top = bottom;
   }
-  return { width: pageWidth, height: pageHeight, margin, factor, slices };
+  return {
+    width: pageWidth,
+    height: pageHeight,
+    margin,
+    contentWidth: width,
+    slices,
+  };
 }
 export function rasterPdf(
   width: number,
@@ -129,9 +249,10 @@ export function rasterPdf(
   append(compressed);
   append("\nendstream\nendobj\n");
   object(4, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-  const imageWidth = pages.width - 2 * pages.margin;
-  const imageHeight = (imageWidth * height) / width;
   for (const [index, slice] of pages.slices.entries()) {
+    const logicalWidth = pages.contentWidth;
+    const imageWidth = logicalWidth * slice.factor;
+    const imageHeight = (imageWidth * height) / width;
     const id = 5 + index * 2;
     object(
       id,
@@ -145,21 +266,19 @@ export function rasterPdf(
       bottom: number,
       destinationTop: number,
     ) {
-      const clipHeight = (bottom - sourceTop) * pages.factor;
-      return `q\n${pages.margin + left * pages.factor} ${destinationTop - clipHeight} ${(right - left) * pages.factor} ${clipHeight} re W n\n${imageWidth} 0 0 ${imageHeight} ${pages.margin} ${destinationTop - imageHeight + sourceTop * pages.factor} cm\n/Image Do\nQ\n`;
+      const clipHeight = (bottom - sourceTop) * slice.factor;
+      return `q\n${slice.left + left * slice.factor} ${destinationTop - clipHeight} ${(right - left) * slice.factor} ${clipHeight} re W n\n${imageWidth} 0 0 ${imageHeight} ${slice.left} ${destinationTop - imageHeight + sourceTop * slice.factor} cm\n/Image Do\nQ\n`;
     }
     const background = [pixels[0], pixels[1], pixels[2]]
       .map((channel) => channel / 255)
       .join(" ");
-    let paint = slice.headerHeight
-      ? `q\n${background} rg ${pages.margin} ${top - slice.headerHeight * pages.factor} ${imageWidth} ${slice.headerHeight * pages.factor} re f\nQ\n`
-      : "";
+    let paint = `q\n${background} rg 0 0 ${pages.width} ${pages.height} re f\nQ\n`;
     paint += paintRegion(
       0,
-      imageWidth / pages.factor,
+      logicalWidth,
       slice.top,
       slice.bottom,
-      top - slice.headerHeight * pages.factor,
+      top - slice.headerHeight * slice.factor,
     );
     for (const table of slice.repeats)
       paint += paintRegion(
@@ -169,7 +288,11 @@ export function rasterPdf(
         table.header.bottom,
         top,
       );
-    paint += `BT /F1 9 Tf 0.4 0.45 0.5 rg ${pages.width - 64} 12 Td (${index + 1} / ${pages.slices.length}) Tj ET\n`;
+    const footer =
+      pixels[0] + pixels[1] + pixels[2] < 384
+        ? "0.72 0.72 0.77"
+        : "0.4 0.4 0.45";
+    paint += `BT /F1 9 Tf ${footer} rg ${pages.width - 64} 12 Td (${index + 1} / ${pages.slices.length}) Tj ET\n`;
     object(
       id + 1,
       `<< /Length ${Buffer.byteLength(paint)} >>\nstream\n${paint}endstream`,

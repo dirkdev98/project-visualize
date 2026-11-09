@@ -33,6 +33,12 @@ async function fixture(t, handler) {
   const requests = [];
   const trace = [];
   const server = createServer((request, response) => {
+    // Other local clients probe free ports; only asset requests belong to the fixture.
+    if (!request.url?.startsWith("/image")) {
+      response.writeHead(404);
+      response.end();
+      return;
+    }
     requests.push(request.headers);
     trace.push({
       event: "request",

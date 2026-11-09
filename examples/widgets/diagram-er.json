@@ -40,8 +40,8 @@
               "key": "primary"
             },
             {
-              "name": "station_id",
-              "type": "string",
+              "name": "station_identifier",
+              "type": "string (external reference)",
               "key": "foreign"
             },
             {
@@ -61,7 +61,7 @@
             },
             {
               "name": "note",
-              "type": "string"
+              "type": "free-form review note"
             }
           ]
         }

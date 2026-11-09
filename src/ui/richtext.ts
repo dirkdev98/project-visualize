@@ -18,7 +18,6 @@ import {
   igGetCursorScreenPos,
   igGetItemRectMax,
   igGetItemRectMin,
-  igGetWindowDrawList,
   igIndent,
   igInvisibleButton,
   igIsItemHovered,
@@ -41,6 +40,7 @@ import {
 } from "maligator:ffi/visualize";
 import { decodeHTMLStrict } from "entities";
 import { lexer, type MarkedToken, type Token } from "marked";
+import { windowDrawList } from "./draw-list.ts";
 import { type CodeLines, SyntaxHighlighter } from "./highlight.ts";
 import { iconButton } from "./icons.ts";
 import {
@@ -161,8 +161,7 @@ export class RichText {
     const origin = igGetCursorScreenPos();
     const width = Math.max(20, available());
     const line = size * 1.48;
-    const draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the text canvas");
+    const draw = windowDrawList();
     let x = 0,
       y = 0,
       id = 0;
@@ -324,8 +323,7 @@ export class RichText {
       }
       const face = fonts.mono;
       if (!face) throw new Error("Fonts are not initialized");
-      const draw = igGetWindowDrawList();
-      if (!draw) throw new Error("Cannot access the code canvas");
+      const draw = windowDrawList();
       const size = 17,
         lineHeight = 26;
       igPushFont(face, size);
@@ -459,8 +457,7 @@ export class RichText {
             igPushID_Int(n);
             const p = igGetCursorScreenPos();
             if (item.task) {
-              const draw = igGetWindowDrawList();
-              if (!draw) throw new Error("Cannot access the task canvas");
+              const draw = windowDrawList();
               const a = { x: p.x, y: p.y + 5 };
               const b = { x: p.x + 14, y: p.y + 19 };
               if (item.checked) {

@@ -9,7 +9,6 @@ import {
   igCalcTextSize,
   igDummy,
   igGetCursorScreenPos,
-  igGetWindowDrawList,
   igInvisibleButton,
   igPopFont,
   igPopID,
@@ -17,8 +16,15 @@ import {
   igPushID_Int,
   igSetCursorScreenPos,
 } from "maligator:ffi/visualize";
-import type { Block, DiagramEdge } from "../model.ts";
-import { type GraphLayout, graphLayout, type Point } from "./diagram-layout.ts";
+import type { Block } from "../model.ts";
+import {
+  type Box,
+  edgeLabelLayout,
+  type GraphLayout,
+  graphLayout,
+  type Point,
+} from "./diagram-layout.ts";
+import { windowDrawList } from "./draw-list.ts";
 import { keepTogether } from "./layout.ts";
 import {
   available,
@@ -32,7 +38,10 @@ type DiagramBlock = Extract<Block, { type: "diagram" }>;
 type Graph = Exclude<DiagramBlock, { kind: "sequence" | "gantt" }>;
 
 export class Diagrams {
-  private cache = new Map<Graph, { width: number; layout: GraphLayout }>();
+  private cache = new Map<
+    Graph,
+    { width: number; layout: GraphLayout; labels: (Box | undefined)[] }
+  >();
   private measure(
     value: string,
     width: number,
@@ -55,9 +64,8 @@ export class Diagrams {
     color: Color = palette.ink,
   ) {
     const face = fonts[font],
-      draw = igGetWindowDrawList();
-    if (!face || !draw)
-      throw new Error("Diagram fonts and canvas must be initialized");
+      draw = windowDrawList();
+    if (!face) throw new Error("Diagram fonts and canvas must be initialized");
     ImDrawList_AddText_FontPtr(
       draw,
       face,
@@ -70,8 +78,7 @@ export class Diagrams {
     captureWrappedText(value, font, size, point, width);
   }
   private line(a: Point, b: Point, color = palette.muted, dashed = false) {
-    const draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the diagram canvas");
+    const draw = windowDrawList();
     const length = Math.hypot(b.x - a.x, b.y - a.y);
     if (!dashed) ImDrawList_AddLine(draw, a, b, packed(color), 1.3, 0);
     else
@@ -94,8 +101,7 @@ export class Diagrams {
       }
   }
   private arrow(a: Point, b: Point, filled = true) {
-    const draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the diagram canvas");
+    const draw = windowDrawList();
     const angle = Math.atan2(b.y - a.y, b.x - a.x);
     const left = {
       x: b.x - 8 * Math.cos(angle - 0.4),
@@ -120,34 +126,45 @@ export class Diagrams {
   private graph(value: Graph, exporting: boolean) {
     const width = available(),
       origin = igGetCursorScreenPos(),
-      draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the diagram canvas");
+      draw = windowDrawList();
     let cached = this.cache.get(value);
     if (!cached || cached.width !== width) {
-      const heights = value.nodes.map((node) => {
-        const labelWidth = Math.min(
-          node.shape === "decision" ? 100 : 160,
-          width - 84,
-        );
-        const labelHeight = this.measure(node.label, labelWidth, 15, "bold").y;
-        const fieldHeight = (node.fields ?? []).reduce((height, field) => {
-          const label = `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`;
-          return height + this.measure(label, labelWidth, 13, "mono").y + 7;
-        }, 0);
-        return node.shape === "decision"
-          ? Math.max(100, labelHeight * 2.3 + 16)
-          : Math.max(60, labelHeight + fieldHeight + 32);
-      });
-      cached = {
+      const layout = graphLayout(
+        value.nodes,
+        value.edges ?? [],
         width,
-        layout: graphLayout(
-          value.nodes,
-          value.edges ?? [],
-          width,
-          heights,
-          value.direction,
-        ),
-      };
+        (node, boxWidth) => {
+          const labelWidth =
+            node.shape === "decision" ? boxWidth * 0.55 : boxWidth - 24;
+          const labelHeight = this.measure(
+            node.label,
+            labelWidth,
+            15,
+            "bold",
+          ).y;
+          const fieldHeight = (node.fields ?? []).reduce((height, field) => {
+            const label = `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`;
+            return (
+              height + this.measure(label, boxWidth - 24, 13, "mono").y + 7
+            );
+          }, 0);
+          return node.shape === "decision"
+            ? Math.max(100, labelHeight * 2.3 + 16)
+            : Math.max(60, labelHeight + fieldHeight + 32);
+        },
+        value.direction,
+      );
+      const placement = edgeLabelLayout(
+        layout,
+        width,
+        (value.edges ?? []).map((edge) => {
+          if (!edge.label) return undefined;
+          const size = this.measure(edge.label, Math.min(160, width - 48), 14);
+          return { width: size.x + 12, height: size.y + 8 };
+        }),
+      );
+      layout.height = placement.height;
+      cached = { width, layout, labels: placement.boxes };
       this.cache.set(value, cached);
     }
     const { layout } = cached;
@@ -162,69 +179,6 @@ export class Diagrams {
           offset(path[path.length - 2]),
           offset(path[path.length - 1]),
         );
-      if (edge.label) {
-        let longest = 1;
-        for (let i = 2; i < path.length; i++)
-          if (
-            Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y) >
-            Math.hypot(
-              path[longest].x - path[longest - 1].x,
-              path[longest].y - path[longest - 1].y,
-            )
-          )
-            longest = i;
-        const a = offset(path[longest - 1]),
-          b = offset(path[longest]);
-        const size = this.measure(edge.label, Math.min(160, width - 48), 13);
-        const p = {
-          x: Math.max(
-            origin.x + 8,
-            Math.min(origin.x + width - size.x - 8, (a.x + b.x - size.x) / 2),
-          ),
-          y: (a.y + b.y - size.y) / 2 - 3,
-        };
-        ImDrawList_AddRectFilled(
-          draw,
-          { x: p.x - 4, y: p.y - 2 },
-          { x: p.x + size.x + 4, y: p.y + size.y + 2 },
-          packed(palette.paper),
-          3,
-          0,
-        );
-        this.label(
-          edge.label,
-          p,
-          Math.min(160, width - 48),
-          13,
-          "regular",
-          palette.muted,
-        );
-      }
-      const cardinality = (value: DiagramEdge["fromCardinality"]) =>
-        value === "one"
-          ? "1"
-          : value === "zero-or-one"
-            ? "0..1"
-            : value === "one-or-many"
-              ? "1..*"
-              : "*";
-      if (edge.fromCardinality)
-        this.label(
-          cardinality(edge.fromCardinality),
-          offset({ x: path[0].x + 5, y: path[0].y + 6 }),
-          50,
-          12,
-        );
-      if (edge.toCardinality)
-        this.label(
-          cardinality(edge.toCardinality),
-          offset({
-            x: path[path.length - 1].x + 5,
-            y: path[path.length - 1].y - 19,
-          }),
-          50,
-          12,
-        );
     }
     for (const [i, node] of value.nodes.entries()) {
       const box = layout.nodes[i],
@@ -235,7 +189,7 @@ export class Diagrams {
           ? palette.negative
           : node.tone === "warning"
             ? palette.warning
-            : palette.border;
+            : palette.diagramBorder;
       if (node.shape === "decision") {
         const top = { x: (a.x + b.x) / 2, y: a.y },
           right = { x: b.x, y: (a.y + b.y) / 2 },
@@ -301,7 +255,7 @@ export class Diagrams {
         for (const field of node.fields) {
           const label = `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`;
           this.label(label, { x: a.x + 12, y }, box.width - 24, 13, "mono");
-          y += this.measure(label, box.width - 24, 13).y + 7;
+          y += this.measure(label, box.width - 24, 13, "mono").y + 7;
         }
       }
       keepTogether(a.y, b.y);
@@ -311,6 +265,63 @@ export class Diagrams {
         igInvisibleButton("node", { x: box.width, y: box.height }, 0);
         itemTooltip(node.detail);
         igPopID();
+      }
+    }
+    for (const [index, path] of layout.edges.entries()) {
+      const edge = value.edges?.[index];
+      if (!edge) continue;
+      const box = cached.labels[index];
+      if (edge.label && box) {
+        const point = offset(box);
+        ImDrawList_AddRectFilled(
+          draw,
+          point,
+          { x: point.x + box.width, y: point.y + box.height },
+          packed(palette.paper),
+          4,
+          0,
+        );
+        this.label(
+          edge.label,
+          { x: point.x + 6, y: point.y + 4 },
+          box.width - 12,
+          14,
+          "regular",
+          palette.diagramLabel,
+        );
+      }
+      for (const [value, start] of [
+        [edge.fromCardinality, true],
+        [edge.toCardinality, false],
+      ] as const) {
+        if (!value) continue;
+        const label =
+          value === "one"
+            ? "1"
+            : value === "zero-or-one"
+              ? "0..1"
+              : value === "one-or-many"
+                ? "1..*"
+                : "*";
+        const p = offset(path[start ? 0 : path.length - 1]);
+        const next = offset(path[start ? 1 : path.length - 2]);
+        const size = this.measure(label, 50, 12);
+        this.label(
+          label,
+          {
+            x:
+              next.x === p.x
+                ? p.x + 8
+                : next.x > p.x
+                  ? p.x + 8
+                  : p.x - size.x - 8,
+            y: next.x === p.x && next.y > p.y ? p.y + 6 : p.y - size.y - 6,
+          },
+          50,
+          12,
+          "regular",
+          palette.diagramLabel,
+        );
       }
     }
     igSetCursorScreenPos(origin);
@@ -334,8 +345,7 @@ export class Diagrams {
       return;
     }
     const origin = igGetCursorScreenPos(),
-      draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the diagram canvas");
+      draw = windowDrawList();
     const step = width / value.participants.length;
     const positions = new Map(
       value.participants.map((p, i) => [p.id, origin.x + step * (i + 0.5)]),
@@ -441,8 +451,7 @@ export class Diagrams {
       palette.muted,
     );
     const origin = igGetCursorScreenPos(),
-      draw = igGetWindowDrawList();
-    if (!draw) throw new Error("Cannot access the diagram canvas");
+      draw = windowDrawList();
     const labelWidth = Math.min(200, Math.max(90, width * 0.3)),
       plotWidth = Math.max(20, width - labelWidth - 16);
     const x = (time: number) =>
@@ -500,16 +509,13 @@ export class Diagrams {
       points.set(task.id, { start: { x: a.x, y }, end: { x: b.x, y } });
       keepTogether(top, top + rows[i]);
       if (!exporting) {
-        igSetCursorScreenPos(a);
+        igSetCursorScreenPos({ x: origin.x, y: top });
         igPushID_Int(i);
-        igInvisibleButton(
-          "task",
-          { x: Math.max(1, b.x - a.x), y: b.y - a.y },
-          0,
-        );
+        igInvisibleButton("task", { x: width, y: rows[i] }, 0);
         itemTooltip({
           title: task.label,
           subtitle: `${task.start} – ${task.end}`,
+          detail: task.detail,
           rows:
             task.progress === undefined
               ? []

@@ -12,7 +12,7 @@ export interface TableCapture {
 export interface LayoutCapture {
   breaks: number[];
   headings: { title: string; top: number; parent?: number }[];
-  regions: VerticalRange[];
+  regions: (VerticalRange & { kind?: "figure" | "diagram" })[];
   lines: VerticalRange[];
   tables: TableCapture[];
   text: TextFragment[];
@@ -63,8 +63,12 @@ export function captureHeading(
   active.headings.push({ title: label, top, parent });
   return index;
 }
-export function keepTogether(top: number, bottom: number) {
-  if (active && bottom > top) active.regions.push({ top, bottom });
+export function keepTogether(
+  top: number,
+  bottom: number,
+  kind?: "figure" | "diagram",
+) {
+  if (active && bottom > top) active.regions.push({ top, bottom, kind });
 }
 export function keepLineTogether(top: number, bottom: number) {
   if (active && bottom > top) active.lines.push({ top, bottom });

@@ -411,3 +411,29 @@ test("shift clicking the same chart category toggles its linked selection", asyn
     w.dispose();
   }
 });
+
+test("Gantt descriptions appear when hovering task labels and focusing tasks", async ({
+  page,
+}) => {
+  const w = workspace();
+  try {
+    const document = JSON.parse(
+      readFileSync("examples/widgets/diagram-gantt.json", "utf8"),
+    );
+    const task = document.body[0].tasks.find((task) => task.detail);
+    await openExport(page, w.html(w.save(document)).output);
+    const group = page.getByRole("group", {
+      name: `${task.label}: ${task.detail}`,
+      exact: true,
+    });
+    await group.getByText(task.label, { exact: true }).hover();
+    await expect(page.getByRole("tooltip")).toContainText(task.detail);
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("tooltip")).toBeHidden();
+    await group.focus();
+    await expect(page.getByRole("tooltip")).toContainText(task.detail);
+    await expect(page.getByRole("tooltip")).toContainText(task.start);
+  } finally {
+    w.dispose();
+  }
+});

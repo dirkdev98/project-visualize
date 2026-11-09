@@ -22,6 +22,7 @@ import {
 import { PNG } from "pngjs";
 import ts from "typescript";
 import { catalogue } from "../scripts/example-catalogue.mjs";
+import { palettes } from "../src/palette.ts";
 
 const examples = catalogue();
 function blocks(values) {
@@ -285,7 +286,11 @@ for (const [name, tall, status] of [
       y: 2,
       width: 12,
       height: tall ? page.getHeight() - 4 : 10,
-      color: rgb(254 / 255, 254 / 255, 254 / 255),
+      color: rgb(
+        (Number.parseInt(palettes.light.paper.slice(1, 3), 16) - 1) / 255,
+        Number.parseInt(palettes.light.paper.slice(3, 5), 16) / 255,
+        Number.parseInt(palettes.light.paper.slice(5, 7), 16) / 255,
+      ),
     });
     writeFileSync(file, await pdf.save());
     const check = run("check");

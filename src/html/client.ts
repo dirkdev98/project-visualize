@@ -17,9 +17,9 @@ const payload: HtmlPayload = JSON.parse(source.textContent);
 const state = htmlState(payload);
 const canvas = document.createElement("canvas"),
   context = canvas.getContext("2d");
-const measure = (text: string, size: number) => {
+const measure = (text: string, size: number, font = "regular") => {
   if (!context) return text.length * size * 0.51;
-  context.font = `${size}px PVSans`;
+  context.font = `${font === "bold" ? 600 : 400} ${size}px ${font === "mono" ? "PVMono" : "PVSans"}`;
   context.fontKerning = "none";
   return context.measureText(text).width;
 };
@@ -82,7 +82,7 @@ function draw() {
   }
   width = host.clientWidth;
   if (payload.mode === "standalone")
-    host.style.padding = `32px ${width < 480 ? 16 : 36}px`;
+    host.style.padding = `${payload.partial ? 40 : 32}px ${width < 480 ? (payload.partial ? 24 : 16) : payload.partial ? 48 : 36}px`;
   host.innerHTML = renderDocument(payload, state, width, measure);
   if (owner) {
     const replacement = [
@@ -342,11 +342,24 @@ host.addEventListener("pointermove", (event) => {
     hideTooltip();
     return;
   }
-  tooltip.textContent = target.dataset.tooltip ?? "";
-  tooltip.hidden = false;
-  tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - tooltip.offsetWidth - 8, event.clientX + 12))}px`;
-  tooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - tooltip.offsetHeight - 8, event.clientY + 16))}px`;
+  showTooltip(target, event.clientX + 12, event.clientY + 16);
 });
+function showTooltip(target: Element, x: number, y: number) {
+  tooltip.textContent = target.getAttribute("data-tooltip") ?? "";
+  tooltip.hidden = false;
+  tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - tooltip.offsetWidth - 8, x))}px`;
+  tooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - tooltip.offsetHeight - 8, y))}px`;
+}
+host.addEventListener("focusin", (event) => {
+  const target =
+    event.target instanceof Element
+      ? event.target.closest("[data-tooltip]")
+      : undefined;
+  if (!target) return;
+  const bounds = target.getBoundingClientRect();
+  showTooltip(target, bounds.left, bounds.bottom + 8);
+});
+host.addEventListener("focusout", hideTooltip);
 host.addEventListener("pointerup", () => {
   drag = undefined;
 });

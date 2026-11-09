@@ -1,8 +1,12 @@
 import type { Diagram } from "../model.ts";
-import { graphLayout } from "../ui/diagram-layout.ts";
+import { edgeLabelLayout, graphLayout } from "../ui/diagram-layout.ts";
 import { escapeHtml, label, svg, wrap } from "./markup.ts";
 
-export type Measure = (value: string, size: number) => number;
+export type Measure = (
+  value: string,
+  size: number,
+  font?: "regular" | "bold" | "mono",
+) => number;
 const day = 86400000;
 const date = (value: string) => Date.parse(`${value}T00:00:00Z`);
 function lines(
@@ -12,8 +16,9 @@ function lines(
   size: number,
   anchor = "middle",
   weight = 400,
+  color = "var(--pv-ink)",
 ): string {
-  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${size}" font-weight="${weight}" fill="var(--pv-ink)">${content.map((value, index) => `<tspan x="${x}" dy="${index ? size : 0}">${escapeHtml(value)}</tspan>`).join("")}</text>`;
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${size}" font-weight="${weight}" fill="${color}">${content.map((value, index) => `<tspan x="${x}" dy="${index ? size : 0}">${escapeHtml(value)}</tspan>`).join("")}</text>`;
 }
 function arrow(path: string, id: string, dashed = false, open = false): string {
   return `<path d="${path}" fill="none" stroke="var(--pv-muted)" stroke-width="1.5"${dashed ? ' stroke-dasharray="5 4"' : ""} marker-end="url(#${id}${open ? "-open" : ""})"/>`;
@@ -126,6 +131,8 @@ export function diagram(
       const y = tops[index] + rows[index] / 2,
         x = at(date(task.start)),
         w = at(date(task.end) + day) - x;
+      const detail = `${task.label}\n${task.start} to ${task.end}${task.progress === undefined ? "" : ` · ${Math.round(task.progress * 100)}%`}${task.detail ? `\n\n${task.detail}` : ""}`;
+      drawing += `<g data-tooltip="${escapeHtml(detail)}" tabindex="0" role="group" aria-label="${escapeHtml(task.detail ? `${task.label}: ${task.detail}` : task.label)}">`;
       drawing += lines(
         0,
         tops[index] + 17,
@@ -140,37 +147,57 @@ export function diagram(
           sy = tops[previous] + rows[previous] / 2;
         drawing += arrow(`M${sx},${sy}H${sx + 8}V${y}H${x}`, id);
       }
-      drawing += `<g data-tooltip="${escapeHtml(`${task.label}: ${task.start} to ${task.end}${task.progress === undefined ? "" : `, ${Math.round(task.progress * 100)}%`}`)}"><rect x="${x}" y="${y - 9}" width="${Math.max(1, w)}" height="18" rx="4" fill="var(--pv-accent)" fill-opacity=".3"/>${task.progress === undefined ? "" : `<rect x="${x}" y="${y - 9}" width="${w * task.progress}" height="18" rx="4" fill="var(--pv-accent)"/>`}</g>`;
+      drawing += `<rect x="${x}" y="${y - 9}" width="${Math.max(1, w)}" height="18" rx="4" fill="var(--pv-accent)" fill-opacity=".3"/>${task.progress === undefined ? "" : `<rect x="${x}" y="${y - 9}" width="${w * task.progress}" height="18" rx="4" fill="var(--pv-accent)"/>`}</g>`;
     });
   } else {
-    const heights = value.nodes.map((node) => {
-      const lw = Math.min(node.shape === "decision" ? 100 : 160, width - 84),
-        lh = wrap(node.label, lw, 15, measure).length * 15;
-      const fields = (node.fields ?? []).reduce(
-        (height, field) =>
-          height +
-          wrap(
-            `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`,
-            lw,
-            13,
-            measure,
-          ).length *
-            13 +
-          7,
-        0,
-      );
-      return node.shape === "decision"
-        ? Math.max(100, lh * 2.3 + 16)
-        : Math.max(60, lh + fields + 32);
-    });
     const layout = graphLayout(
       value.nodes,
       value.edges ?? [],
       width,
-      heights,
+      (node, boxWidth) => {
+        const labelWidth =
+          node.shape === "decision" ? boxWidth * 0.55 : boxWidth - 24;
+        const lh =
+          wrap(node.label, labelWidth, 15, (text, size) =>
+            measure(text, size, "bold"),
+          ).length * 15;
+        const fields = (node.fields ?? []).reduce(
+          (height, field) =>
+            height +
+            wrap(
+              `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`,
+              boxWidth - 24,
+              13,
+              (text, size) => measure(text, size, "mono"),
+            ).length *
+              13 +
+            7,
+          0,
+        );
+        return node.shape === "decision"
+          ? Math.max(100, lh * 2.3 + 16)
+          : Math.max(60, lh + fields + 32);
+      },
       value.direction,
     );
-    height = layout.height;
+    const labels = (value.edges ?? []).map((edge) =>
+      edge.label
+        ? wrap(edge.label, Math.min(160, width - 48), 14, measure)
+        : [],
+    );
+    const placement = edgeLabelLayout(
+      layout,
+      width,
+      labels.map((text) =>
+        text.length
+          ? {
+              width: Math.max(...text.map((line) => measure(line, 14))) + 12,
+              height: text.length * 14 + 8,
+            }
+          : undefined,
+      ),
+    );
+    height = placement.height;
     const cardinality = (value: string) =>
       ({ one: "1", "zero-or-one": "0..1", many: "*", "one-or-many": "1..*" })[
         value
@@ -185,43 +212,6 @@ export function diagram(
         value.kind === "er"
           ? `<path d="${d}" fill="none" stroke="var(--pv-muted)" stroke-width="1.5"/>`
           : arrow(d, id);
-      if (edge.label) {
-        let longest = 1;
-        for (let j = 2; j < path.length; j++)
-          if (
-            Math.hypot(path[j].x - path[j - 1].x, path[j].y - path[j - 1].y) >
-            Math.hypot(
-              path[longest].x - path[longest - 1].x,
-              path[longest].y - path[longest - 1].y,
-            )
-          )
-            longest = j;
-        const a = path[longest - 1],
-          b = path[longest],
-          text = wrap(edge.label, Math.min(160, width - 48), 13, measure),
-          textWidth = Math.max(...text.map((line) => measure(line, 13))),
-          x = Math.max(
-            8,
-            Math.min(width - textWidth - 8, (a.x + b.x - textWidth) / 2),
-          );
-        drawing += `<rect x="${x - 4}" y="${(a.y + b.y) / 2 - 17}" width="${textWidth + 8}" height="${text.length * 18 + 4}" fill="var(--pv-paper)"/>${lines(x, (a.y + b.y) / 2 - 3, text, 13, "start")}`;
-      }
-      if (edge.fromCardinality)
-        drawing += label(
-          path[0].x + 5,
-          path[0].y + 17,
-          cardinality(edge.fromCardinality),
-          12,
-          "start",
-        );
-      if (edge.toCardinality)
-        drawing += label(
-          path[path.length - 1].x + 5,
-          path[path.length - 1].y - 9,
-          cardinality(edge.toCardinality),
-          12,
-          "start",
-        );
     });
     value.nodes.forEach((node, index) => {
       const box = layout.nodes[index],
@@ -232,7 +222,7 @@ export function diagram(
           ? "var(--pv-warning)"
           : node.tone === "negative"
             ? "var(--pv-negative)"
-            : "var(--pv-border)";
+            : "var(--pv-diagramBorder)";
       drawing += `<g${node.detail ? ` data-tooltip="${escapeHtml(node.detail)}" tabindex="0" aria-label="${escapeHtml(`${node.label}: ${node.detail}`)}"` : ""}>`;
       drawing +=
         node.shape === "decision"
@@ -242,9 +232,9 @@ export function diagram(
         drawing += `<rect x="${box.x + 4}" y="${box.y + 4}" width="${box.width - 8}" height="${box.height - 8}" rx="${(box.height - 8) / 2}" fill="none" stroke="${border}"/>`;
       const text = wrap(
         node.label,
-        node.shape === "decision" ? box.width * 0.55 : box.width - 28,
+        node.shape === "decision" ? box.width * 0.55 : box.width - 24,
         15,
-        measure,
+        (text, size) => measure(text, size, "bold"),
       );
       let y = node.fields?.length
         ? box.y + 24
@@ -256,15 +246,41 @@ export function diagram(
         for (const field of node.fields) {
           const text = wrap(
             `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`,
-            box.width - 28,
+            box.width - 24,
             13,
-            measure,
+            (text, size) => measure(text, size, "mono"),
           );
-          drawing += `<g font-family="PVMono,monospace">${lines(box.x + 14, y + 9, text, 13, "start")}</g>`;
+          drawing += `<g font-family="PVMono,monospace">${lines(box.x + 12, y + 9, text, 13, "start")}</g>`;
           y += text.length * 13 + 7;
         }
       }
       drawing += "</g>";
+    });
+    layout.edges.forEach((path, index) => {
+      const edge = value.edges?.[index];
+      if (!edge) return;
+      const box = placement.boxes[index];
+      if (box)
+        drawing += `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="4" fill="var(--pv-paper)"/>${lines(box.x + 6, box.y + 18, labels[index], 14, "start", 400, "var(--pv-diagramLabel)")}`;
+      for (const [value, start] of [
+        [edge.fromCardinality, true],
+        [edge.toCardinality, false],
+      ] as const) {
+        if (!value) continue;
+        const text = cardinality(value),
+          size = measure(text, 12),
+          p = path[start ? 0 : path.length - 1],
+          next = path[start ? 1 : path.length - 2];
+        drawing += lines(
+          next.x === p.x ? p.x + 8 : next.x > p.x ? p.x + 8 : p.x - size - 8,
+          next.x === p.x && next.y > p.y ? p.y + 18 : p.y - 6,
+          [text],
+          12,
+          "start",
+          400,
+          "var(--pv-diagramLabel)",
+        );
+      }
     });
   }
   return `<figure class="pv-diagram" data-diagram="${escapeHtml(key)}">${prefix}${svg(width, height, value.kind ?? "flowchart", drawing)}<div class="pv-zoom"><button type="button" data-zoom="in" aria-label="Zoom in">+</button><button type="button" data-zoom="out" aria-label="Zoom out">−</button><button type="button" data-zoom="fit" aria-label="Fit diagram">⌖</button></div></figure>`;

@@ -18,6 +18,7 @@
         {
           "id": "inspect",
           "label": "Inspect",
+          "detail": "Inspect the fictional station and record the initial sensor readings.",
           "start": "2026-04-06",
           "end": "2026-04-06",
           "progress": 1
@@ -25,6 +26,7 @@
         {
           "id": "calibrate",
           "label": "Calibrate",
+          "detail": "Adjust the sensors against the reference instrument before verification.",
           "start": "2026-04-07",
           "end": "2026-04-09",
           "progress": 0.5,

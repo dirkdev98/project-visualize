@@ -1,5 +1,34 @@
 # Decisions
 
+## 2026-11-09 diagram legibility and flowing PDF pages
+
+- Place connector labels outside nodes and other labels, then draw them above the
+  shapes. Measure text with its actual font and available node width, and give
+  diagram outlines and annotations their own contrast colors. Use automatic
+  placement when explicit coordinates would crowd nodes in a narrow view.
+- Let flowing containers continue across PDF pages while preserving complete
+  diagrams and authored section breaks. Large diagrams receive a complete fitted
+  page. A bounded fit adjustment keeps a short introduction with a nearly fitting
+  figure, with one transform for its raster, searchable text, links and bookmarks.
+- Paint the whole PDF page with the artifact background so short dark sections
+  remain part of a continuous page. Generate the viewer's PDF preview from its
+  current appearance and controls rather than opening the creation-time snapshot.
+  Keep the viewer responsive while its export process runs.
+- Allow Gantt tasks to carry optional detail text for native and HTML tooltips,
+  including task labels and keyboard focus.
+- Preserve standalone widget-export padding when HTML redraws after loading fonts
+  or resizing.
+- Keep every ImGui draw-list handle reachable for the session. Maligator can return an
+  interned handle its incremental sweep has already condemned and then close it while
+  in use, which ended the viewer with "expects an open ImDrawList handle". ImGui keeps
+  one draw list per window, so retaining them is bounded.
+- Count only asset requests in the image cache tests. Their occasional extra request
+  was another local client probing the fixture's port, not a runtime retry.
+
+Keep track of;
+
+- Drop the retained draw-list set once Maligator issue 102 is fixed.
+
 ## 2026-11-09 Linux packaging execution budget
 
 - Extend the monitoring and execution budgets decision to Linux packaging. Let
@@ -142,7 +171,7 @@
 
 Keep track of;
 
-- Capture a clean Codex desktop conversation for the chat side of the public demo.
+- Capture a clean desktop agent conversation for the chat side of the public demo.
 
 ## 2026-11-08 responsive rendering references
 
@@ -313,11 +342,6 @@ Keep track of;
   active text field keeps Escape for cancelling its edit.
 - Bundle the Lucide icon font under ISC with a pinned version and checksums, so icons
   render as crisp glyphs and new ones need no drawing code.
-
-Keep track of;
-
-- Image cache tests occasionally see one extra HTTP request under the full parallel
-  suite. Each passes alone; find whether the runtime retries requests under load.
 
 ## 2026-11-07 native settings access
 

@@ -21,7 +21,6 @@ import {
   igGetMouseClickedCount,
   igGetMousePos,
   igGetScrollY,
-  igGetWindowDrawList,
   igIsKeyDown_Nil,
   igIsKeyPressed_Bool,
   igIsMouseClicked_Bool,
@@ -39,6 +38,7 @@ import {
   igSetScrollY_Float,
   igShortcut_Nil,
 } from "maligator:ffi/visualize";
+import { windowDrawList } from "./draw-list.ts";
 import { type Font, fonts, packed, palette } from "./theme.ts";
 
 interface Point {
@@ -118,8 +118,7 @@ export class TextSelection {
     this.content += value;
   }
   add(value: string, font: Font, size: number, point: Point, width: number) {
-    const draw = igGetWindowDrawList();
-    if (!draw) return;
+    const draw = windowDrawList();
     this.fragments.push({
       value,
       start: this.content.length,
@@ -249,13 +248,11 @@ export class TextSelection {
         this.anchor = this.origin.start;
         this.focus = range.end;
       }
-      const draw = igGetWindowDrawList();
-      if (draw) {
-        const min = ImDrawList_GetClipRectMin(draw),
-          max = ImDrawList_GetClipRectMax(draw);
-        if (mouse.y < min.y + 12) igSetScrollY_Float(igGetScrollY() - 16);
-        if (mouse.y > max.y - 12) igSetScrollY_Float(igGetScrollY() + 16);
-      }
+      const draw = windowDrawList();
+      const min = ImDrawList_GetClipRectMin(draw),
+        max = ImDrawList_GetClipRectMax(draw);
+      if (mouse.y < min.y + 12) igSetScrollY_Float(igGetScrollY() - 16);
+      if (mouse.y > max.y - 12) igSetScrollY_Float(igGetScrollY() + 16);
     }
     if (!igIsMouseDown_Nil(0)) this.pressed = false;
     if (igIsWindowFocused(0) && igGetActiveID() === 0) {
@@ -342,8 +339,8 @@ export class TextSelection {
     }
     const start = Math.min(this.anchor, this.focus),
       end = Math.max(this.anchor, this.focus);
-    const draw = igGetWindowDrawList();
-    if (!draw || start === end) return;
+    const draw = windowDrawList();
+    if (start === end) return;
     for (const fragment of this.fragments) {
       const a = Math.max(0, start - fragment.start),
         b = Math.min(fragment.value.length, end - fragment.start);

@@ -5,7 +5,6 @@ import {
   ImPlot_BeginItem,
   ImPlot_EndItem,
   ImPlot_FitPoint,
-  ImPlot_GetPlotDrawList,
   ImPlot_PlotBars_doublePtrdoublePtr,
   ImPlot_PlotLine_doublePtrdoublePtr,
   ImPlot_PlotScatter_doublePtrdoublePtr,
@@ -30,6 +29,7 @@ import {
   ImPlotSpec_SetProp_S32,
   ImPlotSpec_SetProp_Vec4,
 } from "maligator:ffi/visualize";
+import { plotDrawList } from "./draw-list.ts";
 import type { boxplot } from "./statistics.ts";
 import { type Color, currentTheme, packed } from "./theme.ts";
 
@@ -134,8 +134,7 @@ export class Plots {
         x: index + 0.45,
         y: Math.max(summary.high, ...summary.outliers),
       });
-      const draw = ImPlot_GetPlotDrawList();
-      if (!draw) throw new Error("Cannot access the chart canvas");
+      const draw = plotDrawList();
       const p = (x: number, y: number) =>
         ImPlot_PlotToPixels_double(x, y, -1, -1);
       ImPlot_PushPlotClipRect(0);
@@ -195,8 +194,7 @@ export class Plots {
     )
       return;
     try {
-      const draw = ImPlot_GetPlotDrawList();
-      if (!draw) throw new Error("Cannot access the chart canvas");
+      const draw = plotDrawList();
       const p = (x: number, y: number) =>
         ImPlot_PlotToPixels_double(x, y, -1, -1);
       for (const [i, step] of steps.entries()) {

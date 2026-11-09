@@ -204,7 +204,7 @@ async function main() {
     const controller = claimViewer(root);
     if (!controller) return;
     try {
-      openViewer(root, {}, controller);
+      await openViewer(root, {}, controller);
     } catch (error) {
       try {
         writeFileSync(

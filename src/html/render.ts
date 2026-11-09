@@ -361,7 +361,16 @@ export function renderDocument(
     }
     return `<section data-block="${escapeHtml(key)}"${value.type === "control" ? "" : ` aria-label="${escapeHtml(value.title ?? ("label" in value ? value.label : value.type))}"`} class="pv-block">${title}${content}${value.caption ? `<p class="pv-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
   }
-  const padding = payload.mode === "standalone" ? (width < 480 ? 16 : 36) : 0,
+  const padding =
+      payload.mode === "standalone"
+        ? width < 480
+          ? payload.partial
+            ? 24
+            : 16
+          : payload.partial
+            ? 48
+            : 36
+        : 0,
     available = Math.max(1, width - padding * 2);
   const heading = payload.partial
     ? ""

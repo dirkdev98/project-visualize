@@ -44,20 +44,21 @@ export async function searchablePdf(
     offset: number,
   ) {
     const page = pages[index],
+      slice = plan.slices[index],
       font = fonts.get(span.font);
     if (!font) throw new Error(`PDF font is unavailable: ${span.font}`);
-    const size = font.sizeAtHeight(span.size) * plan.factor;
+    const size = font.sizeAtHeight(span.size) * slice.factor;
     const advance = font.widthOfTextAtSize(span.value, size);
     if (!(advance > 0)) return;
-    const x = plan.margin + span.x * plan.factor;
+    const x = slice.left + span.x * slice.factor;
     const y =
       plan.height -
       plan.margin -
-      (span.baseline - sourceTop + offset) * plan.factor;
+      (span.baseline - sourceTop + offset) * slice.factor;
     page.pushOperators(
       pushGraphicsState(),
       setTextRenderingMode(TextRenderingMode.Invisible),
-      setCharacterSqueeze(((span.width * plan.factor) / advance) * 100),
+      setCharacterSqueeze(((span.width * slice.factor) / advance) * 100),
     );
     page.drawText(span.value, { x, y, size, font });
     page.pushOperators(popGraphicsState());
@@ -65,15 +66,15 @@ export async function searchablePdf(
       const bottom =
         plan.height -
         plan.margin -
-        (span.y + span.size - sourceTop + offset) * plan.factor;
+        (span.y + span.size - sourceTop + offset) * slice.factor;
       const annotation = pdf.context.obj({
         Type: "Annot",
         Subtype: "Link",
         Rect: [
           x,
           bottom,
-          x + span.width * plan.factor,
-          bottom + span.size * plan.factor,
+          x + span.width * slice.factor,
+          bottom + span.size * slice.factor,
         ],
         Border: [0, 0, 0],
         A: { Type: "Action", S: "URI", URI: PDFString.of(span.link) },
@@ -118,7 +119,7 @@ export async function searchablePdf(
       const top =
         plan.height -
         plan.margin -
-        (heading.top - slice.top + slice.headerHeight) * plan.factor;
+        (heading.top - slice.top + slice.headerHeight) * slice.factor;
       const dictionary = pdf.context.obj({
         Title: PDFHexString.fromText(heading.title),
         Parent: parent.ref,
