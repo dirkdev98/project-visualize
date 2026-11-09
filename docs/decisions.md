@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-11-09 native source download retries
+
+- Allow a slow native dependency transfer enough time to finish, with a separate
+  retry budget. A transfer deadline must leave room for the configured retries.
+- Keep checksum verification mandatory before extracting any downloaded source.
+
 ## 2026-11-09 monitoring and execution budgets
 
 - Replace the cold production build budget and measured cold production phases
