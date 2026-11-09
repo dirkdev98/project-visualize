@@ -14,6 +14,10 @@ in a native desktop app.
 ## Stack
 
 - Use Maligator for the application and CLI.
+- File a focused issue in `dirkdev98/maligator` for every Maligator limitation that
+  needs a workaround, without naming this project, and track it in the gitignored
+  `mal_workarounds.md` as `maligator-bump` describes. The decision log alone is never
+  rechecked.
 - Build a native desktop app with [wgpu](https://wgpu.rs/) through
   [wgpu-native](https://github.com/gfx-rs/wgpu-native).
 

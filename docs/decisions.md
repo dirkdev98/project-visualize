@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-09 Maligator workarounds get issues
+
+- Every Maligator limitation that needs a workaround gets a focused upstream issue and an
+  entry in `mal_workarounds.md`. The decision log described about ten workarounds while
+  that file listed none, and nine still reproduced without an issue, so the next bump
+  would have skipped them.
+
 ## 2026-11-09 hosted rendering disk capacity
 
 - Remove unused Android, .NET and GHC SDKs from the ephemeral hosted runner before
