@@ -1,5 +1,13 @@
 # Decisions
 
+## 2026-11-09 cold production build budget
+
+- Give production AOT compilation and linking a separate bounded build budget. A cold
+  compiler invocation includes several phases and can exceed a regression check's
+  time limit before it finishes linking.
+- Keep individual regression checks bounded independently so build setup cannot
+  silently extend their deadlines.
+
 ## 2026-11-08 queued viewer frame completion
 
 - Keep queued navigation and captures active until their required frames complete,
