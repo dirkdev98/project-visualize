@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-09 visual answers at every size
+
+- Describe the skill as covering everything from one table, chart or diagram to a
+  full briefing, and name the moments it applies: measured comparisons, before and
+  after results, trade-offs, trends and flows. Agents that apply an unnamed skill only
+  on a clear match skipped it for benchmark reports, and the earlier wording kept
+  ordinary tables in the conversation.
+- Deliver a one-widget answer as a block export, so it appears without a document
+  header.
+- Deliver interactive HTML first in hosts that render it in the conversation, and
+  fall back to PNG elsewhere. Following the skill then also satisfies a host
+  instruction to show comparisons as rendered HTML.
+
 ## 2026-11-09 diagram legibility and flowing PDF pages
 
 - Place connector labels outside nodes and other labels, then draw them above the

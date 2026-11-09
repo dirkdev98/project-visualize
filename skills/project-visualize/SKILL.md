@@ -1,22 +1,39 @@
 ---
-
 name: project-visualize
-description: Create visual explanations, charts, dashboards, diagrams and rich reports with Project Visualize. Use when showing how something works, comparing options or trends, exploring data, or turning findings into a saved visual artifact, interactive HTML, PNG or PDF. Consider it when a visual would clarify the answer, even if the user does not name the app. Do not use it to build or edit a website, app or existing UI.
+description: Show answers visually with Project Visualize, from a single table, chart or diagram to a few linked widgets or a full briefing, report or dashboard, saved as a versioned artifact and delivered as interactive HTML, PNG or PDF. Use it whenever an answer compares values or explains structure, such as benchmark and before/after results, measurements across runs, hosts or versions, options with trade-offs, trends over time, or how a system, flow or sequence works. Use it even when the user did not ask for a visual or name the app, and even when the result is one table. Do not use it to build or edit a website, app or existing UI.
 ---
 
-Use this skill when a saved visual helps the user understand, compare or inspect an
-answer. Requests such as "show how this works", "visualize this", "compare these
-options", "diagram the flow" and "make a dashboard" do not need to name the app.
-Keep simple facts, short explanations and ordinary tables in the conversation.
+Use this skill to show an answer instead of describing it. A rendered table or chart
+is easier to scan and compare than text, keeps its data and sources with the result,
+and stays available in the viewer when the user comes back to it.
 
-Choose a supported composition: charts for measured data, diagrams for structure or
-sequences, and rich documents for evidence with explanation. Combine them into a
-dashboard when the user needs to inspect related views. Read the artifact guide below
-for the schema. Do not substitute a screenshot for a requested editable website or an
-interactive simulation that the artifact format cannot represent.
+Size the artifact to the answer:
 
-Use the CLI to save a versioned artifact, then deliver its screenshot or interactive
-HTML export through the conversation host. The native viewer retains the organized
+- **One widget** for a quick comparison, a set of measurements or a single flow: a
+  table, a chart or a diagram. Give the block an `id` and export just that block with
+  `--block body.<id>`, so the user sees the widget without a document header. A small
+  table reads better with a narrower `--width`, such as 720, than across the default.
+- **A few related widgets** with short explanations for an analysis, such as
+  baseline and candidate timings beside memory per host.
+- **A full briefing, report or dashboard** when the user needs evidence, explanation
+  and linked views together.
+
+Reach for it at the moments a reader compares or follows something: benchmark or
+before/after results, measurements across runs, hosts or versions, options with
+trade-offs, trends over time, distributions, and how a system, flow or sequence works.
+A report of measured results qualifies even when nobody asked for a visual. Requests
+such as "show how this works", "compare these options", "diagram the flow" or "make a
+dashboard" do not need to name the app. Keep the answer in the conversation when a
+sentence or one or two numbers settle it, or when the user asked for plain text.
+
+Choose a supported composition: tables and charts for measured data, diagrams for
+structure or sequences, and rich documents for evidence with explanation. Combine them
+into a dashboard when the user needs to inspect related views. Read the artifact guide
+below for the schema. Do not substitute a screenshot for a requested editable website
+or an interactive simulation that the artifact format cannot represent.
+
+Use the CLI to save a versioned artifact, then deliver its interactive HTML export or
+screenshot through the conversation host. The native viewer retains the organized
 library and context. Generated HTML is an export, not a separate source artifact.
 
 The reported skill directory may be a symlink. Set `skill_directory` to the directory
@@ -45,9 +62,10 @@ Keep the current project's working directory when invoking `visualize_cli` so
 relative input and output paths resolve there.
 
 Write the artifact as JSON with a `type` of `dashboard`, `document` or `diagram`; the
-viewer's library shows it as an icon. Choose a project ID that matches the user's
-workspace and keep the same artifact ID when revising it. Preserve the actual data, units, source
-references, assumptions and uncertainty. Put the explanation in rich text and retain
+viewer's library shows it as an icon. A one-widget artifact is a document with a
+single block. Choose a project ID that matches the user's workspace and keep the same
+artifact ID when revising it. Preserve the actual data, units, source references,
+assumptions and uncertainty. Put the explanation in rich text and retain
 the task's provenance in `context`. Declare local PNG/JPEG paths or HTTP(S) image
 URLs in `assets`, and refer to them by asset ID. Remote images use a shared cache;
 each saved revision retains its chosen bytes for offline viewing and export.
@@ -62,18 +80,25 @@ Parse the JSON result and inspect its desktop and mobile `screenshots` with the
 host's image-viewing capability. New screenshots default to 2x density; use `--scale 1`
 when the full canvas is too tall at that density. Fix clipping, unclear labels and
 poor composition by rendering a revision.
-Return the screenshot using the conversation host's supported image mechanism, with
-the artifact's project, ID and version available when useful. A path alone does not
-display an image on every host. When the host requires an HTML wrapper for inline
-display, export the saved revision as HTML with `--html-mode inline` and use the
-host's preview and display tools. For T3 Code, read the export and pass its contents
-to `html_preview`, then `html_render` with the measured height clamped to that tool's
-accepted range. For OpenCode, use its browser preview tool with the returned HTML
-path. Use `--html-mode fragment`
-only when the host's visualization contract requires a fragment. A terminal can
-offer the standalone HTML path for browser viewing. Keep PNG as the fallback when
-the host cannot display HTML or its payload limit is exceeded. Honor an explicitly
-requested output format; do not claim an inline render from a file link alone.
+
+Deliver the visual where the user reads the answer. When the host renders HTML in the
+conversation, deliver the interactive HTML export there: it keeps hover details,
+sortable tables and linked controls, and it fulfils a host instruction to show charts
+and comparisons as rendered HTML. Export the saved revision, or the selected block,
+with `--format html --html-mode inline`:
+
+- For T3 Code, read the export and pass its contents to `html_preview`, then
+  `html_render` with the measured height clamped to that tool's accepted range.
+- For OpenCode, use its browser preview tool with the returned HTML path.
+- Use `--html-mode fragment` only when the host's visualization contract requires a
+  fragment.
+
+Otherwise return the PNG screenshot with the host's image mechanism, with the
+artifact's project, ID and version available when useful. A path alone does not
+display an image on every host. A terminal can offer the standalone HTML path for
+browser viewing. Fall back to PNG when the host cannot display HTML or the export
+exceeds its payload limit. Honor an explicitly requested output format, such as a PNG
+to post elsewhere, and do not claim an inline render from a file link alone.
 
 Once you have chosen the revision to deliver, run `present --project ID --artifact ID
 --version ID` with that exact saved version, then show its selected export.
@@ -85,7 +110,8 @@ Use `inspect` to read an existing saved document before revising it. `render` al
 creates a new version. Export with an explicit `--version` when the request refers to
 particular evidence. PNG, PDF and HTML exports use the saved data and current layout
 engine, leaving creation-time snapshots unchanged. New captures follow the appearance
-chosen in Settings or the system; pass `--theme light|dark` when a specific palette matters.
+chosen in Settings or the system; pass `--theme light|dark` when a specific palette
+matters.
 Omit `--out` to keep the export organized in the library; use the returned path.
 For a whole widget or card, read its path from `inspect`'s `view.blocks`, then export
 with `--block PATH`. This selects a complete subtree, not individual diagram nodes.
