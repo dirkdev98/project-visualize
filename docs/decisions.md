@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-09 hosted rendering disk capacity
+
+- Remove unused Android, .NET and GHC SDKs from the ephemeral hosted runner before
+  building the rendering container. Its toolchains run inside Docker, and image
+  loading needs room alongside the build cache and exported image.
+- Record disk usage before and after cleanup so capacity failures remain visible.
+
 ## 2026-11-09 export raster rounding
 
 - Replace the byte-exact native export comparison from the widget catalogue and
