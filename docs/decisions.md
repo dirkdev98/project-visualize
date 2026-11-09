@@ -1,5 +1,26 @@
 # Decisions
 
+## 2026-11-09 fixed enum storage in C bindings
+
+- Apply the enum storage types supplied in cimgui's metadata to its C declarations.
+  The generated header otherwise treats the one-byte sort direction as a C int,
+  causing multi-column sort records to include uninitialized padding on Linux.
+- Keep enum constants and direct library record access. Correct the ABI declaration
+  rather than masking values in application code or restoring C getters.
+
+## 2026-11-09 remaining widget presentation gaps
+
+- Round histogram edges onto a shared grid while preserving the bin count and all
+  observations. Assign values against those edges so decimal boundary values enter
+  the interval on their right, with the maximum retained in the final interval.
+- Apply a metric's tone to its value, including cards without a detail line.
+- Use precise numeric minimum and maximum fields for native range controls, matching
+  HTML's controls while retaining inclusive filtering and externally supplied ranges.
+- Give HTML charts the native surface background and a bordered legend. Count the
+  separator between words once when wrapping text, including long entity field types.
+- Set a native chart's fitted limits when it first becomes visible. Its custom ticks
+  must start from the data's view rather than an unfinished automatic fit.
+
 ## 2026-11-09 consistent axes, readable waterfalls and widget polish
 
 - Start native charts, box plots and waterfalls from the same fitted bounds and round

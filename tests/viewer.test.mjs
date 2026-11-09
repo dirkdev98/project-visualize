@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { setTimeout } from "node:timers/promises";
 import { promisify } from "node:util";
+import { artifactViewport } from "./visual/native-captures.mjs";
 
 const execute = promisify(execFile);
 async function workspace(t) {
@@ -81,8 +82,68 @@ async function workspace(t) {
       "false",
       ...extra,
     ]);
-  return { cli, raw, render, open, directory };
+  return { cli, raw, render, open, directory, file };
 }
+
+test("chart captures retain their fitted layout after the first capture", async (t) => {
+  const w = await workspace(t);
+  await w.cli(["open", "--focus", "false"]);
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(
+    w.file,
+    JSON.stringify({
+      schemaVersion: 1,
+      type: "dashboard",
+      title: "Fitted station charts",
+      body: [
+        {
+          type: "row",
+          children: [
+            {
+              type: "chart",
+              kind: "line",
+              series: [{ name: "Readings", values: [2000, 2400, 2600] }],
+            },
+            {
+              type: "chart",
+              kind: "bar",
+              labels: ["North", "East", "West"],
+              yLabel: "Capacity used (%)",
+              series: [{ name: "Used", values: [83, 69, 75] }],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  const entry = await w.render("charts");
+  const capture = async (name) => {
+    const result = await w.cli([
+      "viewer",
+      "--action",
+      "capture",
+      "--project",
+      entry.project,
+      "--artifact",
+      entry.artifact,
+      "--version",
+      entry.version,
+      "--content-width",
+      "1208",
+      "--height",
+      "900",
+      "--theme",
+      "dark",
+      "--focus",
+      "false",
+      "--out",
+      join(w.directory, `${name}.png`),
+    ]);
+    const file = result.files[0];
+    return artifactViewport(file, file.canvas, result.scale);
+  };
+  assert.deepEqual(await capture("first"), await capture("settled"));
+});
 
 test("CLI navigation reuses the viewer and reapplies parameters to the same revision", async (t) => {
   const w = await workspace(t),

@@ -26,6 +26,44 @@ test("histograms use shared bins and retain observations at both boundaries", ()
   }
 });
 
+for (const [name, groups, bins, boundaries] of [
+  [
+    "explicit bins",
+    [
+      [1, 4, 8, 12, 16, 18],
+      [4, 18],
+    ],
+    5,
+    [0, 4, 8, 12, 16, 20],
+  ],
+  ["automatic bins", [[1, 2, 3, 9]], undefined, [0, 5, 10]],
+  [
+    "negative observations",
+    [
+      [-18, -8, -1],
+      [0, 2],
+    ],
+    5,
+    [-20, -15, -10, -5, 0, 5],
+  ],
+  ["decimal observations", [[0.1, 0.2, 0.3, 0.4]], 3, [0.1, 0.2, 0.3, 0.4]],
+  ["one bin across zero", [[-1, 1]], 1, [-1, 1]],
+])
+  test(`histograms keep round shared edges for ${name}`, () => {
+    const result = histogram(groups, bins);
+    assert.deepEqual(result.boundaries, boundaries);
+    for (const [index, values] of groups.entries())
+      assert.equal(
+        result.counts[index].reduce((a, b) => a + b, 0),
+        values.length,
+      );
+  });
+
+test("observations on decimal bin edges belong to the interval on their right", () => {
+  const result = histogram([[0.1, 0.2, 0.3, 0.4]], 3);
+  assert.deepEqual(result.counts, [[1, 1, 2]]);
+});
+
 test("box plots use interpolated quartiles and observed Tukey whiskers", () => {
   const input = [100, 4, 3, 2, 1, 0];
   assert.deepEqual(boxplot(input), {

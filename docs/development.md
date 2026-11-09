@@ -111,10 +111,11 @@ minor form-control rasterization variation when their HTML is identical. Poppler
 renders PDF comparisons and extracts their text bounds.
 
 The **Rendering regression** GitHub workflow uses the Linux container and runs CLI
-contracts, catalogue exports and the visual suite in bounded shards. Failed checks
-upload reports for inspection. To propose new references, run the workflow manually
-from `main` with **update** enabled. It regenerates exports and visual references,
-then opens or updates a draft PR with the changed-file summary. It does not merge.
+and native binding contracts, catalogue exports and the visual suite in bounded
+shards. Failed checks upload reports for inspection. To propose new references, run
+the workflow manually from `main` with **update** enabled. It regenerates exports
+and visual references, then opens or updates a draft PR with the changed-file
+summary. It does not merge.
 The repository must allow Actions to create pull requests; if that permission is
 disabled, the generated updates and reports remain available as workflow artifacts.
 

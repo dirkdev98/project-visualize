@@ -21,16 +21,52 @@ export function histogram(groups: number[][], count?: number) {
     max += padding;
   }
   const bins = count ?? Math.max(1, Math.min(50, Math.ceil(Math.sqrt(size))));
-  const width = (max - min) / bins;
-  const boundaries = Array.from({ length: bins + 1 }, (_, i) =>
-    i === bins ? max : min + i * width,
-  );
+  const unit = 10 ** Math.floor(Math.log10((max - min) / bins));
+  if (!(unit > 0) || !Number.isFinite(unit))
+    throw new Error(
+      "Histogram range exceeds the numeric precision of its bins",
+    );
+  const precision = Math.max(0, -Math.floor(Math.log10(unit)));
+  const round = (value: number) =>
+    Number(
+      precision <= 100 ? value.toFixed(precision) : value.toPrecision(15),
+    ) + 0;
+  let boundaries: number[];
+  if (bins === 1) {
+    // One interval can cross zero, which a single zero-aligned grid step cannot do.
+    boundaries = [
+      round(Math.floor(min / unit) * unit),
+      round(Math.ceil(max / unit) * unit),
+    ];
+  } else {
+    let width = round(
+      Math.ceil((max - min) / bins / unit - Number.EPSILON * 4) * unit,
+    );
+    let start: number;
+    for (;;) {
+      const quotient = min / width;
+      start = round(
+        Math.floor(quotient + Math.abs(quotient) * Number.EPSILON * 4) * width,
+      );
+      if (round(start + bins * width) >= max - width * 1e-12) break;
+      width = round(width + unit);
+    }
+    boundaries = Array.from({ length: bins + 1 }, (_, i) =>
+      round(start + i * width),
+    );
+  }
   const counts = groups.map((values) => {
     const result = new Array<number>(bins).fill(0);
-    for (const value of values)
-      result[
-        Math.min(bins - 1, Math.max(0, Math.floor((value - min) / width)))
-      ]++;
+    for (const value of values) {
+      let low = 0,
+        high = bins;
+      while (low + 1 < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (value < boundaries[middle]) high = middle;
+        else low = middle;
+      }
+      result[low]++;
+    }
     return result;
   });
   return { boundaries, counts };

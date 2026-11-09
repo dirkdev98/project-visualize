@@ -9,7 +9,6 @@ import {
   ImGuiCond_Always,
   ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
   ImGuiMod_Shift,
-  ImGuiSliderFlags_AlwaysClamp,
   ImGuiStyleVar_CellPadding,
   ImGuiStyleVar_DisabledAlpha,
   ImGuiTableBgTarget_CellBg,
@@ -74,6 +73,7 @@ import {
   igGetMouseDragDelta,
   igGetMousePos,
   igIndent,
+  igInputDouble,
   igIsItemHovered,
   igIsKeyDown_Nil,
   igIsMouseClicked_Bool,
@@ -97,7 +97,6 @@ import {
   igSeparator,
   igSetCursorScreenPos,
   igSetNextItemWidth,
-  igSliderDouble,
   igSmallButton,
   igSpacing,
   igTableGetColumnFlags,
@@ -551,7 +550,14 @@ export class DocumentRenderer {
           let display = scalar(value.value);
           if (typeof value.value === "number")
             display = formatNumber(value.value, value);
-          text(display, 36, "bold");
+          text(
+            display,
+            36,
+            "bold",
+            value.tone && value.tone !== "neutral"
+              ? tone(value.tone)
+              : palette.ink,
+          );
           if (value.detail || this.rowDetail)
             text(value.detail ?? "", 15, "regular", tone(value.tone));
         });
@@ -903,44 +909,22 @@ export class DocumentRenderer {
       );
       let min = range.min ?? bounds.min,
         max = range.max ?? bounds.max;
-      igBeginDisabled(bounds.min === bounds.max);
-      const sliderWidth = Math.max(80, available() - 60);
-      const sliderValue = (value: number) =>
-        captureField(
-          String(Number(value.toPrecision(6))),
-          (sliderWidth -
-            igCalcTextSize(String(Number(value.toPrecision(6))), false, -1).x) /
-            2,
-        );
-      igSetNextItemWidth(sliderWidth);
-      const lower = igSliderDouble(
-        "From",
-        min,
-        bounds.min,
-        max,
-        "%.6g",
-        ImGuiSliderFlags_AlwaysClamp,
-      );
-      sliderValue(min);
-      if (lower.result) {
-        min = lower.p_data;
+      text("Minimum", 13, "regular", palette.muted);
+      igSetNextItemWidth(-1);
+      const lower = igInputDouble("##minimum", min, 0, 0, "%.15g", 0);
+      captureField(String(min));
+      if (lower.result && Number.isFinite(lower.v) && lower.v <= max) {
+        min = lower.v;
         this.parameter(control, { min, max });
       }
-      igSetNextItemWidth(sliderWidth);
-      const upper = igSliderDouble(
-        "To",
-        max,
-        min,
-        bounds.max,
-        "%.6g",
-        ImGuiSliderFlags_AlwaysClamp,
-      );
-      sliderValue(max);
-      if (upper.result) {
-        max = upper.p_data;
+      text("Maximum", 13, "regular", palette.muted);
+      igSetNextItemWidth(-1);
+      const upper = igInputDouble("##maximum", max, 0, 0, "%.15g", 0);
+      captureField(String(max));
+      if (upper.result && Number.isFinite(upper.v) && upper.v >= min) {
+        max = upper.v;
         this.parameter(control, { min, max });
       }
-      igEndDisabled();
       if (igSmallButton("All values")) this.parameter(control, ALL);
     }
   }
@@ -1379,10 +1363,8 @@ export class DocumentRenderer {
     const horizontalBars = categories?.horizontal ?? false;
     const interactionKey = horizontalBars ? `${key}.horizontal` : key;
     const reset = this.fitRequests.delete(interactionKey);
-    const fitKey = this.view?.chartFitKeys.get(key);
-    const refit =
-      fitKey !== undefined &&
-      this.state.chartFits.get(interactionKey) !== fitKey;
+    const fitKey = this.view?.chartFitKeys.get(key) ?? "";
+    const refit = this.state.chartFits.get(interactionKey) !== fitKey;
     const pinch = this.pinchViews.get(interactionKey);
     this.pinchViews.delete(interactionKey);
     let bounds = this.chartBounds.get(value);
@@ -1438,8 +1420,7 @@ export class DocumentRenderer {
       )
     )
       return;
-    if (refit && fitKey !== undefined)
-      this.state.chartFits.set(interactionKey, fitKey);
+    if (refit) this.state.chartFits.set(interactionKey, fitKey);
     // Like HTML exports, only the value axis carries gridlines.
     ImPlot_SetupAxes(
       horizontalBars ? (value.yLabel ?? "") : (value.xLabel ?? ""),

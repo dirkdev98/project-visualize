@@ -293,8 +293,9 @@ Use `histogram` and `boxplot` blocks with named `series` containing raw numeric
 
 Histograms share bin boundaries across series and include the maximum observation
 in the final bin. Set an integer `bins` to control the partition; otherwise the sample
-size determines it. `xLabel` describes the observation and units; `yLabel` defaults
-to Count. Constant observations get a finite range around their value.
+size determines it. Boundaries expand onto a rounded grid while preserving the bin
+count. `xLabel` describes the observation and units; `yLabel` defaults to Count.
+Constant observations get a finite range around their value.
 
 Box plots use linearly interpolated quartiles (R-7). The box spans the middle half,
 with a median line. Tukey whiskers reach the most extreme observed values within

@@ -1,6 +1,10 @@
 import {
+  ImGuiInputTextFlags_AutoSelectAll,
+  ImGuiIO_AddInputCharactersUTF8,
+  ImGuiIO_AddKeyEvent,
   ImGuiIO_AddMouseButtonEvent,
   ImGuiIO_AddMousePosEvent,
+  ImGuiKey_Enter,
   ImGuiSliderFlags_AlwaysClamp,
   ImGuiSortDirection_Ascending,
   ImGuiSortDirection_Descending,
@@ -14,9 +18,12 @@ import {
   igGetIO_Nil,
   igGetItemRectMax,
   igGetItemRectMin,
+  igInputDouble,
+  igIsItemActive,
   igRender,
   igSetNextWindowPos,
   igSetNextWindowSize,
+  igSetWindowFocus_Str,
   igSliderDouble,
   igTableGetSortSpecs,
   igTableHeadersRow,
@@ -42,6 +49,8 @@ try {
   const io = igGetIO_Nil();
   let mode = "table",
     slider = 1.25,
+    number = 0,
+    numberActive = false,
     bounds,
     snapshot;
   const expected = [
@@ -54,6 +63,7 @@ try {
     igSetNextWindowPos({ x: 0, y: 0 }, 0, { x: 0, y: 0 });
     igSetNextWindowSize({ x: 481, y: 160 }, 0);
     igBegin("Direct library facts", ImGuiWindowFlags_NoDecoration);
+    igSetWindowFocus_Str("Direct library facts");
     if (
       mode === "table" &&
       igBeginTable(
@@ -87,7 +97,7 @@ try {
             record.ColumnIndex === expected[i].ColumnIndex &&
             record.SortDirection === expected[i].SortDirection,
         ),
-        "Sort record fields changed their C values",
+        `Sort keys differ: expected ${JSON.stringify(expected)}, received ${JSON.stringify(second)}`,
       );
       expect(
         first.length === 1 &&
@@ -110,6 +120,18 @@ try {
         result.p_min === -2.5 && result.p_max === 8.75,
         "Scalar bounds lost double precision or constness",
       );
+      bounds = { min: igGetItemRectMin(), max: igGetItemRectMax() };
+    } else if (mode === "number") {
+      const result = igInputDouble(
+        "Precise reading",
+        number,
+        0,
+        0,
+        "%.15g",
+        ImGuiInputTextFlags_AutoSelectAll,
+      );
+      number = result.v;
+      numberActive = igIsItemActive();
       bounds = { min: igGetItemRectMin(), max: igGetItemRectMax() };
     }
     igEnd();
@@ -139,6 +161,30 @@ try {
     slider === -2.5,
     `Direct double slider returned ${slider} at its minimum`,
   );
+  mode = "number";
+  frame();
+  frame();
+  ImGuiIO_AddMousePosEvent(
+    io,
+    bounds.min.x + 10,
+    (bounds.min.y + bounds.max.y) / 2,
+  );
+  frame();
+  ImGuiIO_AddMouseButtonEvent(io, 0, true);
+  frame();
+  ImGuiIO_AddMouseButtonEvent(io, 0, false);
+  frame();
+  expect(numberActive, "The numeric field did not receive input focus");
+  ImGuiIO_AddInputCharactersUTF8(io, "-12.75");
+  frame();
+  ImGuiIO_AddKeyEvent(io, ImGuiKey_Enter, true);
+  frame();
+  ImGuiIO_AddKeyEvent(io, ImGuiKey_Enter, false);
+  frame();
+  expect(
+    number === -12.75,
+    `Numeric input returned ${number} after precise entry`,
+  );
   const pixels = new Uint8Array(481 * 160 * 4);
   checked(pv_surface_capture(481, 160, pixels));
   checked(
@@ -150,6 +196,7 @@ try {
 console.log(
   JSON.stringify({
     ok: true,
-    bindings: "counted sort snapshots and const double slider bounds",
+    bindings:
+      "counted sort snapshots, double slider bounds and precise numeric input",
   }),
 );

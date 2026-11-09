@@ -91,7 +91,7 @@ export function wrap(
   for (const paragraph of value.split("\n")) {
     let line = "";
     for (const word of paragraph.split(/\s+/)) {
-      if (line && measure(`${line} ${word}`, size) > width) {
+      if (line && measure(`${line}${word}`, size) > width) {
         lines.push(line);
         line = "";
       }

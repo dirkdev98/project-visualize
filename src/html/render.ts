@@ -176,7 +176,7 @@ export function renderDocument(
         content = `<div class="pv-code">${value.language ? `<small>${escapeHtml(value.language.toUpperCase())}</small>` : ""}<pre><code>${payload.highlights[`${value.language ?? ""}\n${value.content}`] ?? escapeHtml(value.content)}</code></pre></div>`;
         break;
       case "metric":
-        content = `<div class="pv-panel pv-metric"><strong class="pv-muted">${escapeHtml(value.label)}</strong><div class="pv-value">${escapeHtml(typeof value.value === "number" ? formatNumber(value.value, value) : display(value.value))}</div><p style="color:${tone(value.tone)}">${escapeHtml(value.detail ?? "")}</p></div>`;
+        content = `<div class="pv-panel pv-metric"><strong class="pv-muted">${escapeHtml(value.label)}</strong><div class="pv-value" style="color:${value.tone && value.tone !== "neutral" ? tone(value.tone) : "var(--pv-ink)"}">${escapeHtml(typeof value.value === "number" ? formatNumber(value.value, value) : display(value.value))}</div><p style="color:${tone(value.tone)}">${escapeHtml(value.detail ?? "")}</p></div>`;
         break;
       case "progress":
         content = `<label class="pv-progress"><strong>${escapeHtml(value.label)} · ${Math.round(value.value * 100)}%</strong><progress value="${value.value}" max="1" style="--pv-progress:${value.tone ? tone(value.tone) : "var(--pv-accent)"}">${Math.round(value.value * 100)}%</progress></label>${value.detail ? `<p class="pv-caption">${escapeHtml(value.detail)}</p>` : ""}`;

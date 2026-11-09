@@ -117,6 +117,27 @@ for (const [binding, library] of [
   }
 }
 
+// cimgui records fixed enum storage in its metadata, but its C header emits int
+// enums. Use the declared storage so struct reads cannot include padding bytes.
+// https://github.com/cimgui/cimgui/issues/170
+const cimgui = join(deps, "cimgui");
+const enumTypes = JSON.parse(
+  readFileSync(join(cimgui, "generator/output/structs_and_enums.json"), "utf8"),
+).enumtypes;
+const headerFile = join(cimgui, "cimgui.h");
+const originalHeader = readFileSync(headerFile, "utf8");
+let header = originalHeader;
+for (const [name, storage] of Object.entries(enumTypes)) {
+  if (storage === "int") continue;
+  const declaration = new RegExp(`typedef enum (\\{[^}]*\\})${name};`);
+  const alias = `typedef ${storage} ${name};`;
+  if (declaration.test(header))
+    header = header.replace(declaration, `${alias}\nenum $1;`);
+  else if (!header.includes(alias))
+    throw new Error(`Cannot apply cimgui enum storage for ${name}`);
+}
+if (header !== originalHeader) writeFileSync(headerFile, header);
+
 let prefix;
 if (process.platform === "darwin")
   prefix = execFileSync("brew", ["--prefix", "sdl3"], {

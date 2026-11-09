@@ -98,6 +98,7 @@ export default defineLibrary({
       },
     },
     igCheckbox: { params: { v: { inout: true } } },
+    igInputDouble: { params: { v: { inout: true } } },
     igSliderScalar: {
       variants: {
         igSliderDouble: {

@@ -375,8 +375,8 @@
   padding: 0;
   border: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   font-size: 15px;
   min-width: 0;
 }
@@ -457,12 +457,21 @@
 .pv svg [role="button"] {
   cursor: pointer;
 }
+.pv .pv-plot {
+  background: var(--pv-surface);
+  border-radius: 7px;
+}
 .pv .pv-legend {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
   gap: 4px 12px;
-  margin-top: 5px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 5px auto 0;
+  padding: 3px;
+  border: 1px solid var(--pv-border);
+  background: var(--pv-surface);
 }
 .pv .pv-legend button {
   font-size: 18px;

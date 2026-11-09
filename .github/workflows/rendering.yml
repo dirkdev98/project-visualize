@@ -55,6 +55,8 @@ jobs:
         run: docker exec visualize-regression npm run typecheck
       - name: CLI and catalogue contracts
         run: docker exec visualize-regression xvfb-run -a npm test
+      - name: Native input and binding contracts
+        run: docker exec visualize-regression xvfb-run -a npm run check:bindings -- --production
       - name: Widget exports shard 1
         run: |
           if [ "$UPDATE_EXPORTS" = true ]; then
