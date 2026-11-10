@@ -82,6 +82,29 @@ for (const library of libraries) {
 }
 patch(original, "@executable_path/../lib");
 patch(join(app, "MacOS/visualize"), "@executable_path/../Frameworks");
+const minimumSystemVersion = [
+  "15.0",
+  ...[
+    original,
+    ...libraries.map((library) => join(release, "lib", basename(library))),
+  ].map((file) => {
+    const commands = execFileSync(
+      "otool",
+      ["-arch", process.arch === "arm64" ? "arm64" : "x86_64", "-l", file],
+      { encoding: "utf8" },
+    );
+    const version =
+      commands.match(/cmd LC_BUILD_VERSION[\s\S]*?\bminos ([\d.]+)/)?.[1] ??
+      commands.match(
+        /cmd LC_VERSION_MIN_MACOSX[\s\S]*?\bversion ([\d.]+)/,
+      )?.[1];
+    if (!version)
+      throw new Error(`Cannot determine the macOS minimum for ${file}`);
+    return version;
+  }),
+]
+  .sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
+  .at(-1);
 writeFileSync(
   join(app, "Info.plist"),
   `<?xml version="1.0" encoding="UTF-8"?>
@@ -94,6 +117,7 @@ writeFileSync(
 <key>CFBundleIconFile</key><string>visualize.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>LSMinimumSystemVersion</key><string>${minimumSystemVersion}</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict></plist>\n`,

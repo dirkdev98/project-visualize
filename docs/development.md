@@ -6,7 +6,7 @@ Desktop packages include an app icon for macOS and Linux. To revise it, edit
 `assets/icon.svg` and run `npm run build:icons` on macOS with `librsvg` installed.
 Normal builds copy the checked-in icon resources.
 
-Use macOS with Apple command-line tools, Node.js and Homebrew:
+Use macOS 15 or newer with Apple command-line tools, Node.js and Homebrew:
 
 ```sh
 brew install cmake pkgconf sdl3
@@ -17,6 +17,8 @@ npm run build
 The build pins Maligator's alpha package and verifies downloaded native dependencies.
 It produces `dist/bin/visualize` and `dist/Project Visualize.app`. These contain the
 native libraries needed at runtime; Node.js and Homebrew are build dependencies.
+The app records the newest minimum macOS version required by its bundled binaries.
+Native libraries built on a newer system can raise that minimum.
 For Linux x64 builds, tarballs and Debian packages, use the
 [Linux packaging guide](linux.md).
 

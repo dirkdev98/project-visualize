@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-11-10 released borrowed-handle recovery
+
+- Pin Maligator to `0.1.0-alpha.35` and replace the retention decision in diagram
+  legibility and flowing PDF pages. The released fix for issue 102 preserves
+  borrowed handles recovered during incremental collection. Draw-list lookups keep
+  their null checks without retaining handles for the session.
+- Keep explicit fields and constructor assignments. Constructor parameter properties
+  remain outside the supported erasable TypeScript syntax.
+- Record the newest deployment minimum among the packaged macOS binaries, with a
+  macOS 15 floor. A native library built on a newer system can require a newer host.
+
 ## 2026-11-09 report contents and reusable viewer work
 
 - Index block titles, Markdown headings and timeline events for a native contents
@@ -115,10 +126,6 @@ Keep track of;
   one draw list per window, so retaining them is bounded.
 - Count only asset requests in the image cache tests. Their occasional extra request
   was another local client probing the fixture's port, not a runtime retry.
-
-Keep track of;
-
-- Drop the retained draw-list set once Maligator issue 102 is fixed.
 
 ## 2026-11-09 Linux packaging execution budget
 
