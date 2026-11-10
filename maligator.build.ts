@@ -25,6 +25,7 @@ export default defineBuild({
       path: "assets/icons",
       include: ["*.ttf", "LICENSE.txt"],
     },
+    version: { type: "file", path: ".cache/resources/version.txt" },
     syntax: {
       type: "directory",
       path: ".cache/resources/syntax",

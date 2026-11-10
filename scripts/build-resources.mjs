@@ -16,6 +16,7 @@ import light from "@shikijs/themes/github-light";
 import { build } from "esbuild";
 import wawoff2 from "wawoff2";
 import { languages } from "../src/ui/languages.ts";
+import { releaseVersion } from "./release-version.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 for (const directory of ["assets/fonts", "assets/icons"]) {
@@ -107,3 +108,4 @@ for (const [name, file] of Object.entries({
   }
 }
 writeFileSync(join(html, "font-scales.json"), JSON.stringify(fontScales));
+writeFileSync(join(root, ".cache/resources/version.txt"), releaseVersion(root));

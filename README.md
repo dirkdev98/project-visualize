@@ -26,9 +26,17 @@ widgets into larger reports.
 
 ## Get started
 
-Visualize runs on macOS and Linux. Build the application with the
-[setup guide](docs/development.md#build), then open the desktop app. Linux package
-installation is covered in the [Linux guide](docs/linux.md#installation).
+Visualize runs on macOS (Apple silicon) and Linux (x64 and arm64). Download a build
+from [Releases](https://github.com/dirkdev98/project-visualize/releases), or build it
+with the [setup guide](docs/development.md#build). Linux package installation is
+covered in the [Linux guide](docs/linux.md#installation).
+
+The macOS app is not notarized, so macOS blocks its first launch. Open **System
+Settings → Privacy & Security** and choose **Open Anyway**, or clear the download flag:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Project Visualize.app"
+```
 
 Open **Settings** and use **Install CLI** to put `visualize` on your PATH. Use
 **Link skill** to make the bundled workflow available to your agent. Both actions

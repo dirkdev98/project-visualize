@@ -82,7 +82,9 @@ async function main() {
     return;
   }
   if (args.length === 1 && args[0] === "--version") {
-    process.stdout.write("0.1.0\n");
+    process.stdout.write(
+      `${readFileSync(mal.assets.materialize("version"), "utf8")}\n`,
+    );
     return;
   }
   const command =

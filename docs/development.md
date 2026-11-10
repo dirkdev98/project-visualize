@@ -19,7 +19,7 @@ It produces `dist/bin/visualize` and `dist/Project Visualize.app`. These contain
 native libraries needed at runtime; Node.js and Homebrew are build dependencies.
 The app records the newest minimum macOS version required by its bundled binaries.
 Native libraries built on a newer system can raise that minimum.
-For Linux x64 builds, tarballs and Debian packages, use the
+For Linux builds, tarballs and Debian packages, use the
 [Linux packaging guide](linux.md).
 
 ## Verification
@@ -120,6 +120,24 @@ and visual references, then opens or updates a draft PR with the changed-file
 summary. It does not merge.
 The repository must allow Actions to create pull requests; if that permission is
 disabled, the generated updates and reports remain available as workflow artifacts.
+
+## Releases
+
+The **Release** workflow builds the macOS Apple silicon app as a zip, plus Linux
+tarballs and Debian packages for x64 and arm64. It checks that each build reports
+its version and validates the examples on macOS. On Linux it runs the package check
+before publishing a GitHub release with all files and their SHA-256 checksums.
+
+- **Alpha:** run the workflow manually from `main`. It publishes a prerelease named
+  after the build month and run number, such as `2026.11.0-alpha.12`.
+- **Release:** push a tag named `YEAR.MONTH.PATCH` with a two-digit month and a patch
+  from 1, such as `2026.01.1`. The workflow publishes that tag as a full release.
+
+Builds take their version from `VISUALIZE_VERSION`, or from package.json when it is
+unset. The CLI reports it with `--version`. The macOS bundle records its numeric
+part, and Debian packages write a prerelease with `~` so it sorts before its
+release. The macOS app is ad-hoc signed and not notarized; the release notes and
+README describe the first-launch step.
 
 ## Viewer diagnostics
 

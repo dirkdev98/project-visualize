@@ -15,13 +15,12 @@ import {
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { copyResources, writeChecksums } from "./package-resources.mjs";
+import { debianVersion, releaseVersion } from "./release-version.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const release = join(root, "dist");
 const source = join(root, ".cache/release");
-const version = JSON.parse(
-  readFileSync(join(root, "package.json"), "utf8"),
-).version;
+const version = releaseVersion(root);
 const architecture = process.arch === "x64" ? "amd64" : "arm64";
 if (!["x64", "arm64"].includes(process.arch))
   throw new Error("Package on x64 or ARM64 Linux.");
@@ -169,7 +168,7 @@ if (!dependencies || dependencies.includes("\n"))
   throw new Error("Cannot determine runtime dependencies.");
 writeFileSync(
   join(staging, "root/DEBIAN/control"),
-  `Package: project-visualize\nVersion: ${version}\nSection: graphics\nPriority: optional\nArchitecture: ${architecture}\nMaintainer: Project Visualize contributors <dirkdev98@users.noreply.github.com>\nDepends: ${dependencies}, libvulkan1\nRecommends: mesa-vulkan-drivers | vulkan-icd, libglib2.0-bin, xdg-desktop-portal\nDescription: Native dashboards and documents for agent workflows\n Create, inspect and export versioned visual artifacts through a native viewer\n and a command-line interface with a bundled agent skill.\n`,
+  `Package: project-visualize\nVersion: ${debianVersion(version)}\nSection: graphics\nPriority: optional\nArchitecture: ${architecture}\nMaintainer: Project Visualize contributors <dirkdev98@users.noreply.github.com>\nDepends: ${dependencies}, libvulkan1\nRecommends: mesa-vulkan-drivers | vulkan-icd, libglib2.0-bin, xdg-desktop-portal\nDescription: Native dashboards and documents for agent workflows\n Create, inspect and export versioned visual artifacts through a native viewer\n and a command-line interface with a bundled agent skill.\n`,
 );
 chmodSync(join(staging, "root/DEBIAN"), 0o755);
 normalizeModes(join(staging, "root"));

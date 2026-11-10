@@ -1,7 +1,7 @@
 # Linux packaging
 
-Build the x64 application in the supplied Debian container to produce a relocatable
-tarball and a Debian package. The container keeps Linux native dependencies and
+Build the application in the supplied Debian container to produce a relocatable
+tarball and a Debian package for the container's architecture, x64 or arm64. The container keeps Linux native dependencies and
 compiler caches separate from the Mac checkout.
 
 ```sh
@@ -13,6 +13,8 @@ docker run --name visualize-linux-build --platform linux/amd64 \
 docker cp visualize-linux-build:/app/dist/packages ./linux-packages
 docker rm visualize-linux-build
 ```
+
+Use `--platform linux/arm64` in both commands for arm64 packages.
 
 The build pins native dependencies, includes the skill, guide, examples and license
 notices, and writes package checksums. Node.js, Rust and the native compiler belong

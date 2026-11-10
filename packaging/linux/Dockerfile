@@ -27,6 +27,10 @@ RUN npm ci
 FROM dependencies AS source
 COPY . .
 
+FROM source AS release
+ARG VISUALIZE_VERSION
+RUN CI=true VISUALIZE_VERSION="$VISUALIZE_VERSION" npm run build
+
 FROM dependencies AS browsers
 RUN npx playwright install --with-deps chromium
 

@@ -14,6 +14,7 @@ import {
   copyWorkflow,
   writeChecksums,
 } from "./package-resources.mjs";
+import { bundleVersion, releaseVersion } from "./release-version.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const release = join(root, "dist");
@@ -116,7 +117,7 @@ writeFileSync(
 <key>CFBundleExecutable</key><string>visualize</string>
 <key>CFBundleIconFile</key><string>visualize.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleShortVersionString</key><string>${bundleVersion(releaseVersion(root))}</string>
 <key>LSMinimumSystemVersion</key><string>${minimumSystemVersion}</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>

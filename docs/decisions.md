@@ -1,5 +1,21 @@
 # Decisions
 
+## 2026-11-10 release builds
+
+- Publish releases from a GitHub workflow: a manual run from `main` creates an alpha
+  prerelease named after the build month and run number, such as
+  `2026.11.0-alpha.12`, and a pushed `YEAR.MONTH.PATCH` tag such as `2026.01.1`
+  creates a full release. Alphas use patch 0, so they sort before the month's first
+  release.
+- Build the macOS Apple silicon app on a hosted macOS runner, and Linux x64 and arm64
+  packages natively in the Debian container. Each job checks the reported version;
+  Linux runs the package check before anything is published.
+- Keep the macOS app ad-hoc signed without notarization, and document the
+  first-launch step in the README and release notes.
+- Resolve one version for the CLI, the macOS bundle and Debian packages from
+  `VISUALIZE_VERSION`, falling back to package.json. Debian writes a prerelease
+  with `~`.
+
 ## 2026-11-10 released borrowed-handle recovery
 
 - Pin Maligator to `0.1.0-alpha.35` and replace the retention decision in diagram
