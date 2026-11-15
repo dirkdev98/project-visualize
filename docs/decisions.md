@@ -1,5 +1,10 @@
 # Decisions
 
+## 2026-11-15 generated rendering references
+
+- Regenerate widget exports and visual references from the structured examples.
+  Keep the generated changes in a separate review so appearance changes remain visible.
+
 ## 2026-11-15 stable viewer toolbar and contents sidebar
 
 - Show every artifact the same toolbar buttons in the same order, and disable the
