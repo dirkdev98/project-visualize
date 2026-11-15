@@ -107,13 +107,16 @@ for (const theme of ["light", "dark"])
       ]);
       expect(capture.contentsOpen).toBe(true);
       const file = capture.files[0];
+      // The canvas content sits inside its frame's padding, while the unframed
+      // contents panel lines up with the frame itself.
+      const framePadding = 28;
       const image = artifactViewport(
         file,
         {
-          x: file.canvas.x,
-          y: file.canvas.y,
-          width: capture.window.x - file.canvas.x,
-          height: capture.window.y - file.canvas.y,
+          x: file.canvas.x - framePadding,
+          y: file.canvas.y - framePadding,
+          width: capture.window.x - file.canvas.x + framePadding,
+          height: capture.window.y - file.canvas.y + framePadding,
         },
         capture.scale,
       );

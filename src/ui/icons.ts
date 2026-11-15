@@ -3,7 +3,9 @@ import {
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
   ImGuiButtonFlags_EnableNav,
+  igBeginDisabled,
   igCalcTextSize,
+  igEndDisabled,
   igGetItemRectMax,
   igGetItemRectMin,
   igInvisibleButton,
@@ -76,15 +78,24 @@ export function iconButton(
   id: string,
   icon: Icon,
   hint: string,
-  options: { active?: boolean; size?: number; iconSize?: number } = {},
+  options: {
+    active?: boolean;
+    disabled?: boolean;
+    size?: number;
+    iconSize?: number;
+  } = {},
 ): boolean {
   const size = options.size ?? 28;
+  // A disabled button keeps its slot, so neighbouring buttons never move, and
+  // its tooltip still explains why it does nothing here.
+  if (options.disabled) igBeginDisabled(true);
   const clicked = igInvisibleButton(
     id,
     { x: size, y: size },
     ImGuiButtonFlags_EnableNav,
   );
-  const hovered = igIsItemHovered(0),
+  if (options.disabled) igEndDisabled();
+  const hovered = !options.disabled && igIsItemHovered(0),
     held = igIsItemActive();
   const min = igGetItemRectMin(),
     max = igGetItemRectMax();
@@ -103,7 +114,11 @@ export function iconButton(
     icon,
     { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2 },
     options.iconSize ?? 16,
-    hovered || held || options.active ? palette.ink : palette.muted,
+    options.disabled
+      ? { ...palette.muted, w: 0.35 }
+      : hovered || held || options.active
+        ? palette.ink
+        : palette.muted,
   );
   const split = hint.indexOf(" · ");
   itemTooltip(

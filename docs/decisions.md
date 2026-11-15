@@ -1,5 +1,19 @@
 # Decisions
 
+## 2026-11-15 stable viewer toolbar and contents sidebar
+
+- Show every artifact the same toolbar buttons in the same order, and disable the
+  ones that do not apply, such as Reset controls without linked controls or Contents
+  without sections. Buttons no longer shift when switching artifacts, and a disabled
+  button's tooltip says why.
+- Group the Contents and Context toggles at the right end, next to the panel they
+  open.
+- Draw contents rows with the library's row button, font size, hover and active
+  states, and leave the side panel unframed like the library sidebar. The canvas
+  stays the only card.
+- Keep the contents preference while an artifact has no sections, so the panel
+  returns with the next report. Viewer status reports whether it is shown.
+
 ## 2026-11-10 release builds
 
 - Publish releases from a GitHub workflow: a manual run from `main` creates an alpha

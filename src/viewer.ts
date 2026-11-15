@@ -50,7 +50,6 @@ import {
   igGetWindowPos,
   igGetWindowSize,
   igGetWindowWidth,
-  igIndent,
   igInvisibleButton,
   igIsItemHovered,
   igIsMouseDown_Nil,
@@ -79,7 +78,6 @@ import {
   igSpacing,
   igTableNextColumn,
   igTableNextRow,
-  igUnindent,
   pv_surface_begin,
   pv_surface_close,
   pv_surface_command,
@@ -106,6 +104,7 @@ import { pathToFileURL } from "node:url";
 import { controls, isAll, parameterValue } from "./data.ts";
 import { archiveNeighbor, libraryGroups } from "./library.ts";
 import type { Theme } from "./model.ts";
+import type { OutlineHeading } from "./outline.ts";
 import { readSettings, type Settings, saveSettings } from "./settings.ts";
 import { archive, type Entry, LibraryIndex, load } from "./store.ts";
 import {
@@ -253,10 +252,8 @@ function projectHeader(project: string, collapsed: boolean): boolean {
   );
   return clicked;
 }
-function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
-  const start = igGetCursorScreenPos(),
-    width = available(),
-    height = 32;
+/** A full-width list row; the library and the contents panel share its states. */
+function rowButton(id: string, height: number, active: boolean): boolean {
   igPushStyleColor_Vec4(ImGuiCol_Button, {
     ...palette.accent,
     w: active ? 0.14 : 0,
@@ -266,8 +263,15 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
     w: active ? 0.2 : 0.08,
   });
   igPushStyleColor_Vec4(ImGuiCol_ButtonActive, { ...palette.accent, w: 0.24 });
-  const clicked = igButton(`##${entry.artifact}`, { x: width, y: height });
+  const clicked = igButton(id, { x: available(), y: height });
   igPopStyleColor(3);
+  return clicked;
+}
+function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
+  const start = igGetCursorScreenPos(),
+    width = available(),
+    height = 32;
+  const clicked = rowButton(`##${entry.artifact}`, height, active);
   const draw = windowDrawList();
   if (!fonts.regular) throw new Error("Cannot access the library canvas");
   const middle = start.y + height / 2;
@@ -313,6 +317,47 @@ function artifactRow(entry: Entry, updated: number, active: boolean): boolean {
   if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
     tooltip(
       `${entry.title}\n${entry.project} / ${entry.artifact}\nUpdated ${dateLabel(new Date(updated))}${entry.archivedAt ? "\nArchived artifact" : ""}${entry.currentPresentation ? "\nShowing the presented revision" : ""}`,
+    );
+  return clicked;
+}
+function sectionRow(
+  heading: OutlineHeading,
+  searching: boolean,
+  active: boolean,
+): boolean {
+  const start = igGetCursorScreenPos(),
+    width = available(),
+    caption = searching ? heading.breadcrumb : "",
+    height = caption ? 46 : 32;
+  const clicked = rowButton("##section", height, active);
+  const draw = windowDrawList();
+  if (!fonts.regular) throw new Error("Cannot access the contents canvas");
+  const left = start.x + 10 + (searching ? 0 : Math.min(heading.depth, 4) * 14);
+  const room = start.x + width - 10 - left;
+  ImDrawList_AddText_FontPtr(
+    draw,
+    fonts.regular,
+    14,
+    { x: left, y: caption ? start.y + 7 : start.y + height / 2 - 7 },
+    packed(palette.ink),
+    compactLabel(heading.title, room, 14, "regular"),
+    0,
+  );
+  if (caption)
+    ImDrawList_AddText_FontPtr(
+      draw,
+      fonts.regular,
+      12,
+      { x: left, y: start.y + 26 },
+      packed(palette.muted),
+      compactLabel(caption, room, 12, "regular"),
+      0,
+    );
+  if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
+    tooltip(
+      heading.breadcrumb
+        ? `${heading.title}\n${heading.breadcrumb}`
+        : heading.title,
     );
   return clicked;
 }
@@ -436,7 +481,8 @@ export async function openViewer(
       canvas,
       window: size.x > 0 && size.y > 0 ? size : undefined,
       presented: size.x > 0 && size.y > 0 && !unpresented,
-      contentsOpen: showContents,
+      contentsOpen:
+        showContents && renderer !== undefined && renderer.outline().length > 1,
       heading: renderer?.activeHeading(),
       log: join(controller.directory, "viewer.log"),
     };
@@ -629,10 +675,13 @@ export async function openViewer(
       igShortcut_Nil(ImGuiKey_Escape, ImGuiInputFlags_RouteGlobal)
     )
       closeSettings();
+    // The contents preference survives artifacts without sections, so the panel
+    // returns with the next report.
+    const sections = renderer !== undefined && renderer.outline().length > 1;
+    const contentsOpen = showContents && sections;
     const focusContents =
       !showSettings &&
-      renderer &&
-      renderer.outline().length > 1 &&
+      sections &&
       igShortcut_Nil(
         ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_O,
         ImGuiInputFlags_RouteGlobal,
@@ -645,7 +694,7 @@ export async function openViewer(
     }
     if (
       !showSettings &&
-      showContents &&
+      contentsOpen &&
       igShortcut_Nil(
         ImGuiKey_Escape,
         ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_RouteOverActive,
@@ -817,63 +866,63 @@ export async function openViewer(
       const copiedNow = (what: string) =>
         copied?.what === what && now < copied.until;
       const view = renderer;
+      const controlsLinked = view?.hasControls() ?? false;
+      const unavailable = "Unavailable while the artifact cannot load";
+      // Every artifact gets the same buttons in the same places; the ones that do
+      // not apply are disabled rather than removed.
       const actions: {
         id: string;
         icon: Icon;
         hint: string;
         active?: boolean;
+        disabled?: boolean;
+        separated?: boolean;
         run: () => void;
-      }[] = [];
-      if (view && view.outline().length > 1)
-        actions.push({
-          id: "contents",
-          icon: "contents",
-          active: showContents,
-          hint:
-            process.platform === "darwin"
-              ? "Contents · Cmd+Shift+O"
-              : "Contents · Ctrl+Shift+O",
+      }[] = [
+        {
+          id: "archive",
+          icon: current.archivedAt ? "restore" : "archive",
+          hint: current.archivedAt
+            ? "Restore artifact"
+            : "Archive artifact and all revisions",
           run: () => {
-            view.preserveViewport();
-            showContents = !showContents;
-            if (showContents) showContext = false;
-            pending = 2;
+            archive(
+              root,
+              current.project,
+              current.artifact,
+              !current.archivedAt,
+            );
+            reloadEntries();
+            previous = signatureOf(entries);
+            select(
+              current.archivedAt
+                ? entries.find((entry) => entry.directory === current.directory)
+                : archiveNeighbor(entries, current),
+              current.archivedAt ? followLatest : true,
+              current.archivedAt ? followPresented : true,
+            );
           },
-        });
-      actions.push({
-        id: "archive",
-        icon: current.archivedAt ? "restore" : "archive",
-        hint: current.archivedAt
-          ? "Restore artifact"
-          : "Archive artifact and all revisions",
-        run: () => {
-          archive(root, current.project, current.artifact, !current.archivedAt);
-          reloadEntries();
-          previous = signatureOf(entries);
-          select(
-            current.archivedAt
-              ? entries.find((entry) => entry.directory === current.directory)
-              : archiveNeighbor(entries, current),
-            current.archivedAt ? followLatest : true,
-            current.archivedAt ? followPresented : true,
-          );
         },
-      });
-      if (view?.hasControls())
-        actions.push({
+        {
           id: "reset",
           icon: "reset",
-          hint: "Reset controls",
-          run: () => view.resetControls(),
-        });
-      if (view)
-        actions.push({
+          hint: controlsLinked
+            ? "Reset controls"
+            : "No linked controls to reset",
+          disabled: !controlsLinked,
+          run: () => view?.resetControls(),
+        },
+        {
           id: "view",
           icon: copiedNow("view") ? "check" : "copy",
-          hint: copiedNow("view")
-            ? "Copied"
-            : "Copy view: revision, theme and linked controls for an agent",
-          run: () =>
+          hint: !view
+            ? unavailable
+            : copiedNow("view")
+              ? "Copied"
+              : "Copy view: revision, theme and linked controls for an agent",
+          disabled: !view,
+          run: () => {
+            if (!view) return;
             copy(
               "view",
               JSON.stringify(
@@ -888,9 +937,9 @@ export async function openViewer(
                 null,
                 2,
               ),
-            ),
-        });
-      actions.push(
+            );
+          },
+        },
         {
           id: "png",
           icon: copiedNow("png") ? "check" : "image",
@@ -900,12 +949,15 @@ export async function openViewer(
         {
           id: "pdf",
           icon: "pdf",
-          hint: exportingPdf
-            ? "Exporting PDF…"
-            : "Export PDF with the current appearance and controls",
+          hint: !view
+            ? unavailable
+            : exportingPdf
+              ? "Exporting PDF…"
+              : "Export PDF with the current appearance and controls",
           active: exportingPdf,
+          disabled: !view,
           run: () => {
-            if (exportingPdf) return;
+            if (exportingPdf || !view) return;
             exportingPdf = true;
             pending = 2;
             try {
@@ -930,9 +982,7 @@ export async function openViewer(
                   "--scale",
                   String(current.scale),
                   "--params",
-                  JSON.stringify(
-                    Object.fromEntries(view?.state.parameters ?? []),
-                  ),
+                  JSON.stringify(Object.fromEntries(view.state.parameters)),
                 ],
                 { encoding: "utf8" },
                 (cause, stdout) => {
@@ -954,34 +1004,64 @@ export async function openViewer(
             }
           },
         },
-      );
-      if (view)
-        actions.push({
+        {
+          id: "contents",
+          icon: "contents",
+          active: contentsOpen,
+          separated: true,
+          disabled: !sections,
+          hint: !sections
+            ? "No sections to list"
+            : process.platform === "darwin"
+              ? "Contents · Cmd+Shift+O"
+              : "Contents · Ctrl+Shift+O",
+          run: () => {
+            view?.preserveViewport();
+            showContents = !contentsOpen;
+            if (showContents) showContext = false;
+            pending = 2;
+          },
+        },
+        {
           id: "context",
           icon: "context",
-          hint: showContext ? "Hide context" : "Show context",
-          active: showContext,
+          hint: !view
+            ? unavailable
+            : showContext
+              ? "Hide context"
+              : "Show context",
+          active: showContext && view !== undefined,
+          disabled: !view,
           run: () => {
-            view.preserveViewport();
+            view?.preserveViewport();
             showContext = !showContext;
             if (showContext) showContents = false;
           },
-        });
+        },
+      ];
       const button = 28,
         gap = 4,
-        actionsWidth = actions.length * (button + gap) - gap;
+        groupGap = 14;
+      const actionsWidth = actions.reduce(
+        (width, action, index) =>
+          width +
+          button +
+          (index === 0 ? 0 : action.separated ? groupGap : gap),
+        0,
+      );
+      let actionX = rowStart.x + rowWidth - actionsWidth;
       for (const [index, action] of actions.entries()) {
-        igSetCursorScreenPos({
-          x: rowStart.x + rowWidth - actionsWidth + index * (button + gap),
-          y: middle - button / 2,
-        });
+        if (index > 0) actionX += action.separated ? groupGap : gap;
+        igSetCursorScreenPos({ x: actionX, y: middle - button / 2 });
         if (
           iconButton(`##${action.id}`, action.icon, action.hint, {
             active: action.active,
+            disabled: action.disabled,
             size: button,
           })
         )
           action.run();
+        actionX += button;
       }
       const pillWidth = Math.max(
         1,
@@ -1125,8 +1205,8 @@ export async function openViewer(
       igDummy({ x: rowWidth, y: rowHeight });
       if (renderer && selected) {
         const space = igGetContentRegionAvail();
-        const panelOpen = showContext || showContents;
-        const panelWidth = showContents ? 256 : 312;
+        const panelOpen = showContext || contentsOpen;
+        const panelWidth = contentsOpen ? 256 : 312;
         const sideContext = panelOpen && space.x >= 760;
         const contextHeight =
           panelOpen && !sideContext ? Math.min(260, space.y * 0.4) : 0;
@@ -1163,20 +1243,30 @@ export async function openViewer(
         igPopID();
         if (panelOpen) {
           if (sideContext) igSameLine(0, -1);
+          // Unframed like the library sidebar, so the canvas stays the only card.
           igBeginChild_Str(
-            showContents ? "contents" : "context",
+            contentsOpen ? "contents" : "context",
             { x: sideContext ? panelWidth : 0, y: 0 },
-            ImGuiChildFlags_Borders,
+            0,
             0,
           );
-          if (showContents) {
+          if (contentsOpen) {
+            const header = igGetCursorScreenPos(),
+              headerWidth = available();
+            igSetCursorScreenPos({ x: header.x, y: header.y + 3 });
             text("Contents", 18, "bold");
-            igSameLine(Math.max(0, available() - 28), -1);
+            igSetCursorScreenPos({
+              x: header.x + headerWidth - 28,
+              y: header.y,
+            });
             if (iconButton("##close-contents", "close", "Close contents")) {
               renderer.preserveViewport();
               showContents = false;
               pending = 2;
             }
+            igSetCursorScreenPos(header);
+            igDummy({ x: headerWidth, y: 28 });
+            igSpacing();
             if (focusContents) igSetKeyboardFocusHere(0);
             igSetNextItemWidth(-1);
             input("##find-section", "Find a section", contentsSearch);
@@ -1188,46 +1278,13 @@ export async function openViewer(
             for (const heading of renderer.searchSections(query)) {
               matches++;
               igPushID_Str(heading.id);
-              const inset = query ? 0 : Math.min(heading.depth, 4) * 12;
-              if (inset > 0) igIndent(inset);
-              const caption = query ? heading.breadcrumb : "";
-              const point = igGetCursorScreenPos();
-              igPushFont(fonts.regular, 16);
-              const selected = igSelectable_Bool(
-                "##section",
+              const chosen = sectionRow(
+                heading,
+                query !== "",
                 heading.id === active,
-                0,
-                { x: 0, y: caption ? 44 : 26 },
               );
-              igPopFont();
-              ImDrawList_AddText_FontPtr(
-                windowDrawList(),
-                fonts.regular,
-                16,
-                point,
-                packed(palette.ink),
-                compactLabel(heading.title, available(), 16, "regular"),
-                0,
-              );
-              if (igIsItemHovered(ImGuiHoveredFlags_ForTooltip))
-                tooltip(
-                  heading.breadcrumb
-                    ? `${heading.title}\n${heading.breadcrumb}`
-                    : heading.title,
-                );
-              if (caption)
-                ImDrawList_AddText_FontPtr(
-                  windowDrawList(),
-                  fonts.regular,
-                  12,
-                  { x: point.x, y: point.y + 22 },
-                  packed(palette.muted),
-                  compactLabel(caption, available(), 12, "regular"),
-                  0,
-                );
-              if (inset > 0) igUnindent(inset);
               igPopID();
-              if (selected) {
+              if (chosen) {
                 renderer.navigate(heading.id);
                 if (!sideContext) showContents = false;
                 pending = 3;
