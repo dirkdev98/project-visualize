@@ -563,9 +563,11 @@ source identifiers. Use `--out FILE` to choose another destination. Exporting le
 saved documents, snapshots and presentations unchanged.
 
 PDF pages use the artifact's background throughout. Flowing cards and sections can
-continue onto the next page. Diagrams use a complete fitted page when needed. A
-modest fit adjustment can keep a short introduction with a figure that almost fits;
-authored page breaks still start a fresh page.
+continue onto the next page. A diagram taller than a page gets a complete fitted
+page while that keeps 70% of the normal scale; a taller diagram continues across
+pages between whole nodes so its labels stay readable. A modest fit adjustment can
+keep a short introduction with a figure that almost fits; authored page breaks still
+start a fresh page.
 
 HTML contains its fonts, images, data, styles and interaction code. It works offline
 and provides linked controls, sortable tables, chart navigation and hover details.

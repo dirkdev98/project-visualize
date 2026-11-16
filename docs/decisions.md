@@ -19,6 +19,11 @@
   keeping it whole would leave the page more than 60% empty. On portrait paper a
   long report's first block fit a page on its own and moved whole, leaving the title
   alone on page one. Headings, figures and table rows stay intact.
+- Bound fitted diagram pages at 70% of the normal scale, amending the 2026-11-09 rule
+  that large diagrams always receive a complete fitted page. A tall ER diagram in a
+  library report printed its labels at 4.5 pt; taller diagrams now flow across pages
+  between whole nodes at 8 pt. An introduction shares a fitted page under the same
+  bound instead of the earlier 85% share rule.
 
 ## 2026-11-16 widget choice in the skill
 

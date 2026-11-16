@@ -2974,12 +2974,17 @@ test("non-text Gantt descriptions are rejected", (t) => {
   assert.match(result.stderr, /task.detail/);
 });
 
-for (const [name, fields, nearFit] of [
-  ["a short PDF introduction stays with a near-fitting diagram", 6, true],
+for (const [name, fields, layout] of [
+  ["a short PDF introduction stays with a near-fitting diagram", 6, "near"],
   [
     "large PDF diagrams keep a short introduction on one fitted page",
+    10,
+    "fitted",
+  ],
+  [
+    "taller PDF diagrams flow across pages with each node intact",
     20,
-    false,
+    "flowing",
   ],
 ])
   test(name, async (t) => {
@@ -3023,7 +3028,7 @@ for (const [name, fields, nearFit] of [
                 { from: "1", to: "2" },
               ],
             },
-            ...(!nearFit
+            ...(layout !== "near"
               ? [
                   {
                     type: "text",
@@ -3036,7 +3041,7 @@ for (const [name, fields, nearFit] of [
         },
       );
       const pages = pdfTextPages(entry.pdf);
-      if (nearFit) assert.equal(pages.length, 1);
+      if (layout === "near") assert.equal(pages.length, 1);
       else assert.ok(pages.length > 1);
       for (const marker of [
         "DATA_MODEL",
@@ -3045,13 +3050,23 @@ for (const [name, fields, nearFit] of [
         `PROPERTY_2_${fields - 1}`,
       ])
         assert.equal(pages.join(" ").split(marker).length - 1, 1, marker);
+      if (layout === "flowing") {
+        assert.ok(!pages.some((page) => names.every((n) => page.includes(n))));
+        names.forEach((label, i) => {
+          const page = pages.find((page) => page.includes(label));
+          for (let f = 0; f < fields; f++)
+            assert.match(page, new RegExp(`\\bPROPERTY_${i}_${f}\\b`));
+        });
+        assert.ok(pages.at(-1).includes("NEXT_SECTION"));
+        return;
+      }
       const diagramPage = pages.find((page) =>
         names.every((name) => page.includes(name)),
       );
       assert.ok(diagramPage, "A diagram was divided between pages");
       assert.ok(diagramPage.includes("DATA_MODEL"));
       assert.ok(diagramPage.includes("REFERENCE"));
-      if (!nearFit) {
+      if (layout === "fitted") {
         assert.ok(pages.at(-1).includes("NEXT_SECTION"));
         assert.ok(!diagramPage.includes("NEXT_SECTION"));
       }

@@ -99,11 +99,15 @@ export function pdfPages(
         boundary > top ? Math.min(bottom, boundary) : bottom,
       height,
     );
+    // A large diagram gets one fitted page while that keeps 70% of the normal
+    // scale. Taller ones flow across pages between nodes, which stay intact,
+    // because fitting them shrank labels below 5 pt.
     const diagram = figureGroups.find(
       (group) =>
         group.diagram &&
         group.top >= top &&
         group.bottom - group.top > capacity &&
+        group.bottom - group.top <= capacity / 0.7 &&
         group.bottom <= authoredBottom,
     );
     const prefix =
@@ -115,10 +119,12 @@ export function pdfPages(
             region.bottom <= diagram.top &&
             region.bottom > region.top,
         ));
+    // A short introduction shares the fitted page while the page as a whole
+    // keeps the same 70% of the normal scale.
     const fitsIntroduction =
       diagram &&
       diagram.top - top <= capacity * 0.4 &&
-      (diagram.bottom - diagram.top) / (diagram.bottom - top) >= 0.85;
+      diagram.bottom - top <= capacity / 0.7;
     const wholeDiagram = diagram && (!prefix || fitsIntroduction);
     const sectionBottom =
       diagram && prefix && !fitsIntroduction
