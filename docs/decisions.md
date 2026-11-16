@@ -1,5 +1,10 @@
 # Decisions
 
+## 2026-11-16 generated rendering references
+
+- Regenerate widget exports and visual references from the structured examples.
+  Keep the generated changes in a separate review so appearance changes remain visible.
+
 ## 2026-11-16 PDF reading width
 
 - Lay PDFs out at their paper's width instead of the render width: the scale that
