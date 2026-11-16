@@ -130,7 +130,7 @@ export function renderDocument(
       const view = tableCell(row, column);
       if (view.status)
         return `<span class="pv-status" style="--pv-tone:${tone(view.status)}">${escapeHtml(view.text)}</span>`;
-      return `${escapeHtml(view.text)}${view.note ? ` <span class="pv-note"${view.noteTone && view.noteTone !== "neutral" ? ` style="color:${tone(view.noteTone)}"` : ""}>${escapeHtml(view.note)}</span>` : ""}`;
+      return `<span class="pv-cell">${escapeHtml(view.text)}${view.note ? ` <span class="pv-note"${view.noteTone && view.noteTone !== "neutral" ? ` style="color:${tone(view.noteTone)}"` : ""}>${escapeHtml(view.note)}</span>` : ""}</span>`;
     };
     const detail = (row: DataRow, room: number) =>
       `<dl class="pv-details">${details

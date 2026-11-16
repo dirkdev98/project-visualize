@@ -817,3 +817,10 @@
 .pv .pv-timeline small > span + .pv-meta {
   margin-left: 8px;
 }
+/* Wrapped cell text gets line spacing while a single line keeps its height, as in
+   the viewer: the negative margins trim the half-leading above and below. */
+.pv .pv-cell {
+  display: block;
+  line-height: 1.4;
+  margin: -0.2em 0;
+}

@@ -27,6 +27,9 @@
 - Give any figure taller than a page the same fitted page, not only diagrams. A
   1000-unit chart on landscape paper was sliced through its plot, with its axis and
   legend on the next page.
+- Space wrapped table cell text 1.4 font sizes apart in both renderers, keeping
+  single-line cells at their height. ImGui and the HTML table set wrapped lines solid,
+  one font size apart, which made prose cells hard to read.
 
 ## 2026-11-16 widget choice in the skill
 

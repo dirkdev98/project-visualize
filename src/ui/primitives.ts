@@ -87,6 +87,44 @@ export function text(
   igPopStyleColor(1);
   igPopFont();
 }
+/**
+ * Wrapped text with line spacing. ImGui sets wrapped lines solid, one font size
+ * apart, which reads poorly for prose in table cells; this keeps ImGui's wrap
+ * positions and spaces the lines `leading` font sizes apart.
+ */
+export function paragraph(
+  value: string,
+  size = 16,
+  font: Font = "regular",
+  tint: Color = palette.ink,
+  leading = 1.4,
+) {
+  const face = fonts[font];
+  if (!face) throw new Error("Fonts are not initialized");
+  const width = Math.max(1, available());
+  const lines: string[] = [];
+  igPushFont(face, size);
+  let rest = value;
+  while (rest) {
+    const line = textLine(rest, width);
+    lines.push(rest.slice(0, line.length));
+    if (!line.consumed) break;
+    rest = rest.slice(line.consumed);
+  }
+  igPopFont();
+  if (lines.length <= 1) {
+    text(value, size, font, tint);
+    return;
+  }
+  const start = igGetCursorScreenPos(),
+    step = size * leading;
+  for (const [index, line] of lines.entries()) {
+    igSetCursorScreenPos({ x: start.x, y: start.y + index * step });
+    text(line, size, font, tint, -1);
+  }
+  igSetCursorScreenPos(start);
+  igDummy({ x: width, y: size + (lines.length - 1) * step });
+}
 export function captureText(
   value: string,
   font: Font,

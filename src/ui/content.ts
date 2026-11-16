@@ -191,6 +191,7 @@ import {
   inputValue,
   overlay,
   panel,
+  paragraph,
   scalar,
   text,
   tooltip,
@@ -1566,6 +1567,10 @@ export class DocumentRenderer {
     // An empty cell still takes its line, which keeps narrow records aligned.
     if (!view.text) {
       text("", 16);
+      return;
+    }
+    if (!right && !view.note) {
+      paragraph(view.text, 16);
       return;
     }
     if (right) {
