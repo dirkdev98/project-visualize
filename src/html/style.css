@@ -313,7 +313,8 @@
   padding: 0;
   text-align: inherit;
 }
-.pv tbody tr.pv-alt {
+.pv tbody tr.pv-alt,
+.pv .pv-rich tbody tr:nth-child(even) {
   background: color-mix(in srgb, var(--pv-surface) 60%, var(--pv-paper));
 }
 .pv .pv-numeric {
@@ -652,6 +653,7 @@
   border-radius: 6px;
   color: var(--pv-tone);
   background: color-mix(in srgb, var(--pv-tone) 12%, transparent);
+  white-space: nowrap;
 }
 .pv .pv-note {
   color: var(--pv-muted);
@@ -700,6 +702,7 @@
   place-items: center;
   width: 24px;
   height: 24px;
+  padding: 0;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -729,6 +732,10 @@
 .pv .pv-details {
   display: grid;
   gap: 12px;
+}
+/* Detail prose matches Markdown elsewhere, as in the viewer. */
+.pv .pv-details .pv-rich {
+  font-size: 18px;
 }
 .pv .pv-details dt {
   font-size: 12px;
@@ -801,12 +808,12 @@
   flex: none;
 }
 .pv .pv-timeline .pv-meta {
-  margin-left: 8px;
   padding: 0;
   background: none;
+  color: var(--pv-muted);
   font-size: 12px;
   font-weight: 400;
 }
-.pv .pv-timeline small > .pv-meta:first-child {
-  margin-left: 0;
+.pv .pv-timeline small > span + .pv-meta {
+  margin-left: 8px;
 }

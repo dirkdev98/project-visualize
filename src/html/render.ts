@@ -278,7 +278,7 @@ export function renderDocument(
         content = `<div style="height:${value.height ?? 12}px" aria-hidden="true"></div>`;
         break;
       case "timeline":
-        content = `<ol class="pv-timeline">${(value.events ?? []).map((event) => `<li style="--pv-tone:${tone(event.tone ?? "positive")}">${event.label || event.meta ? `<small>${event.label ? escapeHtml(event.label) : ""}${event.meta ? `<code class="pv-meta">${escapeHtml(event.meta)}</code>` : ""}</small>` : ""}<h3>${escapeHtml(event.title)}</h3>${event.content ? `<div class="pv-rich">${markdown(event.content, document, payload.highlights, width - 32)}</div>` : ""}</li>`).join("")}</ol>`;
+        content = `<ol class="pv-timeline">${(value.events ?? []).map((event) => `<li style="--pv-tone:${tone(event.tone ?? "positive")}">${event.label || event.meta ? `<small>${event.label ? `<span>${escapeHtml(event.label)}</span>` : ""}${event.meta ? `<code class="pv-meta">${escapeHtml(event.meta)}</code>` : ""}</small>` : ""}<h3>${escapeHtml(event.title)}</h3>${event.content ? `<div class="pv-rich">${markdown(event.content, document, payload.highlights, width - 32)}</div>` : ""}</li>`).join("")}</ol>`;
         break;
       case "table":
         content = table(value, width, key);

@@ -1563,7 +1563,11 @@ export class DocumentRenderer {
       this.statusBadge(view.text, view.status);
       return;
     }
-    if (!view.text) return;
+    // An empty cell still takes its line, which keeps narrow records aligned.
+    if (!view.text) {
+      text("", 16);
+      return;
+    }
     if (right) {
       const width =
         this.textWidth(view.text) +
