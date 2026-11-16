@@ -73,13 +73,15 @@ export async function renderArtifact(
   let pngHeight = 0;
   let print: Capture | undefined;
   checked(pv_surface_open(0));
-  let renderer: DocumentRenderer | undefined;
+  const renderers: DocumentRenderer[] = [];
   try {
     initializeTheme(theme ?? document.theme ?? "light");
-    const current = new DocumentRenderer(document, state, options);
-    renderer = current;
     const limit = pv_surface_limit();
     const capture = (canvasWidth: number, canvasScale: number) => {
+      // Each capture gets its own renderer: measurements cached at one density
+      // would misplace and wrap text at another.
+      const current = new DocumentRenderer(document, state, options);
+      renderers.push(current);
       const padding = {
         x: canvasWidth < 480 ? (partial ? 24 : 16) : partial ? 48 : 36,
         y: partial ? 40 : 32,
@@ -137,7 +139,7 @@ export async function renderArtifact(
         (printScale === scale ? undefined : capture(printWidth, scale));
     if (pdfs.length && !print) throw tooTall();
   } finally {
-    renderer?.dispose();
+    for (const renderer of renderers) renderer.dispose();
     releasePanels();
     for (const key of Object.keys(fonts))
       delete fonts[key as keyof typeof fonts];

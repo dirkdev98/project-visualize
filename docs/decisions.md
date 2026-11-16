@@ -34,6 +34,10 @@
   `--scale 1` render, and fall back to the render scale otherwise. 61 of 72 library
   artifacts were rendered at 1x, which printed text at 116 dpi; it now prints at
   232 dpi. Example PDFs grow about 2.3x, staying under 200 KB.
+- Give each export capture its own renderer. Text widths and layouts cached during a
+  1x PNG pass were reused in the 2x PDF pass, which shifted PDF text and wrapped
+  table notes such as "−16.9%" onto a second line; CI caught it as a PDF that
+  differed between runs. Keep right-aligned cell values and notes on one line.
 
 ## 2026-11-16 widget choice in the skill
 

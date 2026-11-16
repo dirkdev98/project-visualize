@@ -1583,7 +1583,8 @@ export class DocumentRenderer {
         y: position.y,
       });
     }
-    text(view.text, 16);
+    // A value with its note stays on one line, like a number.
+    text(view.text, 16, "regular", palette.ink, -1);
     if (view.note) {
       igSameLine(0, 6);
       text(
@@ -1593,6 +1594,7 @@ export class DocumentRenderer {
         view.noteTone && view.noteTone !== "neutral"
           ? tone(view.noteTone)
           : palette.muted,
+        -1,
       );
     }
   }
