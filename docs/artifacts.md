@@ -563,9 +563,9 @@ source identifiers. Use `--out FILE` to choose another destination. Exporting le
 saved documents, snapshots and presentations unchanged.
 
 PDF pages use the artifact's background throughout. Flowing cards and sections can
-continue onto the next page. A diagram taller than a page gets a complete fitted
-page while that keeps 70% of the normal scale; a taller diagram continues across
-pages between whole nodes so its labels stay readable. A modest fit adjustment can
+continue onto the next page. A chart, diagram or other figure taller than a page
+gets a complete fitted page while that keeps 70% of the normal scale; a taller
+diagram continues across pages between whole nodes so its labels stay readable. A modest fit adjustment can
 keep a short introduction with a figure that almost fits; authored page breaks still
 start a fresh page.
 

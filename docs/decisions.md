@@ -24,6 +24,9 @@
   library report printed its labels at 4.5 pt; taller diagrams now flow across pages
   between whole nodes at 8 pt. An introduction shares a fitted page under the same
   bound instead of the earlier 85% share rule.
+- Give any figure taller than a page the same fitted page, not only diagrams. A
+  1000-unit chart on landscape paper was sliced through its plot, with its axis and
+  legend on the next page.
 
 ## 2026-11-16 widget choice in the skill
 

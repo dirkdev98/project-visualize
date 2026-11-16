@@ -50,7 +50,7 @@ export function pdfPages(
     ...layout.regions,
     ...layout.tables.flatMap((table) => table.rows),
   ];
-  const figureGroups: (VerticalRange & { diagram: boolean })[] = [];
+  const figureGroups: VerticalRange[] = [];
   const textAndRows = [
     ...layout.lines,
     ...layout.tables.flatMap((table) => table.rows),
@@ -69,15 +69,9 @@ export function pdfPages(
         if (range.top < bottom && range.bottom > bottom) bottom = range.bottom;
     } while (bottom > previous);
     const last = figureGroups[figureGroups.length - 1];
-    if (last && region.top < last.bottom) {
+    if (last && region.top < last.bottom)
       last.bottom = Math.max(last.bottom, bottom);
-      last.diagram ||= region.kind === "diagram";
-    } else
-      figureGroups.push({
-        top: region.top,
-        bottom,
-        diagram: region.kind === "diagram",
-      });
+    else figureGroups.push({ top: region.top, bottom });
   }
   const slices: PageSlice[] = [];
   let contentBottom = 0;
@@ -99,36 +93,36 @@ export function pdfPages(
         boundary > top ? Math.min(bottom, boundary) : bottom,
       height,
     );
-    // A large diagram gets one fitted page while that keeps 70% of the normal
-    // scale. Taller ones flow across pages between nodes, which stay intact,
-    // because fitting them shrank labels below 5 pt.
-    const diagram = figureGroups.find(
+    // A figure taller than a page, such as a tall chart or diagram, gets one
+    // fitted page while that keeps 70% of the normal scale, rather than being
+    // sliced. Taller diagrams flow across pages between whole nodes, because
+    // fitting them shrank labels below 5 pt.
+    const figure = figureGroups.find(
       (group) =>
-        group.diagram &&
         group.top >= top &&
         group.bottom - group.top > capacity &&
         group.bottom - group.top <= capacity / 0.7 &&
         group.bottom <= authoredBottom,
     );
     const prefix =
-      diagram &&
-      (layout.lines.some((line) => line.top >= top && line.top < diagram.top) ||
+      figure &&
+      (layout.lines.some((line) => line.top >= top && line.top < figure.top) ||
         regions.some(
           (region) =>
             region.top >= top &&
-            region.bottom <= diagram.top &&
+            region.bottom <= figure.top &&
             region.bottom > region.top,
         ));
     // A short introduction shares the fitted page while the page as a whole
     // keeps the same 70% of the normal scale.
     const fitsIntroduction =
-      diagram &&
-      diagram.top - top <= capacity * 0.4 &&
-      diagram.bottom - top <= capacity / 0.7;
-    const wholeDiagram = diagram && (!prefix || fitsIntroduction);
+      figure &&
+      figure.top - top <= capacity * 0.4 &&
+      figure.bottom - top <= capacity / 0.7;
+    const wholeFigure = figure && (!prefix || fitsIntroduction);
     const sectionBottom =
-      diagram && prefix && !fitsIntroduction
-        ? Math.min(authoredBottom, diagram.top)
+      figure && prefix && !fitsIntroduction
+        ? Math.min(authoredBottom, figure.top)
         : authoredBottom;
     let repeats = layout.tables
       .filter(
@@ -147,22 +141,22 @@ export function pdfPages(
     const nextLine = layout.lines
       .filter((line) => line.top >= top)
       .reduce((end, line) => Math.min(end, line.bottom), height);
-    if (!wholeDiagram && headerHeight + nextLine - top >= capacity) {
+    if (!wholeFigure && headerHeight + nextLine - top >= capacity) {
       repeats = [];
       headerHeight = 0;
     }
-    if (wholeDiagram) {
+    if (wholeFigure) {
       const pageFactor =
-        (pageHeight - 2 * margin - 12) / (diagram.bottom - top + headerHeight);
+        (pageHeight - 2 * margin - 12) / (figure.bottom - top + headerHeight);
       slices.push({
         top,
-        bottom: diagram.bottom,
+        bottom: figure.bottom,
         factor: pageFactor,
         left: (pageWidth - width * pageFactor) / 2,
         headerHeight,
         repeats,
       });
-      top = diagram.bottom;
+      top = figure.bottom;
       continue;
     }
     let bottom: number;
