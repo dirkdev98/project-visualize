@@ -6,6 +6,8 @@ import {
   ImPlot_BeginItem,
   ImPlot_EndItem,
   ImPlot_FitPoint,
+  ImPlot_GetPlotPos,
+  ImPlot_GetPlotSize,
   ImPlot_PlotBars_doublePtrdoublePtr,
   ImPlot_PlotLine_doublePtrdoublePtr,
   ImPlot_PlotScatter_doublePtrdoublePtr,
@@ -91,6 +93,8 @@ export class Plots {
     color: Color,
     barWidth = 0.8,
     horizontal = false,
+    baseline = 0,
+    log = false,
   ) {
     if (kind === "area") {
       const fill = { ...color, w: currentTheme() === "dark" ? 0.22 : 0.13 };
@@ -98,9 +102,14 @@ export class Plots {
         label,
         x,
         y,
-        0,
+        baseline,
         this.style(fill, ImPlotMarker_None, true),
       );
+    }
+    // ImPlot bars always start at zero, which a log axis cannot show.
+    if (kind === "bar" && (baseline !== 0 || log)) {
+      this.bars(label, x, y, color, barWidth, horizontal, baseline);
+      return;
     }
     const style = this.style(
       color,
@@ -122,6 +131,107 @@ export class Plots {
     else if (kind === "scatter")
       ImPlot_PlotScatter_doublePtrdoublePtr(label, x, y, style);
     else ImPlot_PlotLine_doublePtrdoublePtr(label, x, y, style);
+  }
+  private bars(
+    label: string,
+    x: Float64Array,
+    y: Float64Array,
+    color: Color,
+    width: number,
+    horizontal: boolean,
+    baseline: number,
+  ) {
+    if (
+      !ImPlot_BeginItem(
+        label,
+        this.style(color, ImPlotMarker_None, false, horizontal),
+        color,
+        ImPlotMarker_None,
+      )
+    )
+      return;
+    try {
+      const point = (along: number, value: number) =>
+        horizontal ? { x: value, y: along } : { x: along, y: value };
+      const draw = plotDrawList();
+      ImPlot_PushPlotClipRect(0);
+      for (let i = 0; i < x.length; i++) {
+        const a = point(x[i] - width / 2, baseline),
+          b = point(x[i] + width / 2, y[i]);
+        ImPlot_FitPoint(a);
+        ImPlot_FitPoint(b);
+        const p = ImPlot_PlotToPixels_double(a.x, a.y, -1, -1),
+          q = ImPlot_PlotToPixels_double(b.x, b.y, -1, -1);
+        ImDrawList_AddRectFilled(
+          draw,
+          { x: Math.min(p.x, q.x), y: Math.min(p.y, q.y) },
+          { x: Math.max(p.x, q.x), y: Math.max(p.y, q.y) },
+          packed(color),
+          0,
+          0,
+        );
+      }
+      ImPlot_PopPlotClipRect();
+    } finally {
+      ImPlot_EndItem();
+    }
+  }
+  /** Dashed lines across the value axis with their labels at the far end. */
+  references(
+    references: { value: number; label?: string }[],
+    horizontal: boolean,
+  ) {
+    const draw = plotDrawList(),
+      face = fonts.regular;
+    if (!face) throw new Error("Fonts are not initialized");
+    const position = ImPlot_GetPlotPos(),
+      size = ImPlot_GetPlotSize();
+    const tint = packed(palette.muted);
+    ImPlot_PushPlotClipRect(0);
+    for (const reference of references) {
+      const pixel = ImPlot_PlotToPixels_double(
+        horizontal ? reference.value : 0,
+        horizontal ? 0 : reference.value,
+        -1,
+        -1,
+      );
+      const at = horizontal ? pixel.x : pixel.y;
+      const start = horizontal ? position.y : position.x,
+        end = horizontal ? position.y + size.y : position.x + size.x;
+      if (
+        horizontal
+          ? at < position.x || at > position.x + size.x
+          : at < position.y || at > position.y + size.y
+      )
+        continue;
+      for (let from = start; from < end; from += 10) {
+        const to = Math.min(end, from + 6);
+        ImDrawList_AddLine(
+          draw,
+          horizontal ? { x: at, y: from } : { x: from, y: at },
+          horizontal ? { x: at, y: to } : { x: to, y: at },
+          tint,
+          1.5,
+          0,
+        );
+      }
+      if (!reference.label) continue;
+      igPushFont(face, 14);
+      const width = igCalcTextSize(reference.label, false, -1).x;
+      igPopFont();
+      ImDrawList_AddText_FontPtr(
+        draw,
+        face,
+        14,
+        horizontal
+          ? { x: at + 6, y: position.y + 4 }
+          : { x: position.x + size.x - 6 - width, y: at - 20 },
+        tint,
+        reference.label,
+        0,
+      );
+    }
+    ImPlot_PopPlotClipRect();
   }
   box(
     label: string,

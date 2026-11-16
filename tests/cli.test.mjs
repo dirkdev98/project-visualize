@@ -2356,6 +2356,98 @@ test("a parameter filters a shared table, metric and chart consistently", (t) =>
   assert.equal(view.datasetRows.observations, selected.length);
 });
 
+function studyDocument() {
+  return {
+    schemaVersion: 1,
+    type: "document",
+    title: "Linked studies",
+    datasets: {
+      studies: [
+        { study: "Search", claim: "Reverse search avoids a copy" },
+        { study: "Folds", claim: "Callbacks inline into the loop" },
+      ],
+      measurements: [
+        { workload: "Reverse search", study: "Search", nanoseconds: 8.3 },
+        { workload: "Forward control", study: "Search", nanoseconds: 8.4 },
+        { workload: "Sum fold", study: "Folds", nanoseconds: 601.5 },
+      ],
+      checkpoints: [
+        { commit: "a1b2c3d", topic: "Search" },
+        { commit: "e4f5a6b", topic: "Folds" },
+      ],
+    },
+    body: [
+      {
+        type: "control",
+        id: "study",
+        kind: "select",
+        label: "Study",
+        dataset: "studies",
+        field: "study",
+        targets: [
+          { dataset: "measurements", field: "study" },
+          { dataset: "checkpoints", field: "topic" },
+        ],
+      },
+      {
+        type: "table",
+        id: "claims",
+        dataset: "studies",
+        columns: [{ key: "claim", label: "Claim" }],
+      },
+      {
+        type: "table",
+        id: "timings",
+        dataset: "measurements",
+        columns: [{ key: "workload", label: "Workload" }],
+      },
+      {
+        type: "table",
+        id: "commits",
+        dataset: "checkpoints",
+        columns: [{ key: "commit", label: "Commit" }],
+      },
+    ],
+  };
+}
+
+test("a control filters every dataset it targets through that dataset's field", (t) => {
+  const { render, ok } = workspace(t);
+  const document = studyDocument();
+  render(document);
+  const view = inspectView(ok, { study: "Search" });
+  const rows = (id) => view.body.find((block) => block.id === id).rows;
+  assert.deepEqual(rows("claims"), [document.datasets.studies[0]]);
+  assert.deepEqual(
+    rows("timings"),
+    document.datasets.measurements.filter((row) => row.study === "Search"),
+  );
+  assert.deepEqual(rows("commits"), [document.datasets.checkpoints[0]]);
+});
+
+test("control targets must name another dataset and a field it contains", (t) => {
+  const { run, ok } = workspace(t);
+  for (const targets of [
+    [{ dataset: "studies", field: "study" }],
+    [{ dataset: "measurements", field: "station" }],
+    [{ dataset: "missing", field: "study" }],
+    [
+      { dataset: "checkpoints", field: "topic" },
+      { dataset: "checkpoints", field: "topic" },
+    ],
+  ]) {
+    const document = studyDocument();
+    document.body[0].targets = targets;
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      document,
+    );
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error, /targets/);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 test("an empty linked selection still inspects and exports", (t) => {
   const { root, render, ok } = workspace(t);
   render(linkedDocument());

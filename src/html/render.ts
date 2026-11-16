@@ -12,13 +12,22 @@ import {
 import type {
   Artifact,
   Block,
-  Cell,
   ControlBlock,
+  DataRow,
   ParameterValue,
+  TableColumn,
   Theme,
 } from "../model.ts";
 import { chartColors, palettes } from "../palette.ts";
+import { metricComparison, metricTotal } from "../ui/change-text.ts";
 import { formatNumber } from "../ui/number-format.ts";
+import {
+  compareCells,
+  searchText,
+  sortValue,
+  statusSummary,
+  tableCell,
+} from "../ui/table-cells.ts";
 import { analytical, defaultPlot, type PlotState, plot } from "./charts.ts";
 import { diagram, type Measure } from "./diagrams.ts";
 import { escapeHtml, markdown } from "./markup.ts";
@@ -39,7 +48,16 @@ export interface HtmlPayload {
 }
 export interface HtmlState {
   parameters: Parameters;
-  tables: Record<string, { query: string; sort?: string; descending: boolean }>;
+  tables: Record<
+    string,
+    {
+      query: string;
+      sort?: string;
+      descending: boolean;
+      /** Rows whose details differ from the table's initial expansion. */
+      toggled?: number[];
+    }
+  >;
   plots: Record<string, PlotState>;
   closed: Set<string>;
 }
@@ -77,60 +95,91 @@ export function renderDocument(
   ): string {
     const rows = value.rows ?? [],
       state = tableState(key);
-    const filtered = rows.filter(
-      (row) =>
-        !state.query ||
-        value.columns.some((column) => {
-          const cell = row[column.key];
-          return [
-            display(cell),
-            typeof cell === "number" ? formatNumber(cell, column.format) : "",
-          ].some((text) =>
-            text.toLowerCase().includes(state.query.toLowerCase()),
-          );
-        }),
-    );
-    if (state.sort) {
-      const sort = state.sort;
-      filtered.sort((a, b) => {
-        const x = a[sort],
-          y = b[sort];
-        if (x === null || x === undefined)
-          return y === null || y === undefined ? 0 : 1;
-        if (y === null || y === undefined) return -1;
-        const compared =
-          typeof x === "number" && typeof y === "number"
-            ? x - y
-            : display(x).localeCompare(display(y), "en");
-        return state.descending ? -compared : compared;
-      });
-    }
-    const narrow = width < 480 && value.columns.length > 2;
-    const cell = (
-      cellValue: Cell | undefined,
-      column: (typeof value.columns)[number],
-    ) =>
-      escapeHtml(
-        typeof cellValue === "number"
-          ? formatNumber(cellValue, column.format)
-          : display(cellValue),
+    const columns = value.columns.filter((column) => !column.detail),
+      details = value.columns.filter((column) => column.detail);
+    const order = rows
+      .map((_, index) => index)
+      .filter(
+        (index) =>
+          !state.query ||
+          value.columns.some((column) =>
+            searchText(rows[index], column)
+              .toLowerCase()
+              .includes(state.query.toLowerCase()),
+          ),
       );
+    const sorted = value.columns.find((column) => column.key === state.sort);
+    if (sorted)
+      order.sort((a, b) => {
+        const compared = compareCells(
+          sortValue(rows[a], sorted),
+          sortValue(rows[b], sorted),
+        );
+        const nulls =
+          sortValue(rows[a], sorted) === null ||
+          sortValue(rows[b], sorted) === null;
+        return state.descending && !nulls ? -compared : compared;
+      });
+    const toggled = new Set(state.toggled ?? []);
+    const open = (index: number) =>
+      details.length > 0 &&
+      (value.expanded === true || order.length === 1) !== toggled.has(index);
+    const narrow = width < 480 && columns.length > 2;
+    const cell = (row: DataRow, column: TableColumn) => {
+      const view = tableCell(row, column);
+      if (view.status)
+        return `<span class="pv-status" style="--pv-tone:${tone(view.status)}">${escapeHtml(view.text)}</span>`;
+      return `${escapeHtml(view.text)}${view.note ? ` <span class="pv-note"${view.noteTone && view.noteTone !== "neutral" ? ` style="color:${tone(view.noteTone)}"` : ""}>${escapeHtml(view.note)}</span>` : ""}`;
+    };
+    const detail = (row: DataRow, room: number) =>
+      `<dl class="pv-details">${details
+        .map((column) => {
+          const raw = row[column.key],
+            view = tableCell(row, column);
+          const body =
+            typeof raw === "string" && !column.kind
+              ? `<div class="pv-rich">${markdown(raw, document, payload.highlights, room)}</div>`
+              : cell(row, column);
+          return raw === null || raw === undefined || raw === "" || !view.text
+            ? ""
+            : `<div><dt>${escapeHtml(column.label)}</dt><dd>${body}</dd></div>`;
+        })
+        .join("")}</dl>`;
+    const toggle = (index: number, label: string) =>
+      `<button type="button" class="pv-expand" aria-expanded="${open(index)}" aria-label="${escapeHtml(label)}" data-expand="${escapeHtml(key)}" data-row="${index}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${open(index) ? "M3 5.5l5 5 5-5" : "M5.5 3l5 5-5 5"}"/></svg></button>`;
     const search =
       rows.length > 5 || state.query
         ? `<label class="pv-search">Search table<input type="search" aria-label="Search ${escapeHtml(value.title ?? "table")}" data-table-search="${escapeHtml(key)}" value="${escapeHtml(state.query)}"></label>`
         : "";
+    const summaryColumn = value.columns.find(
+      (column) => column.key === value.summary,
+    );
+    let summary = "";
+    if (summaryColumn) {
+      const counts = statusSummary(rows, summaryColumn),
+        total = counts.reduce((sum, entry) => sum + entry.count, 0);
+      if (total)
+        summary = `<div class="pv-status-summary"><div class="pv-status-bar" role="img" aria-label="${escapeHtml(counts.map((entry) => `${entry.count} ${entry.label}`).join(", "))}">${counts.map((entry) => `<i style="flex:${entry.count};--pv-tone:${tone(entry.tone)}"></i>`).join("")}</div><ul>${counts.map((entry) => `<li style="--pv-tone:${tone(entry.tone)}"><strong>${entry.count}</strong> ${escapeHtml(entry.label)}</li>`).join("")}</ul></div>`;
+    }
+    const label = (row: DataRow) => tableCell(row, columns[0]).text || "row";
     let content: string;
     if (narrow)
-      content = `<div class="pv-records">${filtered.map((row) => `<dl>${value.columns.map((column) => `<div><dt>${escapeHtml(column.label)}</dt><dd>${cell(row[column.key], column)}</dd></div>`).join("")}</dl>`).join("")}</div>`;
+      content = `<div class="pv-records">${order
+        .map((index) => {
+          const row = rows[index];
+          return `<dl>${columns.map((column) => `<div><dt>${escapeHtml(column.label)}</dt><dd>${cell(row, column)}</dd></div>`).join("")}${details.length ? `<div class="pv-record-toggle">${toggle(index, `Details for ${label(row)}`)}<span>Details</span></div>` : ""}</dl>${open(index) ? detail(row, width - 24) : ""}`;
+        })
+        .join("")}</div>`;
     else {
-      const weight = value.columns.reduce(
+      const weight = columns.reduce(
         (sum, column) => sum + (column.weight ?? 1),
         0,
       );
-      const numeric = value.columns.map(
+      const numeric = columns.map(
         (column) =>
           column.align === "right" ||
           (column.align === undefined &&
+            column.kind !== "status" &&
             rows.some((row) => typeof row[column.key] === "number") &&
             rows.every(
               (row) =>
@@ -139,22 +188,29 @@ export function renderDocument(
       );
       const align = (index: number) =>
         numeric[index] ? ' class="pv-numeric"' : "";
-      content = `<table><colgroup>${value.columns.map((column) => `<col style="width:${((column.weight ?? 1) / weight) * 100}%">`).join("")}</colgroup><thead><tr>${value.columns.map((column, index) => `<th scope="col"${align(index)} aria-sort="${state.sort === column.key ? (state.descending ? "descending" : "ascending") : "none"}"><button type="button" data-sort="${escapeHtml(column.key)}" data-table="${escapeHtml(key)}">${escapeHtml(column.label)}${state.sort === column.key ? (state.descending ? " ↓" : " ↑") : ""}</button></th>`).join("")}</tr></thead><tbody>${filtered
-        .map(
-          (row) =>
-            `<tr>${value.columns
-              .map(
-                (column, index) =>
-                  `<td${align(index)}>${cell(row[column.key], column)}</td>`,
-              )
-              .join("")}</tr>`,
-        )
+      const span = columns.length + (details.length ? 1 : 0);
+      // Detail rows share their parent's stripe, so stripes follow source rows.
+      const stripe = (at: number, open: boolean) => {
+        const names = [at % 2 ? "pv-alt" : "", open ? "pv-open" : ""]
+          .filter(Boolean)
+          .join(" ");
+        return names ? ` class="${names}"` : "";
+      };
+      content = `<table><colgroup>${details.length ? '<col style="width:36px">' : ""}${columns.map((column) => `<col style="width:${((column.weight ?? 1) / weight) * 100}%">`).join("")}</colgroup><thead><tr>${details.length ? '<th scope="col"><span class="pv-hidden">Details</span></th>' : ""}${columns.map((column, index) => `<th scope="col"${align(index)} aria-sort="${state.sort === column.key ? (state.descending ? "descending" : "ascending") : "none"}"><button type="button" data-sort="${escapeHtml(column.key)}" data-table="${escapeHtml(key)}">${escapeHtml(column.label)}${state.sort === column.key ? (state.descending ? " ↓" : " ↑") : ""}</button></th>`).join("")}</tr></thead><tbody>${order
+        .map((index, at) => {
+          const row = rows[index];
+          return `<tr${stripe(at, open(index))}>${details.length ? `<td class="pv-expand-cell">${toggle(index, `Details for ${label(row)}`)}</td>` : ""}${columns
+            .map((column, at) => `<td${align(at)}>${cell(row, column)}</td>`)
+            .join(
+              "",
+            )}</tr>${open(index) ? `<tr class="pv-detail-row${at % 2 ? " pv-alt" : ""}"><td colspan="${span}">${detail(row, width - 48)}</td></tr>` : ""}`;
+        })
         .join("")}</tbody></table>`;
     }
-    const empty = filtered.length
+    const empty = order.length
       ? ""
       : `<p class="pv-muted pv-table-empty">${rows.length ? "No rows match this search." : "No rows in this view."}</p>`;
-    return `${search}${content}${empty}`;
+    return `${summary}${search}${content}${empty}`;
   }
   function tableState(key: string) {
     return state.tables[key] ?? { query: "", descending: false };
@@ -175,9 +231,18 @@ export function renderDocument(
       case "code":
         content = `<div class="pv-code">${value.language ? `<small>${escapeHtml(value.language.toUpperCase())}</small>` : ""}<pre><code>${payload.highlights[`${value.language ?? ""}\n${value.content}`] ?? escapeHtml(value.content)}</code></pre></div>`;
         break;
-      case "metric":
-        content = `<div class="pv-panel pv-metric"><strong class="pv-muted">${escapeHtml(value.label)}</strong><div class="pv-value" style="color:${value.tone && value.tone !== "neutral" ? tone(value.tone) : "var(--pv-ink)"}">${escapeHtml(typeof value.value === "number" ? formatNumber(value.value, value) : display(value.value))}</div><p style="color:${tone(value.tone)}">${escapeHtml(value.detail ?? "")}</p></div>`;
+      case "metric": {
+        const total = metricTotal(value),
+          parts = metricComparison(value, value.value ?? null);
+        const comparison = parts
+          .map(
+            (part) =>
+              `<span${part.tone && part.tone !== "neutral" ? ` style="color:${tone(part.tone)}"` : ""}>${escapeHtml(part.text)}</span>`,
+          )
+          .join(" · ");
+        content = `<div class="pv-panel pv-metric"><strong class="pv-muted">${escapeHtml(value.label)}</strong><div class="pv-value" style="color:${value.tone && value.tone !== "neutral" ? tone(value.tone) : "var(--pv-ink)"}">${escapeHtml(typeof value.value === "number" ? formatNumber(value.value, value) : display(value.value))}${total ? `<span class="pv-total">${escapeHtml(total)}</span>` : ""}</div><p class="pv-comparison">${comparison}</p><p class="pv-detail" style="color:${tone(value.tone)}">${escapeHtml(value.detail ?? "")}</p></div>`;
         break;
+      }
       case "progress":
         content = `<label class="pv-progress"><strong>${escapeHtml(value.label)} · ${Math.round(value.value * 100)}%</strong><progress value="${value.value}" max="1" style="--pv-progress:${value.tone ? tone(value.tone) : "var(--pv-accent)"}">${Math.round(value.value * 100)}%</progress></label>${value.detail ? `<p class="pv-caption">${escapeHtml(value.detail)}</p>` : ""}`;
         break;

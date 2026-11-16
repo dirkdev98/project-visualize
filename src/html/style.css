@@ -119,15 +119,29 @@
   font-size: 15px;
   min-height: 15px;
 }
-/* Metrics beside one with a detail keep its line so the cards align. */
+.pv .pv-total {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--pv-muted);
+}
+.pv .pv-metric .pv-comparison {
+  color: var(--pv-muted);
+  margin-bottom: 4px;
+}
+/* Metrics beside one with a comparison or detail keep that line so the cards align. */
 .pv .pv-metric p:empty {
   display: none;
 }
 .pv
-  .pv-row:has(> .pv-block > .pv-metric > p:not(:empty))
+  .pv-row:has(> .pv-block > .pv-metric > .pv-detail:not(:empty))
   > .pv-block
   > .pv-metric
-  > p:empty {
+  > .pv-detail:empty,
+.pv
+  .pv-row:has(> .pv-block > .pv-metric > .pv-comparison:not(:empty))
+  > .pv-block
+  > .pv-metric
+  > .pv-comparison:empty {
   display: block;
 }
 .pv .pv-caption {
@@ -299,7 +313,7 @@
   padding: 0;
   text-align: inherit;
 }
-.pv tbody tr:nth-child(even) {
+.pv tbody tr.pv-alt {
   background: color-mix(in srgb, var(--pv-surface) 60%, var(--pv-paper));
 }
 .pv .pv-numeric {
@@ -620,4 +634,115 @@
 }
 .pv .pv-sequence p {
   margin-top: 12px;
+}
+.pv .pv-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.pv .pv-status {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.15;
+  border-radius: 6px;
+  color: var(--pv-tone);
+  background: color-mix(in srgb, var(--pv-tone) 12%, transparent);
+}
+.pv .pv-note {
+  color: var(--pv-muted);
+  white-space: nowrap;
+}
+.pv .pv-status-summary {
+  margin-bottom: 14px;
+}
+.pv .pv-status-bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.pv .pv-status-bar i {
+  background: var(--pv-tone);
+}
+.pv .pv-status-summary ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--pv-muted);
+}
+.pv .pv-status-summary li::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--pv-tone);
+}
+.pv .pv-status-summary strong {
+  color: var(--pv-ink);
+}
+.pv td.pv-expand-cell {
+  padding: 6px 4px 6px 8px;
+}
+.pv .pv-expand {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pv-muted);
+  cursor: pointer;
+}
+.pv .pv-expand:hover {
+  background: color-mix(in srgb, var(--pv-ink) 8%, transparent);
+  color: var(--pv-ink);
+}
+.pv .pv-expand svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pv tr.pv-open > td {
+  border-bottom: 0;
+}
+.pv tr.pv-detail-row > td {
+  padding: 2px 12px 16px 48px;
+  line-height: 1.5;
+}
+.pv .pv-details {
+  display: grid;
+  gap: 12px;
+}
+.pv .pv-details dt {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.pv .pv-records .pv-details {
+  margin: -12px 0 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--pv-border);
+}
+.pv .pv-records .pv-record-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--pv-muted);
 }

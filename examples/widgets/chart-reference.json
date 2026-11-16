@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Reference lines and ratios",
+  "subtitle": "Fictional data. Ratios on a log axis from a baseline of one, and a target line.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "chart",
+      "id": "ratio",
+      "title": "Time relative to the reference pipeline",
+      "kind": "bar",
+      "scale": "log",
+      "baseline": 1,
+      "yLabel": "Time ratio (1 = equal, lower is faster)",
+      "labels": ["Calibration", "Stacking", "Catalogue", "Upload", "Archive"],
+      "series": [
+        {
+          "name": "Night pipeline",
+          "values": [0.62, 1.35, 0.48, 2.1, 0.91]
+        }
+      ],
+      "references": [
+        {
+          "value": 1,
+          "label": "Reference pipeline"
+        }
+      ]
+    },
+    {
+      "type": "chart",
+      "id": "target",
+      "title": "Nightly self-check against its target",
+      "kind": "line",
+      "xLabel": "Night",
+      "yLabel": "Duration (s)",
+      "labels": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "series": [
+        {
+          "name": "Self-check",
+          "values": [61.9, 60.4, 59.8, 58.1, 57.6]
+        }
+      ],
+      "references": [
+        {
+          "value": 55,
+          "label": "Target 55 s"
+        }
+      ]
+    }
+  ]
+}

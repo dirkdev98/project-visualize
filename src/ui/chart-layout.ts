@@ -20,35 +20,110 @@ export interface ChartBounds {
   yWhole: boolean;
 }
 
+/** How a chart's value axis maps and where its bars or shading start. */
+export interface ValueScale {
+  log?: boolean;
+  /** Bars and area shading grow from this value; zero by default, or one on a log axis. */
+  baseline?: number;
+  /** Values the axis must show, such as reference lines. */
+  references?: readonly number[];
+}
+
+export function valueBaseline(scale: ValueScale = {}): number {
+  return scale.baseline ?? (scale.log ? 1 : 0);
+}
+
 /**
- * The fitted view of a chart. Bars get room for their full width and keep a
- * zero baseline flush with the frame; other kinds pad both axes. Both
- * renderers start from these bounds so their axes and ticks agree.
+ * The fitted view of a chart. Bars get room for their full width and keep
+ * their baseline flush with the frame; other kinds pad both axes. A log axis
+ * pads in log space. Both renderers start from these bounds so their axes and
+ * ticks agree.
  */
 export function chartBounds(
   points: readonly { x: number; y: number }[],
   kind: "line" | "area" | "bar" | "scatter",
+  scale: ValueScale = {},
 ): ChartBounds {
   const xWhole = points.every((point) => Number.isInteger(point.x)),
-    yWhole = points.every((point) => Number.isInteger(point.y));
+    yWhole =
+      !scale.log &&
+      points.every((point) => Number.isInteger(point.y)) &&
+      (scale.references ?? []).every(Number.isInteger);
+  const forward = (value: number) => (scale.log ? Math.log10(value) : value),
+    inverse = (value: number) => (scale.log ? 10 ** value : value);
   if (!points.length)
-    return { xmin: 0, xmax: 1, ymin: 0, ymax: 1, xWhole, yWhole };
+    return {
+      xmin: 0,
+      xmax: 1,
+      ymin: scale.log ? 1 : 0,
+      ymax: scale.log ? 10 : 1,
+      xWhole,
+      yWhole,
+    };
+  const ys = [
+    ...points.map((point) => forward(point.y)),
+    ...(scale.references ?? []).map(forward),
+  ];
   let xmin = Math.min(...points.map((point) => point.x)),
     xmax = Math.max(...points.map((point) => point.x)),
-    ymin = Math.min(...points.map((point) => point.y)),
-    ymax = Math.max(...points.map((point) => point.y));
+    ymin = Math.min(...ys),
+    ymax = Math.max(...ys);
+  const base = forward(valueBaseline(scale));
   if (kind === "bar" || kind === "area") {
-    ymin = Math.min(0, ymin);
-    ymax = Math.max(0, ymax);
+    ymin = Math.min(base, ymin);
+    ymax = Math.max(base, ymax);
   }
   const dx = xmax === xmin ? 1 : xmax - xmin,
     dy = ymax === ymin ? Math.max(1, Math.abs(ymax) * 0.1) : ymax - ymin;
   xmin -= kind === "bar" ? 0.6 : dx * 0.06;
   xmax += kind === "bar" ? 0.6 : dx * 0.06;
-  ymin = kind === "bar" && ymin === 0 ? 0 : ymin - dy * 0.1;
-  ymax = kind === "bar" && ymax === 0 ? 0 : ymax + dy * 0.1;
+  ymin = kind === "bar" && ymin === base ? ymin : ymin - dy * 0.1;
+  ymax = kind === "bar" && ymax === base ? ymax : ymax + dy * 0.1;
   if (ymin === ymax) ymax = ymin + 1;
-  return { xmin, xmax, ymin, ymax, xWhole, yWhole };
+  return {
+    xmin,
+    xmax,
+    ymin: inverse(ymin),
+    ymax: inverse(ymax),
+    xWhole,
+    yWhole,
+  };
+}
+
+/**
+ * Ticks of a log axis: the sparsest of 1, 1-2-5 and finer steps per decade
+ * that gives at least three ticks, or linear ticks within one narrow decade.
+ */
+export function logTicks(min: number, max: number): number[] {
+  if (!(min > 0) || !(max > min)) return [];
+  const steps = [[1], [1, 2, 5], [1, 1.5, 2, 3, 5, 7]];
+  for (const mantissas of steps) {
+    const values: number[] = [];
+    for (
+      let power = Math.floor(Math.log10(min));
+      power <= Math.ceil(Math.log10(max));
+      power++
+    )
+      for (const mantissa of mantissas) {
+        const value = Number((mantissa * 10 ** power).toPrecision(12));
+        if (value >= min * 0.9999 && value <= max * 1.0001) values.push(value);
+      }
+    if (values.length >= 3)
+      return values.length > 12
+        ? values.filter((_, i) => i % Math.ceil(values.length / 8) === 0)
+        : values;
+  }
+  return chartTicks(min, max).filter((value) => value > 0);
+}
+
+/** Ticks for a value axis on either scale. */
+export function valueTicks(
+  min: number,
+  max: number,
+  integer: boolean,
+  log = false,
+): number[] {
+  return log ? logTicks(min, max) : chartTicks(min, max, integer);
 }
 
 /**

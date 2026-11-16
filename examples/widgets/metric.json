@@ -38,6 +38,41 @@
       ]
     },
     {
+      "type": "row",
+      "id": "comparisons",
+      "children": [
+        {
+          "type": "metric",
+          "id": "change",
+          "label": "Calibration time",
+          "value": 118,
+          "suffix": " ms",
+          "previous": 142,
+          "better": "lower",
+          "detail": "Five alternating runs."
+        },
+        {
+          "type": "metric",
+          "id": "total",
+          "label": "Failing checks",
+          "value": 0,
+          "of": 16,
+          "previous": 14,
+          "better": "lower"
+        },
+        {
+          "type": "metric",
+          "id": "range",
+          "label": "Median frame time",
+          "value": 44.1,
+          "decimals": 1,
+          "suffix": " s",
+          "low": 43.2,
+          "high": 45.0
+        }
+      ]
+    },
+    {
       "type": "metric",
       "label": "neutral value",
       "value": 42,

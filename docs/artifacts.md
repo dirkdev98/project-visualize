@@ -111,7 +111,28 @@ column. Wider layouts retain vertical bars when the labels fit. Very large categ
 sets thin tick labels within the bounded chart height; use a table for the complete
 comparison. Hover and linked selections keep the original category values.
 
-Use `kind: "area"` for a line with restrained shading to zero. Each series overlaps
+Add `references` to draw labelled dashed lines across the value axis, such as a
+target or an equal-performance line. Set `scale` to `log` for ratios or values that
+span orders of magnitude; every value and reference must then be above zero. Bars
+and area shading grow from `baseline`, which defaults to zero, or one on a log axis.
+A ratio chart with `scale: "log"`, `baseline: 1` and a reference at 1 shows faster
+and slower as bars below and above the line. The
+[reference example](../examples/widgets/chart-reference.json) shows both.
+
+```json
+{
+  "type": "chart",
+  "kind": "bar",
+  "scale": "log",
+  "baseline": 1,
+  "yLabel": "Time ratio (1 = equal)",
+  "labels": ["Calibration", "Stacking"],
+  "series": [{ "name": "Night pipeline", "values": [0.62, 1.35] }],
+  "references": [{ "value": 1, "label": "Reference pipeline" }]
+}
+```
+
+Use `kind: "area"` for a line with restrained shading to its baseline. Each series overlaps
 independently, and the zero baseline participates in fitting. Supply ordered x
 coordinates for trends. The [trend example](../examples/trends.json) combines an
 area chart with linked station selection and numeric evidence.
@@ -149,8 +170,57 @@ Formatting applies to numeric cells. Sorting and calculations use the original
 values; table search matches both the visible formatting and the original values.
 Clear search resets a table's local query while preserving linked controls and sorting.
 
+Keep numbers numeric and let a column's `kind` present them, instead of writing values
+such as `"761.8 (742.4–778.2)"` into text cells:
+
+- `change` shows the value in `from` and the column's own value, such as
+  `748.6 → 724.7 ms −3.2%`. Set `better` to `lower` or `higher` to color an
+  improvement positive and a regression negative. Sorting uses the relative change.
+- `interval` shows the value with the bounds in `low` and `high`.
+- `status` shows each value as a badge. `tones` maps values to `positive`, `warning`,
+  `negative` or `neutral`; other values stay neutral.
+
+`unit` names a field whose text follows each number in that row, for columns that
+mix units. The [evidence table example](../examples/widgets/table-evidence.json)
+combines these kinds.
+
+```json
+{
+  "key": "after",
+  "label": "Before → after",
+  "kind": "change",
+  "from": "before",
+  "better": "lower",
+  "unit": "unit"
+}
+```
+
+Set a table's `summary` to the key of a status column to show a bar and counts of
+each status above it. Columns with `detail: true` move out of the grid into a row's
+expandable details, which render text as Markdown. Use them for evidence, notes and
+caveats too long for a cell. Details start collapsed unless the table sets
+`expanded: true`; a table filtered to one row shows that row's details. Exports show
+the details as the table initially presents them.
+
 Metrics accept numeric or text values. Use `decimals`, `prefix` and `suffix` to format
 numeric values without changing the underlying data.
+
+A numeric metric can carry its comparison instead of spelling it out in the label or
+detail. `previous` adds the earlier value and the relative change, colored by
+`better` (`lower` or `higher`). `of` places the value in a total, as in `0 of 16`,
+and `low` with `high` adds a range. Use a row of such metrics instead of a bar chart
+with two bars.
+
+```json
+{
+  "type": "metric",
+  "label": "Failing checks",
+  "value": 0,
+  "of": 16,
+  "previous": 14,
+  "better": "lower"
+}
+```
 
 Diagrams use nodes with unique IDs and edges referring to them through `from` and
 `to`. Add normalized `x` and `y` coordinates for an explicit layout, or let nodes
@@ -208,6 +278,28 @@ with AND. Options and inferred bounds come from the original dataset, so a selec
 can always be changed. Missing cells behave as null; numeric operations do not coerce
 text, booleans or null into numbers.
 
+A control filters its own dataset by `field`. To filter other datasets through a
+shared key, list them in `targets`, each with the field that holds the same values:
+
+```json
+{
+  "type": "control",
+  "id": "study",
+  "kind": "select",
+  "label": "Study",
+  "dataset": "studies",
+  "field": "study",
+  "targets": [
+    { "dataset": "measurements", "field": "study" },
+    { "dataset": "checkpoints", "field": "topic" }
+  ]
+}
+```
+
+One choice then filters the studies, their measurements and their checkpoints
+together. Options and bounds still come from the control's own dataset. Each dataset
+appears once per control, and a `range` needs numeric target fields.
+
 Use a control's `default` for the initial view. Select defaults and parameters preserve
 scalar types: `1`, `"1"` and `null` are different selections. `{ "all": true }` clears
 a control. A range parameter is an object with `min`, `max` or both. Search parameters
@@ -221,8 +313,8 @@ by category by default; line, area and scatter charts preserve source points unl
 supports selection. Other x values form categories in source order. An absent
 category/series pair stays absent.
 
-Set a dataset-bound bar chart's `select` to a select-control ID for the same dataset
-and x field. Shift-click a visible bar to select that raw category across the linked
+Set a dataset-bound bar chart's `select` to the ID of a select control that filters
+the chart's dataset by its x field, directly or through `targets`. Shift-click a visible bar to select that raw category across the linked
 view. Click outside that bar in the plot to clear it; Shift-clicking it again also
 clears it. Dragging, legends and zoom controls preserve selections. Plain dragging pans,
 Cmd+scroll zooms (Ctrl+scroll on other platforms), and a plain

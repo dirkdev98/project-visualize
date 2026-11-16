@@ -1,5 +1,25 @@
 # Decisions
 
+## 2026-11-16 evidence tables, metric comparisons and chart references
+
+- Let a control filter further datasets through `targets`, each naming the field that
+  holds the shared key. Linking stays explicit, so a field name never links datasets
+  by accident.
+- Give table columns `change`, `interval` and `status` kinds, a per-row `unit` and
+  `detail` columns in expandable rows, plus a status `summary` bar. Agents had
+  written numbers, ranges and verdicts as text, which neither sorts nor colors.
+- Leave out a separate ratio kind and table row selection. A number format with an
+  `x` suffix covers ratios, and a select control with targets covers choosing a row.
+- Render expanded details between instances of one ImGui table, which share column
+  widths and sorting, because a table row cannot span its columns. Stripes follow
+  source rows in both renderers.
+- Give metrics `previous`, `better`, `of`, `low` and `high`, replacing two-bar
+  charts and comparisons written into labels.
+- Give charts `references`, a log `scale` and a bar or area `baseline`. Bars from a
+  nonzero baseline or on a log axis are drawn as custom plot items, because ImPlot
+  bars always start at zero.
+- Keep judgement with the agent: tones, verdicts and intervals come from the data.
+
 ## 2026-11-15 stable viewer toolbar and contents sidebar
 
 - Show every artifact the same toolbar buttons in the same order, and disable the

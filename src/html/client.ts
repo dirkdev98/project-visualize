@@ -198,6 +198,18 @@ host.addEventListener("click", (event) => {
     schedule();
     return;
   }
+  const expand = target.closest<HTMLElement>("[data-expand]");
+  if (expand?.dataset.expand && expand.dataset.row) {
+    const key = expand.dataset.expand,
+      row = Number(expand.dataset.row),
+      previous = state.tables[key] ?? { query: "", descending: false },
+      toggled = new Set(previous.toggled ?? []);
+    if (toggled.has(row)) toggled.delete(row);
+    else toggled.add(row);
+    state.tables[key] = { ...previous, toggled: [...toggled] };
+    schedule();
+    return;
+  }
   const figure = target.closest<HTMLElement>("figure");
   const zoomButton = target.closest<HTMLElement>("[data-zoom]");
   if (zoomButton && figure) {

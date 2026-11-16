@@ -5,6 +5,7 @@ import {
   type Block,
   type Cell,
   type ControlBlock,
+  controlField,
   type DataRow,
   type ParameterValue,
   type Series,
@@ -124,10 +125,11 @@ export function numericBounds(
 function matches(
   row: DataRow,
   control: ControlBlock,
+  field: string,
   value: ParameterValue,
 ): boolean {
   if (isAll(value)) return true;
-  const cell = dataCell(row, control.field);
+  const cell = dataCell(row, field);
   switch (control.kind) {
     case "select":
       return cell === value;
@@ -333,13 +335,21 @@ export function resolveView(
   const datasets: Record<string, DataRow[]> = Object.create(null);
   function filteredRows(name: string, except?: string): DataRow[] {
     const source = datasetRows(document, name);
-    const filters = definitions.filter(
-      (control) => control.dataset === name && control.id !== except,
-    );
+    const filters = definitions.flatMap((control) => {
+      const field = controlField(control, name);
+      return field === undefined || control.id === except
+        ? []
+        : [{ control, field }];
+    });
     return filters.length
       ? source.filter((row) =>
-          filters.every((control) =>
-            matches(row, control, parameterValue(parameters, control.id)),
+          filters.every(({ control, field }) =>
+            matches(
+              row,
+              control,
+              field,
+              parameterValue(parameters, control.id),
+            ),
           ),
         )
       : source;
@@ -413,7 +423,8 @@ export function resolveView(
             definitions
               .filter(
                 (control) =>
-                  control.dataset === dataset && control.id !== block.select,
+                  controlField(control, dataset) !== undefined &&
+                  control.id !== block.select,
               )
               .map((control) => [
                 control.id,

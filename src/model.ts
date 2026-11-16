@@ -43,6 +43,25 @@ export interface TableColumn {
   align?: "left" | "right";
   weight?: number;
   format?: NumberFormat;
+  /** How the cell presents `key`; plain values when absent. */
+  kind?: "change" | "interval" | "status";
+  /** Change columns: the earlier value that `key` replaced. */
+  from?: string;
+  /** Change columns: the direction that counts as an improvement. */
+  better?: "lower" | "higher";
+  /** Interval columns: the bounds around `key`. */
+  low?: string;
+  high?: string;
+  /** Status columns: the tone of each status value. */
+  tones?: Record<string, Tone>;
+  /** A field whose text follows each number in the cell, for mixed units. */
+  unit?: string;
+  /** Show the value in the row's expandable details instead of a cell. */
+  detail?: boolean;
+}
+export interface ControlTarget {
+  dataset: string;
+  field: string;
 }
 export interface ControlBlock extends BlockStyle {
   type: "control";
@@ -51,9 +70,19 @@ export interface ControlBlock extends BlockStyle {
   label: string;
   dataset: string;
   field: string;
+  /** Further datasets the control filters through their own matching field. */
+  targets?: ControlTarget[];
   default?: ParameterValue;
   min?: number;
   max?: number;
+}
+/** The field a control filters in a dataset, if it filters that dataset. */
+export function controlField(
+  control: ControlBlock,
+  dataset: string,
+): string | undefined {
+  if (control.dataset === dataset) return control.field;
+  return control.targets?.find((target) => target.dataset === dataset)?.field;
 }
 interface BlockStyle {
   id?: string;
@@ -133,6 +162,15 @@ export type Block = BlockStyle &
         type: "metric";
         label: string;
         detail?: string;
+        /** The earlier value, shown with the relative change. */
+        previous?: number;
+        /** Which direction of change is an improvement. */
+        better?: "lower" | "higher";
+        /** A total the value is part of, such as 16 in "0 of 16". */
+        of?: number;
+        /** Bounds around the value, such as a range across runs. */
+        low?: number;
+        high?: number;
       } & NumberFormat &
         (
           | { value: string | number; source?: never }
@@ -162,6 +200,12 @@ export type Block = BlockStyle &
         xLabel?: string;
         yLabel?: string;
         select?: string;
+        /** The value axis scale; a log axis suits ratios and wide ranges. */
+        scale?: "linear" | "log";
+        /** Where bars and area shading start, such as 1 for ratios. */
+        baseline?: number;
+        /** Labelled lines across the value axis, such as a target. */
+        references?: { value: number; label?: string }[];
       } & (
         | { series: Series[]; source?: never }
         | { source: ChartSource; series?: never }
@@ -181,6 +225,10 @@ export type Block = BlockStyle &
     | ({
         type: "table";
         columns: TableColumn[];
+        /** A status column whose values are counted above the table. */
+        summary?: string;
+        /** Whether row details start expanded. */
+        expanded?: boolean;
       } & (
         | { rows: DataRow[]; dataset?: never }
         | { dataset: string; rows?: never }
@@ -267,6 +315,64 @@ function scalar(value: unknown, location: string) {
     !(typeof value === "number" && Number.isFinite(value))
   )
     fail(location, "expected text, a finite number, boolean or null");
+}
+
+const tones = ["neutral", "positive", "warning", "negative"];
+
+function tableColumn(
+  column: ObjectValue,
+  location: string,
+  fields: Set<string>,
+) {
+  const kind = column.kind;
+  if (
+    kind !== undefined &&
+    !["change", "interval", "status"].includes(String(kind))
+  )
+    fail(`${location}.kind`, "expected change, interval or status");
+  const reference = (name: string) => {
+    const key = string(column[name], `${location}.${name}`, 120);
+    if (!key) fail(`${location}.${name}`, "expected a field name");
+    fields.add(key);
+  };
+  const only = (name: string, allowed: string) => {
+    if (column[name] !== undefined && kind !== allowed)
+      fail(`${location}.${name}`, `applies only to ${allowed} columns`);
+  };
+  only("from", "change");
+  only("better", "change");
+  only("low", "interval");
+  only("high", "interval");
+  only("tones", "status");
+  if (kind === "change") {
+    reference("from");
+    if (
+      column.better !== undefined &&
+      column.better !== "lower" &&
+      column.better !== "higher"
+    )
+      fail(`${location}.better`, "expected lower or higher");
+  }
+  if (kind === "interval") {
+    reference("low");
+    reference("high");
+  }
+  if (column.tones !== undefined) {
+    const map = object(column.tones, `${location}.tones`);
+    if (Object.keys(map).length > 40)
+      fail(`${location}.tones`, "expected at most 40 status values");
+    for (const [value, tone] of Object.entries(map)) {
+      string(value, `${location}.tones`, 120);
+      if (!tones.includes(String(tone)))
+        fail(
+          `${location}.tones.${value}`,
+          "expected neutral, positive, warning or negative",
+        );
+    }
+  }
+  if (column.unit !== undefined) reference("unit");
+  if (column.detail !== undefined && typeof column.detail !== "boolean")
+    fail(`${location}.detail`, "expected a boolean");
 }
 
 function numberFormat(value: ObjectValue, location: string) {
@@ -490,6 +596,25 @@ export function validate(input: unknown): Artifact {
             fail(field("value"), "expected text or a number");
           scalar(block.value, field("value"));
         }
+        const comparisons = ["previous", "of", "low", "high"].filter(
+          (key) => block[key] !== undefined,
+        );
+        for (const key of comparisons)
+          number(block[key], field(key), -1e100, 1e100);
+        if (comparisons.length && typeof block.value === "string")
+          fail(location, "previous, of, low and high need a numeric value");
+        if ((block.low === undefined) !== (block.high === undefined))
+          fail(location, "supply both low and high");
+        if (Number(block.low) > Number(block.high))
+          fail(field("low"), "low exceeds high");
+        if (
+          block.better !== undefined &&
+          block.better !== "lower" &&
+          block.better !== "higher"
+        )
+          fail(field("better"), "expected lower or higher");
+        if (block.better !== undefined && block.previous === undefined)
+          fail(field("better"), "better needs a previous value");
         break;
       }
       case "badge":
@@ -523,6 +648,27 @@ export function validate(input: unknown): Artifact {
         string(block.label, field("label"), 240);
         const rows = dataset(block.dataset, field("dataset"));
         dataField(rows, block.field, field("field"), block.kind === "range");
+        if (block.targets !== undefined) {
+          const linked = new Set([String(block.dataset)]);
+          array(block.targets, field("targets"), 1, 20).forEach((raw, i) => {
+            const at = `${field("targets")}[${i}]`;
+            const target = object(raw, at);
+            const name = String(target.dataset);
+            const targetRows = dataset(target.dataset, `${at}.dataset`);
+            if (linked.has(name))
+              fail(
+                `${at}.dataset`,
+                "a control filters each dataset once, including its own",
+              );
+            linked.add(name);
+            dataField(
+              targetRows,
+              target.field,
+              `${at}.field`,
+              block.kind === "range",
+            );
+          });
+        }
         for (const key of ["min", "max"])
           if (block[key] !== undefined)
             number(block[key], field(key), -1e100, 1e100);
@@ -586,6 +732,33 @@ export function validate(input: unknown): Artifact {
           fail(field("kind"), "expected line, area, bar or scatter");
         if (block.height !== undefined)
           number(block.height, field("height"), 160, 1200);
+        const log = block.scale === "log";
+        if (block.scale !== undefined && block.scale !== "linear" && !log)
+          fail(field("scale"), "expected linear or log");
+        const positive = (value: number, at: string) => {
+          if (log && value <= 0) fail(at, "a log axis needs values above zero");
+        };
+        if (block.baseline !== undefined) {
+          if (block.kind !== "bar" && block.kind !== "area")
+            fail(field("baseline"), "applies only to bar and area charts");
+          positive(
+            number(block.baseline, field("baseline"), -1e100, 1e100),
+            field("baseline"),
+          );
+        }
+        if (block.references !== undefined)
+          array(block.references, field("references"), 1, 8).forEach(
+            (raw, i) => {
+              const at = `${field("references")}[${i}]`;
+              const reference = object(raw, at);
+              positive(
+                number(reference.value, `${at}.value`, -1e100, 1e100),
+                `${at}.value`,
+              );
+              if (reference.label !== undefined)
+                string(reference.label, `${at}.label`, 120);
+            },
+          );
         for (const key of ["xLabel", "yLabel"])
           if (block[key] !== undefined) string(block[key], field(key), 240);
         if ((block.series === undefined) === (block.source === undefined))
@@ -620,13 +793,18 @@ export function validate(input: unknown): Artifact {
           }
           if (source.aggregate !== undefined)
             aggregate(source.aggregate, field("source.aggregate"));
-          if (source.aggregate !== "count" || source.y !== undefined)
-            dataField(
+          if (source.aggregate !== "count" || source.y !== undefined) {
+            const y = dataField(
               rows,
               source.y,
               field("source.y"),
               source.aggregate !== "count",
             );
+            if (log && source.aggregate !== "count")
+              for (const row of rows)
+                if (typeof row[y] === "number")
+                  positive(row[y], field("source.y"));
+          }
           if (source.series !== undefined) {
             const seriesField = dataField(
               rows,
@@ -673,7 +851,10 @@ export function validate(input: unknown): Artifact {
           if (points > 250_000)
             fail(location, "artifact exceeds the chart point limit");
           values.forEach((value, i) => {
-            number(value, `${itemPath}.values[${i}]`, -1e100, 1e100);
+            positive(
+              number(value, `${itemPath}.values[${i}]`, -1e100, 1e100),
+              `${itemPath}.values[${i}]`,
+            );
           });
           if (
             labelCount !== undefined &&
@@ -784,7 +965,10 @@ export function validate(input: unknown): Artifact {
         break;
       }
       case "table": {
-        const keys = new Set<string>();
+        const keys = new Set<string>(),
+          fields = new Set<string>(),
+          statuses = new Set<string>();
+        let cells = 0;
         const columns = array(block.columns, field("columns"), 1, 12);
         columns.forEach((input, index) => {
           const column = object(input, `${field("columns")}[${index}]`);
@@ -792,8 +976,12 @@ export function validate(input: unknown): Artifact {
           if (!key || keys.has(key))
             fail(field("columns"), "column keys must be unique and nonempty");
           keys.add(key);
+          fields.add(key);
           string(column.label, field("column.label"), 240);
           const columnLocation = `${field("columns")}[${index}]`;
+          tableColumn(column, columnLocation, fields);
+          if (column.kind === "status") statuses.add(key);
+          if (column.detail !== true) cells++;
           if (
             column.align !== undefined &&
             column.align !== "left" &&
@@ -808,6 +996,12 @@ export function validate(input: unknown): Artifact {
               `${columnLocation}.format`,
             );
         });
+        if (!cells)
+          fail(field("columns"), "keep at least one column outside details");
+        if (block.summary !== undefined && !statuses.has(String(block.summary)))
+          fail(field("summary"), "expected the key of a status column");
+        if (block.expanded !== undefined && typeof block.expanded !== "boolean")
+          fail(field("expanded"), "expected a boolean");
         if ((block.rows === undefined) === (block.dataset === undefined))
           fail(location, "supply either rows or dataset");
         const rows =
@@ -816,7 +1010,7 @@ export function validate(input: unknown): Artifact {
             : dataset(block.dataset, field("dataset"));
         rows.forEach((input, index) => {
           const row = object(input, `${field("rows")}[${index}]`);
-          for (const key of keys)
+          for (const key of fields)
             if (Object.hasOwn(row, key))
               scalar(row[key], `${field("rows")}[${index}].${key}`);
         });
@@ -1130,12 +1324,11 @@ export function validate(input: unknown): Artifact {
     const source = block.source as ObjectValue;
     if (
       control?.kind !== "select" ||
-      control.dataset !== source.dataset ||
-      control.field !== source.x
+      controlField(control, String(source.dataset)) !== source.x
     )
       fail(
         location,
-        "expected a select control for the chart's dataset and x field",
+        "expected a select control that filters the chart's dataset by its x field",
       );
   }
   return doc as unknown as Artifact;

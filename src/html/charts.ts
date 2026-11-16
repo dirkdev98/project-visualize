@@ -5,6 +5,8 @@ import {
   chartBounds,
   chartTicks,
   crowdedCategories,
+  valueBaseline,
+  valueTicks,
 } from "../ui/chart-layout.ts";
 import { formatNumber } from "../ui/number-format.ts";
 import {
@@ -82,28 +84,42 @@ export function plot(
   };
   const pw = Math.max(20, width - margin.left - margin.right),
     ph = Math.max(30, height - margin.top - margin.bottom);
+  const scale = {
+    log: block.scale === "log",
+    baseline: block.baseline,
+    references: block.references?.map((reference) => reference.value),
+  };
+  // The value axis pans and zooms in its own space, logarithmic or linear.
+  const forward = (value: number) => (scale.log ? Math.log10(value) : value),
+    inverse = (value: number) => (scale.log ? 10 ** value : value);
   let { xmin, xmax, ymin, ymax, xWhole, yWhole } = chartBounds(
     coordinates,
     block.kind,
+    scale,
   );
+  let low = forward(ymin),
+    high = forward(ymax);
   const centerX = (xmin + xmax) / 2 + state.x * (xmax - xmin),
-    centerY = (ymin + ymax) / 2 + state.y * (ymax - ymin);
+    centerY = (low + high) / 2 + state.y * (high - low);
   const spanX = (xmax - xmin) / state.zoom,
-    spanY = (ymax - ymin) / state.zoom;
+    spanY = (high - low) / state.zoom;
   xmin = centerX - spanX / 2;
   xmax = centerX + spanX / 2;
-  ymin = centerY - spanY / 2;
-  ymax = centerY + spanY / 2;
+  low = centerY - spanY / 2;
+  high = centerY + spanY / 2;
+  ymin = inverse(low);
+  ymax = inverse(high);
+  const base = valueBaseline(scale);
   const x = (value: number) =>
     margin.left + ((value - xmin) / (xmax - xmin)) * pw;
   const y = (value: number) =>
-    margin.top + ph - ((value - ymin) / (ymax - ymin)) * ph;
+    margin.top + ph - ((forward(value) - low) / (high - low)) * ph;
   const hx = (value: number) =>
-    margin.left + ((value - ymin) / (ymax - ymin)) * pw;
+    margin.left + ((forward(value) - low) / (high - low)) * pw;
   const hy = (value: number) =>
     margin.top + ((value - xmin) / (xmax - xmin)) * ph;
   let drawing = `<rect x="${margin.left}" y="${margin.top}" width="${pw}" height="${ph}" fill="var(--pv-surface)" stroke="var(--pv-border)"/>`;
-  for (const value of chartTicks(ymin, ymax, yWhole)) {
+  for (const value of valueTicks(ymin, ymax, yWhole, scale.log)) {
     if (horizontal) {
       const at = hx(value);
       drawing += `<path d="M${at},${margin.top}v${ph}" stroke="var(--pv-border)" stroke-width=".7"/>${label(at, margin.top + ph + 20, number(value), 18)}`;
@@ -165,7 +181,7 @@ export function plot(
       y: value,
     }));
     if (block.kind === "area" && points.length) {
-      drawing += `<path d="M${x(points[0].x)},${y(0)} ${points.map((p) => `L${x(p.x)},${y(p.y)}`).join(" ")} L${x(points[points.length - 1].x)},${y(0)}Z" fill="${color}" fill-opacity="${theme === "light" ? 0.13 : 0.22}"/>`;
+      drawing += `<path d="M${x(points[0].x)},${y(base)} ${points.map((p) => `L${x(p.x)},${y(p.y)}`).join(" ")} L${x(points[points.length - 1].x)},${y(base)}Z" fill="${color}" fill-opacity="${theme === "light" ? 0.13 : 0.22}"/>`;
     }
     if (block.kind === "line" || block.kind === "area")
       drawing += `<path d="${points.map((point, index) => `${index ? "L" : "M"}${x(point.x)},${y(point.y)}`).join(" ")}" fill="none" stroke="${color}" stroke-width="2.5"/>`;
@@ -180,18 +196,34 @@ export function plot(
       if (block.kind === "bar") {
         const band = 0.8 / Math.max(1, series.length),
           position = point.x - 0.4 + band * series.indexOf(item);
-        const left = horizontal ? Math.min(hx(0), hx(point.y)) : x(position),
-          top = horizontal ? hy(position) : Math.min(y(0), y(point.y));
+        const left = horizontal ? Math.min(hx(base), hx(point.y)) : x(position),
+          top = horizontal ? hy(position) : Math.min(y(base), y(point.y));
         const w = horizontal
-            ? Math.abs(hx(point.y) - hx(0))
+            ? Math.abs(hx(point.y) - hx(base))
             : x(position + band) - x(position),
           h = horizontal
             ? hy(position + band) - hy(position)
-            : Math.abs(y(point.y) - y(0));
+            : Math.abs(y(point.y) - y(base));
         drawing += `<rect x="${left}" y="${top}" width="${Math.max(0.5, w)}" height="${Math.max(0.5, h)}" fill="${color}" fill-opacity="${selection && !selected && !(typeof selection.selected === "object" && selection.selected !== null && "all" in selection.selected) ? 0.4 : 1}" stroke="${selected ? "var(--pv-ink)" : "none"}" stroke-width="2" ${attributes}><title>${escapeHtml(tooltip)}</title></rect>`;
       } else
         drawing += `<circle cx="${x(point.x)}" cy="${y(point.y)}" r="${block.kind === "scatter" || points.length === 1 ? 4 : 3}" fill="${color}" ${attributes}><title>${escapeHtml(tooltip)}</title></circle>`;
     });
+  }
+  for (const reference of block.references ?? []) {
+    const at = horizontal ? hx(reference.value) : y(reference.value);
+    if (
+      horizontal
+        ? at < margin.left || at > margin.left + pw
+        : at < margin.top || at > margin.top + ph
+    )
+      continue;
+    drawing += horizontal
+      ? `<path d="M${at},${margin.top}v${ph}" stroke="var(--pv-muted)" stroke-width="1.5" stroke-dasharray="6 4"/>`
+      : `<path d="M${margin.left},${at}h${pw}" stroke="var(--pv-muted)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+    if (reference.label)
+      drawing += horizontal
+        ? label(at + 6, margin.top + 16, reference.label, 14, "start")
+        : label(margin.left + pw - 6, at - 6, reference.label, 14, "end");
   }
   drawing += "</g>";
   if (!coordinates.length)

@@ -269,6 +269,37 @@ export function panel(body: () => void, background: Color = palette.surface) {
     panelDepth--;
   }
 }
+/** Fills the full width that `body` occupies behind its content. */
+export function backdrop(body: () => void, background: number) {
+  const draw = windowDrawList();
+  let splitter = splitters[panelDepth];
+  if (!splitter) {
+    const created = ImDrawListSplitter_ImDrawListSplitter();
+    if (!created) throw new Error("Cannot create a panel drawing layer");
+    splitter = created;
+    splitters.push(splitter);
+  }
+  panelDepth++;
+  ImDrawListSplitter_Split(splitter, draw, 2);
+  ImDrawListSplitter_SetCurrentChannel(splitter, draw, 1);
+  const start = igGetCursorScreenPos(),
+    width = available();
+  try {
+    body();
+    ImDrawListSplitter_SetCurrentChannel(splitter, draw, 0);
+    ImDrawList_AddRectFilled(
+      draw,
+      start,
+      { x: start.x + width, y: igGetCursorScreenPos().y },
+      background,
+      0,
+      0,
+    );
+  } finally {
+    ImDrawListSplitter_Merge(splitter, draw);
+    panelDepth--;
+  }
+}
 // Draws widgets at absolute positions over the preceding item. Returning the cursor
 // through a zero-size item keeps the surrounding layout identical whether or not the
 // overlay drew anything; a bare cursor reset would extend the parent's bounds.

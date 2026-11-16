@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Evidence tables",
+  "subtitle": "Fictional data. Changes, intervals, statuses and expandable row details.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "table",
+      "id": "changes",
+      "title": "Measured changes",
+      "dataset": "stages",
+      "summary": "verdict",
+      "columns": [
+        {
+          "key": "stage",
+          "label": "Stage",
+          "weight": 1.6
+        },
+        {
+          "key": "after",
+          "label": "Before → after",
+          "kind": "change",
+          "from": "before",
+          "better": "lower",
+          "unit": "unit",
+          "weight": 2.2
+        },
+        {
+          "key": "median",
+          "label": "Median and range",
+          "kind": "interval",
+          "low": "low",
+          "high": "high",
+          "unit": "unit",
+          "format": {
+            "decimals": 1
+          },
+          "weight": 1.8
+        },
+        {
+          "key": "verdict",
+          "label": "Verdict",
+          "kind": "status",
+          "tones": {
+            "Kept": "positive",
+            "Inconclusive": "warning",
+            "Reverted": "negative"
+          }
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "detail": true
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "id": "expanded",
+      "title": "Expanded study notes",
+      "expanded": true,
+      "columns": [
+        {
+          "key": "study",
+          "label": "Study",
+          "weight": 2
+        },
+        {
+          "key": "state",
+          "label": "State",
+          "kind": "status",
+          "tones": {
+            "Accepted": "positive",
+            "Checks pending": "warning"
+          }
+        },
+        {
+          "key": "evidence",
+          "label": "Evidence",
+          "detail": true
+        },
+        {
+          "key": "limits",
+          "label": "Limits",
+          "detail": true
+        }
+      ],
+      "rows": [
+        {
+          "study": "Shorter calibration frames",
+          "state": "Accepted",
+          "evidence": "Five alternating runs at a fixed frame count. Medians fall from **142 ms** to **118 ms**; every run is faster.\n\n- Raw runs: `calibration-runs.json`\n- Frame checksums match",
+          "limits": "Indicative timings from one station."
+        },
+        {
+          "study": "Streaming catalogue match",
+          "state": "Checks pending",
+          "evidence": "Peak memory falls from 412 MB to 286 MB over three runs.",
+          "limits": "The archive check still has to pass."
+        }
+      ]
+    }
+  ],
+  "datasets": {
+    "stages": [
+      {
+        "stage": "Calibration pass",
+        "before": 142,
+        "after": 118,
+        "median": 118.4,
+        "low": 116.9,
+        "high": 121.2,
+        "unit": "ms",
+        "verdict": "Kept",
+        "notes": "Shorter frames keep every checksum. Five alternating runs."
+      },
+      {
+        "stage": "Image stacking",
+        "before": 864,
+        "after": 871,
+        "median": 871.3,
+        "low": 842.6,
+        "high": 903.8,
+        "unit": "ms",
+        "verdict": "Inconclusive",
+        "notes": "The range covers the earlier median; rerun on mains power."
+      },
+      {
+        "stage": "Catalogue match",
+        "before": 412,
+        "after": 286,
+        "median": 286.2,
+        "low": 281.0,
+        "high": 290.5,
+        "unit": "MB",
+        "verdict": "Kept",
+        "notes": "Peak memory with streaming reads."
+      },
+      {
+        "stage": "Archive upload",
+        "before": 37,
+        "after": 44,
+        "median": 44.1,
+        "low": 43.2,
+        "high": 45.0,
+        "unit": "s",
+        "verdict": "Reverted",
+        "notes": "Compression costs more than it saves on this link."
+      }
+    ]
+  }
+}

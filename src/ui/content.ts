@@ -1,23 +1,28 @@
 import {
   ImAxis_Y1,
+  ImDrawFlags_RoundLeft,
+  ImDrawFlags_RoundNone,
+  ImDrawFlags_RoundRight,
   ImDrawList_AddCircleFilled,
   ImDrawList_AddLine,
   ImDrawList_AddRect,
   ImDrawList_AddRectFilled,
   ImDrawList_AddText_FontPtr,
   ImGuiCol_PlotHistogram,
+  ImGuiCol_TableRowBgAlt,
   ImGuiCond_Always,
   ImGuiHoveredFlags_AllowWhenBlockedByActiveItem,
   ImGuiMod_Shift,
   ImGuiStyleVar_CellPadding,
   ImGuiStyleVar_DisabledAlpha,
   ImGuiTableBgTarget_CellBg,
+  ImGuiTableBgTarget_RowBg0,
   ImGuiTableColumnFlags_IsSorted,
+  ImGuiTableColumnFlags_NoSort,
   ImGuiTableColumnFlags_WidthFixed,
   ImGuiTableColumnFlags_WidthStretch,
   ImGuiTableFlags_BordersInnerH,
   ImGuiTableFlags_PadOuterX,
-  ImGuiTableFlags_RowBg,
   ImGuiTableFlags_SizingStretchSame,
   ImGuiTableFlags_Sortable,
   ImGuiTableFlags_SortMulti,
@@ -38,6 +43,7 @@ import {
   ImPlot_PushPlotClipRect,
   ImPlot_SetNextAxesLimits,
   ImPlot_SetupAxes,
+  ImPlot_SetupAxisScale_PlotScale,
   ImPlot_SetupAxisTicks_doublePtr,
   ImPlot_SetupLegend,
   ImPlotAxisFlags_Invert,
@@ -55,6 +61,7 @@ import {
   ImPlotLocation_NorthWest,
   ImPlotLocation_South,
   type ImPlotRect_c,
+  ImPlotScale_Log10,
   igBeginCombo,
   igBeginDisabled,
   igBeginTable,
@@ -65,6 +72,7 @@ import {
   igEndCombo,
   igEndDisabled,
   igEndTable,
+  igGetColorU32_Col,
   igGetCursorPosY,
   igGetCursorScreenPos,
   igGetFontSize,
@@ -86,6 +94,7 @@ import {
   igIsMouseHoveringRect,
   igIsMouseReleased_Nil,
   igIsWindowHovered,
+  igNewLine,
   igPopFont,
   igPopID,
   igPopStyleColor,
@@ -97,6 +106,7 @@ import {
   igPushStyleColor_Vec4,
   igPushStyleVar_Float,
   igPushStyleVar_Vec2,
+  igSameLine,
   igSelectable_Bool,
   igSeparator,
   igSetCursorScreenPos,
@@ -140,11 +150,14 @@ import type {
   Block,
   Cell,
   ControlBlock,
+  DataRow,
   ImageFit,
   ParameterValue,
+  TableColumn,
   Tone,
 } from "../model.ts";
 import { DocumentOutline, type OutlineHeading } from "../outline.ts";
+import { metricComparison, metricTotal } from "./change-text.ts";
 import { barAt, type PlotSeries } from "./chart-hit.ts";
 import {
   analyticalRange,
@@ -152,6 +165,8 @@ import {
   chartBounds,
   chartTicks,
   crowdedCategories,
+  valueBaseline,
+  valueTicks,
 } from "./chart-layout.ts";
 import { Diagrams } from "./diagrams.ts";
 import { plotDrawList, windowDrawList } from "./draw-list.ts";
@@ -167,6 +182,7 @@ import { formatNumber } from "./number-format.ts";
 import { Plots } from "./plots.ts";
 import {
   available,
+  backdrop,
   captureText,
   input,
   inputBuffer,
@@ -180,6 +196,14 @@ import {
 import { RichText } from "./richtext.ts";
 import { TextSelection, withTextSelection } from "./selection.ts";
 import { boxplot, histogram, waterfall } from "./statistics.ts";
+import {
+  type CellView,
+  compareCells,
+  searchText,
+  sortValue,
+  statusSummary,
+  tableCell,
+} from "./table-cells.ts";
 import { textLine } from "./text-layout.ts";
 import {
   type Color,
@@ -188,6 +212,7 @@ import {
   type Font,
   fonts,
   framePadding,
+  itemSpacing,
   packed,
   palette,
   seriesColors,
@@ -200,6 +225,8 @@ export interface DocumentState {
       query: string;
       sort?: { column: number; direction: number }[];
       narrow?: boolean;
+      /** Rows whose details differ from the table's initial expansion. */
+      toggled?: number[];
     }
   >;
   parameters: Parameters;
@@ -231,8 +258,9 @@ function roundTicks(
   max: number,
   integer: boolean,
   stride = 1,
+  log = false,
 ) {
-  const values = chartTicks(min, max, integer).filter(
+  const values = valueTicks(min, max, integer, log).filter(
     (_, i) => i % stride === 0,
   );
   if (values.length)
@@ -317,7 +345,7 @@ export class DocumentRenderer {
   private searches = new Map<string, Int8Array>();
   private tableCells = new Map<
     TableBlock,
-    { values: string[][]; right: boolean[] }
+    { views: CellView[][]; search: string[]; right: boolean[] }
   >();
   private cellWidths = new Map<string, number>();
   private orders = new Map<string, { key: string; indices: number[] }>();
@@ -358,6 +386,7 @@ export class DocumentRenderer {
   private viewRevision = -1;
   private rowDepth = 0;
   private rowDetail = false;
+  private rowComparison = false;
   private chartBounds = new Map<ChartBlock, ChartBounds>();
   private chartLimits = new Map<string, PlotView>();
   private controlChoices = new Map<
@@ -671,6 +700,34 @@ export class DocumentRenderer {
               ? tone(value.tone)
               : palette.ink,
           );
+          const total = metricTotal(value);
+          if (total) {
+            igSameLine(0, 0);
+            // Share the value's baseline: the smaller text starts lower.
+            const at = igGetCursorScreenPos();
+            igSetCursorScreenPos({ x: at.x, y: at.y + 13 });
+            text(total, 20, "regular", palette.muted, -1);
+          }
+          const parts = metricComparison(value, value.value ?? null);
+          if (parts.length || this.rowComparison) {
+            if (!parts.length) text("", 15);
+            for (const [i, part] of parts.entries()) {
+              if (i > 0) {
+                igSameLine(0, 0);
+                text(" · ", 15, "regular", palette.muted, -1);
+                igSameLine(0, 0);
+              }
+              text(
+                part.text,
+                15,
+                "regular",
+                part.tone && part.tone !== "neutral"
+                  ? tone(part.tone)
+                  : palette.muted,
+                -1,
+              );
+            }
+          }
           if (value.detail || this.rowDetail)
             text(value.detail ?? "", 15, "regular", tone(value.tone));
         });
@@ -740,9 +797,15 @@ export class DocumentRenderer {
             igTableNextRow(0, 0);
             this.rowDepth++;
             // Metrics beside one with a detail keep its line so the cards align.
-            const rowDetail = this.rowDetail;
+            const rowDetail = this.rowDetail,
+              rowComparison = this.rowComparison;
             this.rowDetail = value.children.some(
               (child) => child.type === "metric" && !!child.detail,
+            );
+            this.rowComparison = value.children.some(
+              (child) =>
+                child.type === "metric" &&
+                (child.previous !== undefined || child.low !== undefined),
             );
             for (let i = 0; i < value.children.length; i++) {
               igTableNextColumn();
@@ -757,6 +820,7 @@ export class DocumentRenderer {
             }
             this.rowDepth--;
             this.rowDetail = rowDetail;
+            this.rowComparison = rowComparison;
             igEndTable();
           }
           igPopStyleVar(1);
@@ -824,7 +888,7 @@ export class DocumentRenderer {
         this.rich.code(value.content, value.language ?? "", exporting);
         break;
       case "table":
-        this.table(value, exporting, key);
+        this.table(value, exporting, key, heading);
         break;
       case "chart":
         this.chart(value, exporting, key);
@@ -1057,33 +1121,49 @@ export class DocumentRenderer {
       if (igSmallButton("All values")) this.parameter(control, ALL);
     }
   }
-  private table(value: TableBlock, exporting: boolean, key: string) {
+  private table(
+    value: TableBlock,
+    exporting: boolean,
+    key: string,
+    heading?: number,
+  ) {
     this.state.tables[key] ??= { query: "" };
     const state = this.state.tables[key];
     const rows = value.rows ?? [];
+    const columns = value.columns.filter((column) => !column.detail),
+      details = value.columns.filter((column) => column.detail),
+      lead = details.length ? 1 : 0;
     let cells = this.tableCells.get(value);
     if (!cells) {
-      const values = rows.map((row) =>
-        value.columns.map((column) => {
-          const raw = cell(row, column.key);
-          return typeof raw === "number" && column.format
-            ? formatNumber(raw, column.format)
-            : scalar(raw);
-        }),
-      );
-      const right = value.columns.map((column) =>
-        column.align !== undefined
-          ? column.align === "right"
-          : rows.some((row) => typeof cell(row, column.key) === "number") &&
-            rows.every(
-              (row) =>
-                cell(row, column.key) === null ||
-                typeof cell(row, column.key) === "number",
-            ),
-      );
-      cells = { values, right };
+      cells = {
+        views: rows.map((row) =>
+          columns.map((column) => tableCell(row, column)),
+        ),
+        search: rows.map((row) =>
+          value.columns
+            .map((column) => searchText(row, column))
+            .join(" ")
+            .toLowerCase(),
+        ),
+        right: columns.map((column) =>
+          column.align !== undefined
+            ? column.align === "right"
+            : column.kind !== "status" &&
+              rows.some((row) => typeof cell(row, column.key) === "number") &&
+              rows.every(
+                (row) =>
+                  cell(row, column.key) === null ||
+                  typeof cell(row, column.key) === "number",
+              ),
+        ),
+      };
       this.tableCells.set(value, cells);
     }
+    const table = cells;
+    const summary = value.columns.find(
+      (column) => column.key === value.summary,
+    );
+    if (summary) this.statusSummary(statusSummary(rows, summary));
     let buffer = this.searches.get(key);
     if (!buffer) {
       buffer = inputBuffer(state.query);
@@ -1094,23 +1174,23 @@ export class DocumentRenderer {
       if (input("##search", "Filter rows…", buffer))
         state.query = inputValue(buffer);
     }
-    const narrow = value.columns.length > 2 && available() < 480;
+    const narrow = columns.length > 2 && available() < 480;
     let sort = exporting ? [] : (state.sort ?? []);
     if (narrow && !exporting) {
       const active = sort[0];
       const preview = active
-        ? `${value.columns[active.column].label} · ${active.direction === 1 ? "ascending" : "descending"}`
+        ? `${columns[active.column].label} · ${active.direction === 1 ? "ascending" : "descending"}`
         : "Source order";
       text("Sort rows", 12, "bold", palette.muted);
       igSetNextItemWidth(Math.min(300, available()));
       if (igBeginCombo("##sort", preview, 0)) {
         if (igSelectable_Bool("Source order", !sort.length, 0, { x: 0, y: 0 }))
           sort = [];
-        for (let i = 0; i < value.columns.length; i++)
+        for (let i = 0; i < columns.length; i++)
           for (const direction of [1, 2])
             if (
               igSelectable_Bool(
-                `${value.columns[i].label} · ${direction === 1 ? "ascending" : "descending"}##${i}-${direction}`,
+                `${columns[i].label} · ${direction === 1 ? "ascending" : "descending"}##${i}-${direction}`,
                 active?.column === i && active.direction === direction,
                 0,
                 { x: 0, y: 0 },
@@ -1121,92 +1201,85 @@ export class DocumentRenderer {
       }
     }
     const capture = currentCapture();
-    const textStart = capture?.text.length ?? 0;
-    let textEnd = textStart;
-    const rowStarts: number[] = [];
-    const tableTop = igGetCursorScreenPos().y;
-    let open = false;
+    const flags =
+      ImGuiTableFlags_BordersInnerH |
+      ImGuiTableFlags_SizingStretchSame |
+      ImGuiTableFlags_PadOuterX |
+      (exporting
+        ? 0
+        : ImGuiTableFlags_Sortable |
+          ImGuiTableFlags_SortMulti |
+          ImGuiTableFlags_SortTristate);
+    // Expanded details sit between instances of one ImGui table, which share
+    // column widths and sorting, because a table row cannot span its columns.
+    let segment:
+      | {
+          top: number;
+          rowStarts: number[];
+          textStart: number;
+          textEnd: number;
+        }
+      | undefined;
+    const begin = (header: boolean) => {
+      const top = igGetCursorScreenPos().y,
+        textStart = capture?.text.length ?? 0;
+      if (
+        !igBeginTable("data", columns.length + lead, flags, { x: 0, y: 0 }, 0)
+      )
+        return false;
+      if (lead)
+        igTableSetupColumn(
+          "",
+          ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort,
+          20,
+          0,
+        );
+      for (const column of columns)
+        igTableSetupColumn(
+          column.label,
+          ImGuiTableColumnFlags_WidthStretch,
+          column.weight ?? 1,
+          0,
+        );
+      if (header)
+        this.tableHeader(columns, table.right, lead, exporting, state, sort);
+      segment = {
+        top,
+        rowStarts: [],
+        textStart,
+        textEnd: header ? (capture?.text.length ?? 0) : textStart,
+      };
+      return true;
+    };
+    const end = () => {
+      if (!segment) return;
+      igEndTable();
+      if (capture) {
+        const min = igGetItemRectMin(),
+          max = igGetItemRectMax();
+        captureTable(
+          min.x,
+          max.x,
+          segment.top,
+          max.y,
+          segment.rowStarts,
+          segment.textStart,
+          segment.textEnd,
+        );
+      }
+      segment = undefined;
+    };
     if (!narrow) {
       igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding, { x: 12, y: 10 });
-      let flags =
-        ImGuiTableFlags_BordersInnerH |
-        ImGuiTableFlags_RowBg |
-        ImGuiTableFlags_SizingStretchSame |
-        ImGuiTableFlags_PadOuterX;
-      if (!exporting)
-        flags |=
-          ImGuiTableFlags_Sortable |
-          ImGuiTableFlags_SortMulti |
-          ImGuiTableFlags_SortTristate;
-      open = igBeginTable(
-        "data",
-        value.columns.length,
-        flags,
-        { x: 0, y: 0 },
-        0,
-      );
-      if (open) {
-        for (const column of value.columns)
-          igTableSetupColumn(
-            column.label,
-            ImGuiTableColumnFlags_WidthStretch,
-            column.weight ?? 1,
-            0,
-          );
-        if (!exporting && state.narrow) {
-          igTableSetColumnSortDirection(0, 0, false);
-          for (let i = 0; i < sort.length; i++)
-            igTableSetColumnSortDirection(
-              sort[i].column,
-              sort[i].direction,
-              i > 0,
-            );
-        }
-        igTableNextRow(ImGuiTableRowFlags_Headers, 0);
-        const face = fonts.bold;
-        if (!face) throw new Error("Fonts are not initialized");
-        igPushFont(face, 16);
-        for (const [i, column] of value.columns.entries()) {
-          igTableNextColumn();
-          const at = igGetCursorScreenPos();
-          const indent = cells.right[i]
-            ? Math.max(
-                0,
-                available() - igCalcTextSize(column.label, false, -1).x,
-              )
-            : 0;
-          if (exporting) {
-            igSetCursorScreenPos({ x: at.x + indent, y: at.y });
-            text(column.label, 16, "bold");
-          } else if (!indent) igTableHeader(column.label);
-          else {
-            // ImGui headers only align left, so draw a right-aligned label
-            // and step it clear of the sort arrow ImGui adds at the edge.
-            igTableHeader(`##header-${i}`);
-            const sorted =
-              (igTableGetColumnFlags(i) & ImGuiTableColumnFlags_IsSorted) !== 0;
-            ImDrawList_AddText_FontPtr(
-              windowDrawList(),
-              face,
-              16,
-              { x: at.x + Math.max(0, indent - (sorted ? 22 : 0)), y: at.y },
-              packed(palette.ink),
-              column.label,
-              0,
-            );
-          }
-        }
-        igPopFont();
-        textEnd = capture?.text.length ?? 0;
-        if (!exporting) {
-          sort = [];
-          const specs = igTableGetSortSpecs()?.Specs ?? [];
-          for (const spec of specs)
+      if (begin(true) && !exporting) {
+        sort = [];
+        const specs = igTableGetSortSpecs()?.Specs ?? [];
+        for (const spec of specs)
+          if (spec.ColumnIndex >= lead)
             sort.push({
-              column: spec.ColumnIndex,
+              column: spec.ColumnIndex - lead,
               direction: spec.SortDirection,
             });
-        }
       }
     }
     if (!exporting) {
@@ -1217,105 +1290,320 @@ export class DocumentRenderer {
     const signature = JSON.stringify([query, sort]);
     let cached = this.orders.get(key);
     if (!cached || cached.key !== signature) {
-      const formatted = cells.values;
       const indices = rows
         .map((_, i) => i)
-        .filter(
-          (i) =>
-            !query ||
-            formatted[i].join(" ").toLowerCase().includes(query) ||
-            value.columns
-              .map((c) => scalar(cell(rows[i], c.key)))
-              .join(" ")
-              .toLowerCase()
-              .includes(query),
-        );
+        .filter((i) => !query || table.search[i].includes(query));
       if (sort.length)
         indices.sort((a, b) => {
           for (const spec of sort) {
-            const field = value.columns[spec.column].key;
-            const x = cell(rows[a], field),
-              y = cell(rows[b], field);
-            const order =
-              typeof x === "number" && typeof y === "number"
-                ? x - y
-                : scalar(x).localeCompare(scalar(y));
-            if (order) return spec.direction === 1 ? order : -order;
+            const column = columns[spec.column];
+            const x = sortValue(rows[a], column),
+              y = sortValue(rows[b], column);
+            const order = compareCells(x, y);
+            if (order)
+              return spec.direction === 1 || x === null || y === null
+                ? order
+                : -order;
           }
           return 0;
         });
       cached = { key: signature, indices };
       this.orders.set(key, cached);
     }
-    const empty = cached.indices.length
-      ? undefined
-      : rows.length
-        ? "search"
-        : "view";
-    for (const index of cached.indices) {
+    const order = cached.indices;
+    const toggled = new Set(state.toggled ?? []);
+    const initiallyOpen = value.expanded === true || order.length === 1;
+    const open = (index: number) =>
+      lead > 0 && initiallyOpen !== toggled.has(index);
+    const disclosure = (index: number, expanded: boolean) => {
+      igPushID_Int(index);
+      const pressed = iconButton(
+        "##expand",
+        expanded ? "chevronDown" : "chevronRight",
+        expanded ? "Hide details" : "Show details",
+        { size: 20, iconSize: 14 },
+      );
+      igPopID();
+      if (!pressed || exporting) return;
+      if (toggled.has(index)) toggled.delete(index);
+      else toggled.add(index);
+      state.toggled = [...toggled];
+    };
+    const stripe = igGetColorU32_Col(ImGuiCol_TableRowBgAlt, 1);
+    let dataLeft = 0;
+    for (const [at, index] of order.entries()) {
+      const row = rows[index],
+        expanded = open(index);
       if (narrow) {
         const top = igGetCursorScreenPos().y;
-        for (let column = 0; column < value.columns.length; column++) {
-          text(value.columns[column].label, 12, "bold", palette.muted);
-          text(cells.values[index][column], 16);
+        for (let column = 0; column < columns.length; column++) {
+          text(columns[column].label, 12, "bold", palette.muted);
+          this.cellContent(table.views[index][column], false);
+        }
+        if (lead) {
+          disclosure(index, expanded);
+          igSameLine(0, 6);
+          text("Details", 14, "regular", palette.muted);
+          if (expanded) this.rowDetails(row, details, exporting, key, heading);
         }
         keepTogether(top, igGetCursorScreenPos().y);
         igSeparator();
         igSpacing();
-      } else if (open) {
-        igTableNextRow(0, 0);
-        if (capture) rowStarts.push(igGetCursorScreenPos().y);
-        for (let column = 0; column < value.columns.length; column++) {
-          igTableNextColumn();
-          const display = cells.values[index][column];
-          if (cells.right[column] && display) {
-            let width = this.cellWidths.get(display);
-            if (width === undefined) {
-              const face = fonts.regular;
-              if (!face) throw new Error("Fonts are not initialized");
-              igPushFont(face, 16);
-              width = igCalcTextSize(display, false, -1).x;
-              igPopFont();
-              this.cellWidths.set(display, width);
-            }
-            const position = igGetCursorScreenPos();
-            igSetCursorScreenPos({
-              x: position.x + Math.max(0, available() - width),
-              y: position.y,
-            });
-          }
-          text(display, 16);
-        }
+        continue;
+      }
+      if (!segment) continue;
+      igTableNextRow(0, 0);
+      if (at % 2) igTableSetBgColor(ImGuiTableBgTarget_RowBg0, stripe, -1);
+      if (capture) segment.rowStarts.push(igGetCursorScreenPos().y);
+      if (lead) {
+        igTableNextColumn();
+        disclosure(index, expanded);
+      }
+      for (let column = 0; column < columns.length; column++) {
+        igTableNextColumn();
+        if (column === 0) dataLeft = igGetCursorScreenPos().x;
+        this.cellContent(table.views[index][column], table.right[column]);
+      }
+      if (expanded) {
+        end();
+        // Join the details to their row: the next table instance and this
+        // block both start where the previous one ended, without item spacing.
+        const left = igGetCursorScreenPos().x;
+        igSetCursorScreenPos({
+          x: left,
+          y: igGetCursorScreenPos().y - itemSpacing.y,
+        });
+        const indent = Math.max(0, dataLeft - left);
+        const body = () => {
+          igDummy({ x: 0, y: 0 });
+          igIndent(indent);
+          this.rowDetails(row, details, exporting, key, heading);
+          igUnindent(indent);
+          igDummy({ x: 0, y: 2 });
+        };
+        if (at % 2) backdrop(body, stripe);
+        else body();
+        const bottom = igGetCursorScreenPos().y;
+        ImDrawList_AddLine(
+          windowDrawList(),
+          { x: left, y: bottom },
+          { x: left + available(), y: bottom },
+          packed(palette.border),
+          1,
+          0,
+        );
+        igSetCursorScreenPos({ x: left, y: bottom });
+        if (at < order.length - 1) begin(false);
+        else igDummy({ x: 0, y: 0 });
       }
     }
     if (!narrow) {
-      if (open) {
-        igEndTable();
-        if (capture) {
-          const min = igGetItemRectMin(),
-            max = igGetItemRectMax();
-          captureTable(
-            min.x,
-            max.x,
-            tableTop,
-            max.y,
-            rowStarts,
-            textStart,
-            textEnd,
-          );
-        }
-      }
+      end();
       igPopStyleVar(1);
     }
-    if (empty) {
+    if (!order.length)
       text(
-        empty === "search"
-          ? "No rows match this search."
-          : "No rows in this view.",
+        rows.length ? "No rows match this search." : "No rows in this view.",
         16,
         "regular",
         palette.muted,
       );
+  }
+  private tableHeader(
+    columns: TableColumn[],
+    right: boolean[],
+    lead: number,
+    exporting: boolean,
+    state: DocumentState["tables"][string],
+    sort: { column: number; direction: number }[],
+  ) {
+    if (!exporting && state.narrow) {
+      igTableSetColumnSortDirection(lead, 0, false);
+      for (let i = 0; i < sort.length; i++)
+        igTableSetColumnSortDirection(
+          sort[i].column + lead,
+          sort[i].direction,
+          i > 0,
+        );
+    }
+    igTableNextRow(ImGuiTableRowFlags_Headers, 0);
+    const face = fonts.bold;
+    if (!face) throw new Error("Fonts are not initialized");
+    if (lead) {
+      igTableNextColumn();
+      if (!exporting) igTableHeader("##details");
+    }
+    igPushFont(face, 16);
+    for (const [i, column] of columns.entries()) {
+      igTableNextColumn();
+      const at = igGetCursorScreenPos();
+      const indent = right[i]
+        ? Math.max(0, available() - igCalcTextSize(column.label, false, -1).x)
+        : 0;
+      if (exporting) {
+        igSetCursorScreenPos({ x: at.x + indent, y: at.y });
+        text(column.label, 16, "bold");
+      } else if (!indent) igTableHeader(column.label);
+      else {
+        // ImGui headers only align left, so draw a right-aligned label
+        // and step it clear of the sort arrow ImGui adds at the edge.
+        igTableHeader(`##header-${i}`);
+        const sorted =
+          (igTableGetColumnFlags(i + lead) & ImGuiTableColumnFlags_IsSorted) !==
+          0;
+        ImDrawList_AddText_FontPtr(
+          windowDrawList(),
+          face,
+          16,
+          { x: at.x + Math.max(0, indent - (sorted ? 22 : 0)), y: at.y },
+          packed(palette.ink),
+          column.label,
+          0,
+        );
+      }
+    }
+    igPopFont();
+  }
+  /** Draws one cell's text with its colored note, or its status badge. */
+  private cellContent(view: CellView, right: boolean) {
+    if (view.status) {
+      this.statusBadge(view.text, view.status);
+      return;
+    }
+    if (!view.text) return;
+    if (right) {
+      const width =
+        this.textWidth(view.text) +
+        (view.note ? 6 + this.textWidth(view.note) : 0);
+      const position = igGetCursorScreenPos();
+      igSetCursorScreenPos({
+        x: position.x + Math.max(0, available() - width),
+        y: position.y,
+      });
+    }
+    text(view.text, 16);
+    if (view.note) {
+      igSameLine(0, 6);
+      text(
+        view.note,
+        16,
+        "regular",
+        view.noteTone && view.noteTone !== "neutral"
+          ? tone(view.noteTone)
+          : palette.muted,
+      );
+    }
+  }
+  private textWidth(value: string, size = 16): number {
+    const cacheKey = size === 16 ? value : `${size}\0${value}`;
+    let width = this.cellWidths.get(cacheKey);
+    if (width === undefined) {
+      const face = fonts.regular;
+      if (!face) throw new Error("Fonts are not initialized");
+      igPushFont(face, size);
+      width = igCalcTextSize(value, false, -1).x;
+      igPopFont();
+      this.cellWidths.set(cacheKey, width);
+    }
+    return width;
+  }
+  private statusBadge(label: string, value: Tone) {
+    const face = fonts.bold;
+    if (!face) throw new Error("Fonts are not initialized");
+    igPushFont(face, 13);
+    const size = igCalcTextSize(label, false, -1);
+    igPopFont();
+    const origin = igGetCursorScreenPos(),
+      tint = tone(value);
+    ImDrawList_AddRectFilled(
+      windowDrawList(),
+      origin,
+      { x: origin.x + size.x + 16, y: origin.y + size.y + 8 },
+      packed({ ...tint, w: 0.12 }),
+      6,
+      0,
+    );
+    igSetCursorScreenPos({ x: origin.x + 8, y: origin.y + 4 });
+    text(label, 13, "bold", tint, size.x + 1);
+    igSetCursorScreenPos(origin);
+    igDummy({ x: size.x + 16, y: size.y + 8 });
+  }
+  /** A bar of each status's share with a legend of the counts. */
+  private statusSummary(
+    counts: { label: string; tone: Tone; count: number }[],
+  ) {
+    const total = counts.reduce((sum, entry) => sum + entry.count, 0);
+    if (!total) return;
+    const origin = igGetCursorScreenPos(),
+      width = available(),
+      draw = windowDrawList(),
+      gap = 2;
+    const room = width - gap * (counts.length - 1);
+    let x = origin.x;
+    for (const [i, entry] of counts.entries()) {
+      const last = i === counts.length - 1;
+      const span = last ? origin.x + width - x : (room * entry.count) / total;
+      ImDrawList_AddRectFilled(
+        draw,
+        { x, y: origin.y },
+        { x: x + span, y: origin.y + 8 },
+        packed(tone(entry.tone)),
+        4,
+        counts.length === 1
+          ? 0
+          : i === 0
+            ? ImDrawFlags_RoundLeft
+            : last
+              ? ImDrawFlags_RoundRight
+              : ImDrawFlags_RoundNone,
+      );
+      x += span + gap;
+    }
+    igDummy({ x: width, y: 8 });
+    igDummy({ x: 0, y: 2 });
+    const right = origin.x + width;
+    const bold = fonts.bold;
+    if (!bold) throw new Error("Fonts are not initialized");
+    for (const [i, entry] of counts.entries()) {
+      igPushFont(bold, 14);
+      const count = igCalcTextSize(String(entry.count), false, -1).x;
+      igPopFont();
+      const item = 14 + count + 4 + this.textWidth(entry.label, 14);
+      if (i > 0) {
+        igSameLine(0, 16);
+        if (igGetCursorScreenPos().x + item > right) igNewLine();
+      }
+      const at = igGetCursorScreenPos();
+      ImDrawList_AddCircleFilled(
+        draw,
+        { x: at.x + 4, y: at.y + 9 },
+        4,
+        packed(tone(entry.tone)),
+        0,
+      );
+      igDummy({ x: 14, y: 1 });
+      igSameLine(0, 0);
+      text(String(entry.count), 14, "bold", palette.ink, count + 1);
+      igSameLine(0, 4);
+      text(entry.label, 14, "regular", palette.muted, -1);
+    }
+    igDummy({ x: 0, y: 4 });
+  }
+  private rowDetails(
+    row: DataRow,
+    details: TableColumn[],
+    exporting: boolean,
+    key: string,
+    heading?: number,
+  ) {
+    for (const column of details) {
+      const raw = cell(row, column.key),
+        view = tableCell(row, column);
+      if (raw === null || raw === "" || !view.text) continue;
+      text(column.label, 12, "bold", palette.muted);
+      if (typeof raw === "string" && !column.kind)
+        this.rich.markdown(raw, exporting, heading, `${key}.${column.key}`);
+      else this.cellContent(view, false);
     }
   }
   private heatmap(
@@ -1496,6 +1784,12 @@ export class DocumentRenderer {
     const refit = this.state.chartFits.get(interactionKey) !== fitKey;
     const pinch = this.pinchViews.get(interactionKey);
     this.pinchViews.delete(interactionKey);
+    const scale = {
+      log: value.scale === "log",
+      baseline: value.baseline,
+      references: value.references?.map((reference) => reference.value),
+    };
+    const baseline = valueBaseline(scale);
     let bounds = this.chartBounds.get(value);
     if (!bounds) {
       bounds = chartBounds(
@@ -1503,6 +1797,7 @@ export class DocumentRenderer {
           item.values.map((y, i) => ({ x: item.x?.[i] ?? i, y })),
         ),
         value.kind,
+        scale,
       );
       this.chartBounds.set(value, bounds);
     }
@@ -1561,6 +1856,11 @@ export class DocumentRenderer {
           ? ImPlotAxisFlags_Invert | ImPlotAxisFlags_NoGridLines
           : 0),
     );
+    if (scale.log)
+      ImPlot_SetupAxisScale_PlotScale(
+        horizontalBars ? 0 : ImAxis_Y1,
+        ImPlotScale_Log10,
+      );
     const horizontal =
       series.reduce(
         (sum, item) => sum + igCalcTextSize(item.name, false, -1).x + 32,
@@ -1591,6 +1891,8 @@ export class DocumentRenderer {
       horizontalBars ? limits.xMin : limits.yMin,
       horizontalBars ? limits.xMax : limits.yMax,
       bounds.yWhole,
+      1,
+      scale.log,
     );
     if (!value.labels) {
       const values = chartTicks(limits.xMin, limits.xMax, bounds.xWhole);
@@ -1660,8 +1962,12 @@ export class DocumentRenderer {
         seriesColors[i % seriesColors.length],
         0.8 / series.length,
         horizontalBars,
+        baseline,
+        scale.log,
       );
     }
+    if (value.references)
+      this.plotDrawing.references(value.references, horizontalBars);
     if (!exporting) {
       let hovered = ImPlot_IsPlotHovered();
       if (hovered && Math.abs(this.pinchScale - 1) > 0.00001) {
@@ -1727,6 +2033,7 @@ export class DocumentRenderer {
           mouse,
           0.8 / series.length,
           Math.abs((horizontalBars ? near.x : near.y) - mouse.y),
+          baseline,
         );
       }
       if (selection) {

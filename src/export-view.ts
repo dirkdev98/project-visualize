@@ -1,7 +1,12 @@
 import { Marked } from "marked";
 import type { Parameters } from "./data.ts";
 import { ALL, controls, createParameters, resolveView } from "./data.ts";
-import type { Artifact, Block, ControlBlock } from "./model.ts";
+import {
+  type Artifact,
+  type Block,
+  type ControlBlock,
+  controlField,
+} from "./model.ts";
 
 export function blockEntries(
   body: Block[],
@@ -76,9 +81,12 @@ export function exportView(
           source.dataset
         ];
         supportControls.push(
-          ...retainedControls
-            .filter((control) => control.dataset === source.dataset)
-            .map((control) => ({ ...control, dataset: alias })),
+          ...retainedControls.flatMap((control) => {
+            const field = controlField(control, source.dataset);
+            return field === undefined
+              ? []
+              : [{ ...control, dataset: alias, field, targets: undefined }];
+          }),
         );
         return {
           ...block,
@@ -110,9 +118,17 @@ export function exportView(
   }
   function visit(block: Block) {
     if ("children" in block) block.children.forEach(visit);
-    if (block.type === "control") dataset(block.dataset, [block.field]);
+    if (block.type === "control") {
+      dataset(block.dataset, [block.field]);
+      for (const target of block.targets ?? [])
+        dataset(target.dataset, [target.field]);
+    }
     if (block.type === "table") {
-      const fields = block.columns.map((column) => column.key);
+      const fields = block.columns.flatMap((column) =>
+        [column.key, column.from, column.low, column.high, column.unit].filter(
+          (field): field is string => field !== undefined,
+        ),
+      );
       if (block.dataset) dataset(block.dataset, fields);
       if (block.rows)
         block.rows = block.rows.map((row) =>
