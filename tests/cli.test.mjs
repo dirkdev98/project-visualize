@@ -2896,6 +2896,18 @@ test("flowing cards use the preceding PDF page while retaining headings and comp
     assert.equal(pages.join(" ").split(`SECOND_MARKER_${i}`).length - 1, 1);
 });
 
+test("a long report starts on its title page on portrait paper", (t) => {
+  const { ok } = workspace(t);
+  const document = JSON.parse(readFileSync("examples/notebook.json", "utf8"));
+  const entry = ok(
+    ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+    { ...document, pdf: { paper: "a4", orientation: "portrait" } },
+  );
+  const [first] = pdfTextPages(entry.pdf);
+  assert.match(first, /Making a decision visible/);
+  assert.match(first, /A small decision, with its reasoning/);
+});
+
 test("dark PDF margins retain the artifact background around short sections", (t) => {
   const { render } = workspace(t);
   const entry = render({

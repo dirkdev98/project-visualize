@@ -15,6 +15,10 @@
 - Raise the smallest text one step in both renderers: field, control, record and
   timeline labels from 12 to 13, code language tags from 11 to 12 and diagram change
   tags from 10 to 11. At the PDF reading width they print at 8 pt rather than 7.4 pt.
+- Let a prose block or table taller than half a page continue across a break when
+  keeping it whole would leave the page more than 60% empty. On portrait paper a
+  long report's first block fit a page on its own and moved whole, leaving the title
+  alone on page one. Headings, figures and table rows stay intact.
 
 ## 2026-11-16 widget choice in the skill
 

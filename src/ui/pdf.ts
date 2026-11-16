@@ -46,7 +46,7 @@ export function pdfPages(
   const [pageWidth, pageHeight] = paper(options);
   const factor = (pageWidth - 2 * margin) / width;
   const capacity = (pageHeight - 2 * margin - 12) / factor;
-  const regions = [
+  const regions: LayoutCapture["regions"] = [
     ...layout.regions,
     ...layout.tables.flatMap((table) => table.rows),
   ];
@@ -173,6 +173,23 @@ export function pdfPages(
       repeats = [];
       headerHeight = 0;
       bottom = pageBottom(top, sectionBottom, capacity, regions, layout.lines);
+    }
+    // A prose block or table that fits a page on its own would move whole and leave
+    // this page mostly empty, such as a title alone above a long report. Let such
+    // large blocks continue at a line or row; headings, figures and rows stay intact.
+    if (bottom - top < capacity * 0.4 && bottom < sectionBottom) {
+      const room = capacity - headerHeight;
+      const kept = regions.filter(
+        (region) => region.kind || region.bottom - region.top <= room * 0.5,
+      );
+      try {
+        bottom = Math.max(
+          bottom,
+          pageBottom(top, sectionBottom, room, kept, layout.lines),
+        );
+      } catch {
+        // Keep the earlier boundary when no fuller one preserves the text.
+      }
     }
     let pageFactor = factor;
     // A modest fit adjustment keeps a short introduction with its near-fitting figure.
