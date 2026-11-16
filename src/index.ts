@@ -62,7 +62,7 @@ visualize settings [--appearance system|light|dark] [--scroll-speed 5..100]
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
 render and export accept --width 320..2560; PDFs lay out at their paper's width.
-PNG/PDF captures accept --scale 1|2, defaulting to 2x.
+PNG/PDF captures accept --scale 1|2, defaulting to 2x; PDFs keep 2x when it fits.
 render accepts --mobile-width 320..600 to save a second responsive PNG.
 render, export and open accept --theme light|dark.
 render always saves a new immutable version with PNG and PDF snapshots.

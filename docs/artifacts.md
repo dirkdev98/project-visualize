@@ -671,5 +671,7 @@ that group fits on a page. Parallel columns may require a break between complete
 text lines when their preferred section boundaries conflict.
 PDFs lay out at their paper's width rather than the render `--width`, so body text
 prints at about 10 pt on any paper: 1280 units across A4 landscape and about 880
-across A4 portrait. The layout reflows like any other width. Use portrait paper or
+across A4 portrait. The layout reflows like any other width. PDFs also keep 2x
+density when their canvas fits the GPU surface, even for a `--scale 1` render, so
+printed text stays sharp. Use portrait paper or
 shorter explicit chart heights to keep tall figures with their titles and captions.

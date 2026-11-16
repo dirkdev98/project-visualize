@@ -30,6 +30,10 @@
 - Space wrapped table cell text 1.4 font sizes apart in both renderers, keeping
   single-line cells at their height. ImGui and the HTML table set wrapped lines solid,
   one font size apart, which made prose cells hard to read.
+- Capture PDFs at 2x density whenever their canvas fits the GPU surface, also for a
+  `--scale 1` render, and fall back to the render scale otherwise. 61 of 72 library
+  artifacts were rendered at 1x, which printed text at 116 dpi; it now prints at
+  232 dpi. Example PDFs grow about 2.3x, staying under 200 KB.
 
 ## 2026-11-16 widget choice in the skill
 
