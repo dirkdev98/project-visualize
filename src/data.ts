@@ -372,6 +372,17 @@ export function resolveView(
         const { dataset, ...rest } = block;
         return { ...rest, rows: rows(dataset) };
       }
+      if (block.type === "comparison") {
+        // Like a selecting chart, a comparison keeps every item visible while
+        // the other linked widgets follow its selection.
+        const dataset = block.source.dataset;
+        return {
+          ...block,
+          rows: block.select
+            ? filteredRows(dataset, block.select)
+            : rows(dataset),
+        };
+      }
       if (block.type === "metric" && block.source) {
         const { source, ...rest } = block;
         return {

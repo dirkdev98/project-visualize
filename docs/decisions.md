@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-16 comparison widget
+
+- Add a `comparison` block for a candidate against a baseline across many items: a
+  forest of median ratios on a log axis centred on 1x, the spread of paired runs,
+  reference gaps and the author's verdict per item. Library artifacts had drawn
+  repeated runs as lines or grouped bars and hid most workloads behind a select.
+- Draw the selected item's runs per variant below the forest, with paired runs
+  joined, and keep every item in the forest like a selecting chart.
+- Lay the widget out once as shapes in a shared module that the viewer paints with
+  its draw list and HTML paints as SVG, so both agree by construction.
+- Leave noise judgement to the author: verdicts and tones come from the data, and
+  `better` only colors a change when no verdict is given.
+
 ## 2026-11-16 evidence tables, metric comparisons and chart references
 
 - Let a control filter further datasets through `targets`, each naming the field that

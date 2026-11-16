@@ -198,6 +198,11 @@ host.addEventListener("click", (event) => {
     schedule();
     return;
   }
+  const choose = target.closest<SVGElement>("[data-choose]");
+  if (choose?.dataset.choose) {
+    toggleChoice(choose);
+    return;
+  }
   const expand = target.closest<HTMLElement>("[data-expand]");
   if (expand?.dataset.expand && expand.dataset.row) {
     const key = expand.dataset.expand,
@@ -248,7 +253,30 @@ host.addEventListener("click", (event) => {
     }
   }
 });
+/** Selects a comparison item, or clears the selection when it is chosen again. */
+function toggleChoice(element: SVGElement) {
+  const id = element.dataset.choose;
+  if (!id) return;
+  const next = JSON.parse(element.dataset.value ?? "null");
+  state.parameters.set(
+    id,
+    JSON.stringify(parameterValue(state.parameters, id)) ===
+      JSON.stringify(next)
+      ? ALL
+      : next,
+  );
+  schedule();
+}
 host.addEventListener("keydown", (event) => {
+  if (
+    (event.key === "Enter" || event.key === " ") &&
+    event.target instanceof SVGElement &&
+    event.target.dataset.choose
+  ) {
+    event.preventDefault();
+    toggleChoice(event.target);
+    return;
+  }
   if (
     (event.key === "Enter" || event.key === " ") &&
     event.target instanceof SVGElement &&

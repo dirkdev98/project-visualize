@@ -404,6 +404,49 @@ and resets the running total to its explicit value. Use totals for opening and
 closing balances instead of implying a total from the last step's position. Bars
 show their value, colored and grouped in the legend as increase, decrease or total.
 
+## Comparisons
+
+A `comparison` compares a candidate with a baseline across many items, such as
+benchmark workloads measured before and after a change. Its `source` names the
+`dataset`, the `item` being compared, the `variant` each measurement belongs to and
+the numeric `value`. Each item shows the baseline and candidate medians, the change
+and a forest plot of candidate/baseline ratios on a log axis centred on 1x.
+
+- `sample` pairs repeated runs across variants, such as interleaved pairs. The bar
+  behind each ratio spans the smallest to largest paired ratio.
+- `references` lists up to three further variants, such as other runtimes. Their
+  columns show the candidate's ratio to each one.
+- `group` sections the items, `unit` labels their values and `verdict` holds your
+  judgement per item, colored by `tones`. Without a verdict, `better` colors the
+  change by its direction.
+- `select` names a select control on the item field. Clicking an item selects it
+  across the linked view and draws its runs per variant below the forest, with
+  paired runs joined. The comparison itself keeps every item. Exports draw the
+  selected item's runs; a block export without the selecting control shows only
+  the forest.
+
+Never connect independent runs with a line chart, which reads as a trend. The
+[comparison example](../examples/widgets/comparison.json) shows a complete setup.
+
+```json
+{
+  "type": "comparison",
+  "source": {
+    "dataset": "timings",
+    "item": "operation",
+    "variant": "build",
+    "value": "milliseconds",
+    "sample": "pair",
+    "verdict": "verdict"
+  },
+  "baseline": "Before",
+  "candidate": "After",
+  "references": ["Reference station"],
+  "tones": { "Faster": "positive", "Within noise": "warning" },
+  "select": "operation"
+}
+```
+
 ## Heatmaps
 
 Use a `heatmap` for values across two categorical axes. Its static form has typed

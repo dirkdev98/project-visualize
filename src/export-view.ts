@@ -63,6 +63,35 @@ export function exportView(
   for (const id of retained) external.set(id, ALL);
   const datasets = resolveView(document, external).datasets;
   function isolate(block: Block, key: string): Block {
+    // A comparison whose selecting control lies outside the export shows every
+    // item, as a selecting chart keeps its comparison bars.
+    if (
+      block.type === "comparison" &&
+      block.select &&
+      !retained.has(block.select)
+    ) {
+      const source = block.source,
+        alias = `__visualize_${key}`;
+      const comparison = new Map(external);
+      comparison.set(block.select, ALL);
+      datasets[alias] = resolveView(document, comparison).datasets[
+        source.dataset
+      ];
+      supportControls.push(
+        ...retainedControls.flatMap((control) => {
+          const field = controlField(control, source.dataset);
+          return field === undefined
+            ? []
+            : [{ ...control, dataset: alias, field, targets: undefined }];
+        }),
+      );
+      return {
+        ...block,
+        select: undefined,
+        rows: undefined,
+        source: { ...source, dataset: alias },
+      };
+    }
     if (!retained.size) return blockAt(view.body, key);
     if ("children" in block)
       return {
@@ -145,7 +174,8 @@ export function exportView(
         Object.entries(block.source)
           .filter(
             ([key, value]) =>
-              ["field", "x", "y", "series"].includes(key) &&
+              key !== "dataset" &&
+              key !== "aggregate" &&
               typeof value === "string",
           )
           .map(([, value]) => value as string),

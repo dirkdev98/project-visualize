@@ -168,6 +168,7 @@ import {
   valueBaseline,
   valueTicks,
 } from "./chart-layout.ts";
+import { Comparisons } from "./comparisons.ts";
 import { Diagrams } from "./diagrams.ts";
 import { plotDrawList, windowDrawList } from "./draw-list.ts";
 import { type Icon, iconButton } from "./icons.ts";
@@ -372,6 +373,7 @@ export class DocumentRenderer {
     | undefined;
   private rich: RichText;
   private diagrams = new Diagrams();
+  private comparisons = new Comparisons();
   private distributions = new Map<
     Block,
     {
@@ -610,6 +612,7 @@ export class DocumentRenderer {
       this.categoryLayouts.clear();
       this.chartBounds.clear();
       this.distributions.clear();
+      this.comparisons.clear();
       this.pinchViews.clear();
       this.fitRequests.clear();
     }
@@ -660,7 +663,9 @@ export class DocumentRenderer {
   ) {
     const top = igGetCursorScreenPos().y;
     const flow =
-      ["column", "details", "card", "timeline"].includes(value.type) ||
+      ["column", "details", "card", "timeline", "comparison"].includes(
+        value.type,
+      ) ||
       (value.type === "row" && available() < 620);
     let heading = parentHeading;
     const capture = currentCapture();
@@ -899,6 +904,26 @@ export class DocumentRenderer {
       case "diagram":
         this.diagrams.draw(value, exporting);
         break;
+      case "comparison": {
+        const select = value.select;
+        this.comparisons.draw(
+          value,
+          select ? parameterValue(this.state.parameters, select) : ALL,
+          exporting,
+          (item) => {
+            const control = controls(this.document).find(
+              (control) => control.id === select,
+            );
+            if (!control) return;
+            const current = parameterValue(this.state.parameters, control.id);
+            this.parameter(
+              control,
+              JSON.stringify(current) === JSON.stringify(item) ? ALL : item,
+            );
+          },
+        );
+        break;
+      }
       case "histogram":
       case "boxplot":
       case "waterfall":

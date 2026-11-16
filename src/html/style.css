@@ -746,3 +746,15 @@
   font-size: 14px;
   color: var(--pv-muted);
 }
+.pv .pv-comparison svg {
+  overflow: visible;
+}
+.pv .pv-hit {
+  fill: transparent;
+}
+.pv .pv-hit[role="button"] {
+  cursor: pointer;
+}
+.pv .pv-hit:hover {
+  fill: color-mix(in srgb, var(--pv-ink) 5%, transparent);
+}

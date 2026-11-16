@@ -2448,6 +2448,95 @@ test("control targets must name another dataset and a field it contains", (t) =>
   assert.deepEqual(ok(["list"]).versions, []);
 });
 
+function comparisonDocument() {
+  const timings = [];
+  for (const [operation, before, after] of [
+    ["Calibration", 140, 120],
+    ["Stacking", 860, 870],
+  ])
+    for (const pair of [1, 2, 3])
+      timings.push(
+        { operation, pair, build: "Before", ms: before + pair },
+        { operation, pair, build: "After", ms: after + pair * 2 },
+      );
+  return {
+    schemaVersion: 1,
+    type: "document",
+    title: "Build comparison",
+    datasets: { timings },
+    body: [
+      {
+        type: "control",
+        id: "operation",
+        kind: "select",
+        label: "Operation",
+        dataset: "timings",
+        field: "operation",
+      },
+      {
+        type: "comparison",
+        id: "builds",
+        source: {
+          dataset: "timings",
+          item: "operation",
+          variant: "build",
+          value: "ms",
+          sample: "pair",
+        },
+        baseline: "Before",
+        candidate: "After",
+        select: "operation",
+      },
+      {
+        type: "table",
+        id: "runs",
+        dataset: "timings",
+        columns: [{ key: "ms", label: "Milliseconds" }],
+      },
+    ],
+  };
+}
+
+test("a comparison keeps every item while its selection filters linked evidence", (t) => {
+  const { render, ok } = workspace(t);
+  const document = comparisonDocument();
+  render(document);
+  const view = inspectView(ok, { operation: "Stacking" });
+  const comparison = view.body.find((block) => block.id === "builds");
+  assert.deepEqual(comparison.rows, document.datasets.timings);
+  assert.deepEqual(
+    view.body.find((block) => block.id === "runs").rows,
+    document.datasets.timings.filter((row) => row.operation === "Stacking"),
+  );
+});
+
+test("a comparison rejects missing variants and an unrelated selection", (t) => {
+  const { run, ok } = workspace(t);
+  for (const change of [
+    (block) => {
+      block.candidate = "Missing";
+    },
+    (block) => {
+      block.references = ["Before"];
+    },
+    (block) => {
+      block.source.value = "operation";
+    },
+    (block) => {
+      block.select = "missing";
+    },
+  ]) {
+    const document = comparisonDocument();
+    change(document.body[1]);
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      document,
+    );
+    assert.equal(result.status, 1);
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 test("an empty linked selection still inspects and exports", (t) => {
   const { root, render, ok } = workspace(t);
   render(linkedDocument());

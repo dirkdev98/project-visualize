@@ -1,0 +1,777 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Comparisons",
+  "subtitle": "Fictional data. Paired runs of two builds with a reference, and the selected operation's samples.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "control",
+      "id": "operation",
+      "kind": "select",
+      "label": "Operation",
+      "dataset": "timings",
+      "field": "operation",
+      "default": "Stack 64 frames"
+    },
+    {
+      "type": "comparison",
+      "id": "builds",
+      "title": "After compared with before",
+      "source": {
+        "dataset": "timings",
+        "item": "operation",
+        "variant": "build",
+        "value": "milliseconds",
+        "sample": "pair",
+        "group": "family",
+        "unit": "unit",
+        "verdict": "verdict"
+      },
+      "baseline": "Before",
+      "candidate": "After",
+      "references": ["Reference station"],
+      "better": "lower",
+      "tones": {
+        "Faster": "positive",
+        "Within noise": "warning",
+        "Slower": "negative"
+      },
+      "select": "operation",
+      "caption": "Each dot is the median ratio; the bar spans the five paired runs. Click an operation to see its runs."
+    }
+  ],
+  "datasets": {
+    "timings": [
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "Before",
+        "milliseconds": 142.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "After",
+        "milliseconds": 117.86,
+        "unit": "ms",
+        "verdict": "Faster"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "Reference station",
+        "milliseconds": 61.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "Before",
+        "milliseconds": 143.7,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "After",
+        "milliseconds": 118.52,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "Reference station",
+        "milliseconds": 61.37,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "Before",
+        "milliseconds": 139.44,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "After",
+        "milliseconds": 115.22,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "Reference station",
+        "milliseconds": 60.45,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "Before",
+        "milliseconds": 145.55,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "After",
+        "milliseconds": 118.8,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "Reference station",
+        "milliseconds": 61.76,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "Before",
+        "milliseconds": 141.15,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "After",
+        "milliseconds": 115.41,
+        "unit": "ms"
+      },
+      {
+        "operation": "Calibration frame",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "Reference station",
+        "milliseconds": 60.82,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "Before",
+        "milliseconds": 941.76,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "After",
+        "milliseconds": 870.91,
+        "unit": "ms",
+        "verdict": "Within noise"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "Reference station",
+        "milliseconds": 410.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "Before",
+        "milliseconds": 874.37,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "After",
+        "milliseconds": 875.79,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "Reference station",
+        "milliseconds": 412.46,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "Before",
+        "milliseconds": 848.45,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "After",
+        "milliseconds": 851.4,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "Reference station",
+        "milliseconds": 406.31,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "Before",
+        "milliseconds": 885.6,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "After",
+        "milliseconds": 877.88,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "Reference station",
+        "milliseconds": 415.12,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "Before",
+        "milliseconds": 858.82,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "After",
+        "milliseconds": 852.8,
+        "unit": "ms"
+      },
+      {
+        "operation": "Stack 64 frames",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "Reference station",
+        "milliseconds": 408.77,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "Before",
+        "milliseconds": 58.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "After",
+        "milliseconds": 41.18,
+        "unit": "ms",
+        "verdict": "Faster"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 1",
+        "build": "Reference station",
+        "milliseconds": 33.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "Before",
+        "milliseconds": 58.7,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "After",
+        "milliseconds": 41.41,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 2",
+        "build": "Reference station",
+        "milliseconds": 33.2,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "Before",
+        "milliseconds": 56.96,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "After",
+        "milliseconds": 40.26,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 3",
+        "build": "Reference station",
+        "milliseconds": 32.7,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "Before",
+        "milliseconds": 59.45,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "After",
+        "milliseconds": 41.51,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 4",
+        "build": "Reference station",
+        "milliseconds": 33.41,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "Before",
+        "milliseconds": 57.65,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "After",
+        "milliseconds": 40.32,
+        "unit": "ms"
+      },
+      {
+        "operation": "Dark subtraction",
+        "family": "Imaging",
+        "pair": "Pair 5",
+        "build": "Reference station",
+        "milliseconds": 32.9,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 1",
+        "build": "Before",
+        "milliseconds": 9.4,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 1",
+        "build": "After",
+        "milliseconds": 5.83,
+        "unit": "ms",
+        "verdict": "Faster"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 1",
+        "build": "Reference station",
+        "milliseconds": 5.1,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 2",
+        "build": "Before",
+        "milliseconds": 9.51,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 2",
+        "build": "After",
+        "milliseconds": 5.86,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 2",
+        "build": "Reference station",
+        "milliseconds": 5.13,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 3",
+        "build": "Before",
+        "milliseconds": 9.23,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 3",
+        "build": "After",
+        "milliseconds": 5.7,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 3",
+        "build": "Reference station",
+        "milliseconds": 5.05,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 4",
+        "build": "Before",
+        "milliseconds": 9.63,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 4",
+        "build": "After",
+        "milliseconds": 5.87,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 4",
+        "build": "Reference station",
+        "milliseconds": 5.16,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 5",
+        "build": "Before",
+        "milliseconds": 9.34,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 5",
+        "build": "After",
+        "milliseconds": 5.71,
+        "unit": "ms"
+      },
+      {
+        "operation": "Catalogue lookup",
+        "family": "Catalogue",
+        "pair": "Pair 5",
+        "build": "Reference station",
+        "milliseconds": 5.08,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 1",
+        "build": "Before",
+        "milliseconds": 312.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 1",
+        "build": "After",
+        "milliseconds": 371.28,
+        "unit": "ms",
+        "verdict": "Slower"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 1",
+        "build": "Reference station",
+        "milliseconds": 280.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 2",
+        "build": "Before",
+        "milliseconds": 315.74,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 2",
+        "build": "After",
+        "milliseconds": 373.36,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 2",
+        "build": "Reference station",
+        "milliseconds": 281.68,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 3",
+        "build": "Before",
+        "milliseconds": 306.38,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 3",
+        "build": "After",
+        "milliseconds": 362.96,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 3",
+        "build": "Reference station",
+        "milliseconds": 277.48,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 4",
+        "build": "Before",
+        "milliseconds": 319.8,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 4",
+        "build": "After",
+        "milliseconds": 374.25,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 4",
+        "build": "Reference station",
+        "milliseconds": 283.5,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 5",
+        "build": "Before",
+        "milliseconds": 310.13,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 5",
+        "build": "After",
+        "milliseconds": 363.56,
+        "unit": "ms"
+      },
+      {
+        "operation": "Cross-match 1,000 stars",
+        "family": "Catalogue",
+        "pair": "Pair 5",
+        "build": "Reference station",
+        "milliseconds": 279.16,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 1",
+        "build": "Before",
+        "milliseconds": 37.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 1",
+        "build": "After",
+        "milliseconds": 35.89,
+        "unit": "ms",
+        "verdict": "Within noise"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 1",
+        "build": "Reference station",
+        "milliseconds": 22.0,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 2",
+        "build": "Before",
+        "milliseconds": 37.44,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 2",
+        "build": "After",
+        "milliseconds": 36.09,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 2",
+        "build": "Reference station",
+        "milliseconds": 22.13,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 3",
+        "build": "Before",
+        "milliseconds": 36.33,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 3",
+        "build": "After",
+        "milliseconds": 35.09,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 3",
+        "build": "Reference station",
+        "milliseconds": 21.8,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 4",
+        "build": "Before",
+        "milliseconds": 37.92,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 4",
+        "build": "After",
+        "milliseconds": 36.18,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 4",
+        "build": "Reference station",
+        "milliseconds": 22.27,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 5",
+        "build": "Before",
+        "milliseconds": 36.78,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 5",
+        "build": "After",
+        "milliseconds": 35.14,
+        "unit": "ms"
+      },
+      {
+        "operation": "Archive write",
+        "family": "Archive",
+        "pair": "Pair 5",
+        "build": "Reference station",
+        "milliseconds": 21.93,
+        "unit": "ms"
+      }
+    ]
+  }
+}

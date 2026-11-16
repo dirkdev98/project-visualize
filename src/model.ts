@@ -146,6 +146,21 @@ export type Diagram =
         dependsOn?: string[];
       }[];
     };
+export interface ComparisonSource {
+  dataset: string;
+  /** What is compared, such as a workload. */
+  item: string;
+  /** Which version or runtime a measurement belongs to. */
+  variant: string;
+  value: string;
+  /** Pairs repeated runs across variants, such as an interleaved pair. */
+  sample?: string;
+  group?: string;
+  /** Unit text shown with each item's values. */
+  unit?: string;
+  /** The author's verdict for each item, such as Faster or Within noise. */
+  verdict?: string;
+}
 export interface DistributionSource {
   dataset: string;
   field: string;
@@ -242,6 +257,20 @@ export type Block = BlockStyle &
           | { series: Series[]; source?: never }
           | { source: DistributionSource; series?: never }
         ))
+    | {
+        type: "comparison";
+        source: ComparisonSource;
+        baseline: string;
+        candidate: string;
+        /** Variants shown as gaps to the candidate, such as other runtimes. */
+        references?: string[];
+        better?: "lower" | "higher";
+        tones?: Record<string, Tone>;
+        /** A select control on the item field that the selection drives. */
+        select?: string;
+        /** The source rows after linked controls, filled in by the view. */
+        rows?: DataRow[];
+      }
     | {
         type: "waterfall";
         yLabel?: string;
@@ -1074,6 +1103,70 @@ export function validate(input: unknown): Artifact {
         }
         break;
       }
+      case "comparison": {
+        if (block.rows !== undefined)
+          fail(field("rows"), "comparisons read their rows from source");
+        const source = object(block.source, field("source"));
+        const rows = dataset(source.dataset, field("source.dataset"));
+        dataField(rows, source.item, field("source.item"));
+        const variant = dataField(
+          rows,
+          source.variant,
+          field("source.variant"),
+        );
+        dataField(rows, source.value, field("source.value"), true);
+        for (const name of ["sample", "group", "unit", "verdict"])
+          if (source[name] !== undefined)
+            dataField(rows, source[name], field(`source.${name}`));
+        const names = [
+          string(block.baseline, field("baseline"), 120),
+          string(block.candidate, field("candidate"), 120),
+          ...(block.references === undefined
+            ? []
+            : array(block.references, field("references"), 1, 3).map(
+                (reference, i) =>
+                  string(reference, `${field("references")}[${i}]`, 120),
+              )),
+        ];
+        if (names.some((name) => !name) || new Set(names).size !== names.length)
+          fail(location, "baseline, candidate and references must be distinct");
+        const present = new Set(
+          rows.map((row) =>
+            typeof row[variant] === "string"
+              ? row[variant]
+              : JSON.stringify(row[variant]),
+          ),
+        );
+        if (rows.length)
+          for (const name of names.slice(0, 2))
+            if (!present.has(name))
+              fail(location, `no rows have the variant ${name}`);
+        if (
+          block.better !== undefined &&
+          block.better !== "lower" &&
+          block.better !== "higher"
+        )
+          fail(field("better"), "expected lower or higher");
+        if (block.tones !== undefined) {
+          const map = object(block.tones, field("tones"));
+          for (const [value, tone] of Object.entries(map)) {
+            string(value, field("tones"), 120);
+            if (!tones.includes(String(tone)))
+              fail(
+                `${field("tones")}.${value}`,
+                "expected neutral, positive, warning or negative",
+              );
+          }
+        }
+        if (block.select !== undefined) {
+          string(block.select, field("select"), 80);
+          selections.push({ block, location: field("select") });
+        }
+        points += rows.length;
+        if (points > 250_000)
+          fail(location, "artifact exceeds the chart point limit");
+        break;
+      }
       case "waterfall": {
         if (block.yLabel !== undefined)
           string(block.yLabel, field("yLabel"), 240);
@@ -1322,13 +1415,16 @@ export function validate(input: unknown): Artifact {
   for (const { block, location } of selections) {
     const control = controlIds.get(String(block.select));
     const source = block.source as ObjectValue;
+    const axis = block.type === "comparison" ? source.item : source.x;
     if (
       control?.kind !== "select" ||
-      controlField(control, String(source.dataset)) !== source.x
+      controlField(control, String(source.dataset)) !== axis
     )
       fail(
         location,
-        "expected a select control that filters the chart's dataset by its x field",
+        block.type === "comparison"
+          ? "expected a select control that filters the comparison's dataset by its item field"
+          : "expected a select control that filters the chart's dataset by its x field",
       );
   }
   return doc as unknown as Artifact;

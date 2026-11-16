@@ -29,6 +29,7 @@ import {
   tableCell,
 } from "../ui/table-cells.ts";
 import { analytical, defaultPlot, type PlotState, plot } from "./charts.ts";
+import { comparison } from "./comparisons.ts";
 import { diagram, type Measure } from "./diagrams.ts";
 import { escapeHtml, markdown } from "./markup.ts";
 
@@ -337,6 +338,14 @@ export function renderDocument(
         break;
       case "diagram":
         content = diagram(value, width, key, measure);
+        break;
+      case "comparison":
+        content = comparison(
+          value,
+          width,
+          value.select ? parameterValue(state.parameters, value.select) : ALL,
+          measure,
+        );
         break;
       case "heatmap": {
         const xs = value.x ?? [],
