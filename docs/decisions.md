@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-16 PDF reading width
+
+- Lay PDFs out at their paper's width instead of the render width: the scale that
+  fits 1280 units onto A4 landscape, where 16-unit body text prints at about 10 pt.
+  A4 portrait lays out at about 880 units. At the render width, body text printed at
+  6.8 pt on portrait paper and a 390-unit render enlarged it to 22 pt over five pages.
+- This replaces the 2026-11-07 decision to capture once for both PNG and PDF. The
+  capture is still shared when the widths match, which keeps A4 landscape exports at
+  the default width unchanged; otherwise the PDF gets its own pass. PNGs are written
+  right after their capture, so only the PDF pixels outlive a pass.
+- Test each visual fixture's PDF once per theme, plus portrait paper, since the render
+  width no longer changes it.
+
 ## 2026-11-16 widget choice in the skill
 
 - Add a short widget map to the skill that matches answer shapes to widgets, with

@@ -4,18 +4,38 @@ import { fixtures, renderCases } from "./fixtures.mjs";
 import { workspace } from "./helpers.mjs";
 import { pdfPages } from "./native-captures.mjs";
 
-for (const { name, theme, width } of renderCases()) {
-  test(`PDF ${name} ${theme} ${width}`, async () => {
+// PDFs lay out at their paper's width, so each fixture and theme has one PDF
+// whatever width the PNG uses; portrait paper adds its own narrower layout.
+const cases = [
+  ...new Map(
+    renderCases().map(({ name, theme }) => [
+      `${name}-${theme}`,
+      { name, theme, paper: undefined },
+    ]),
+  ).values(),
+  ...["light", "dark"].map((theme) => ({
+    name: "notebook",
+    theme,
+    paper: { paper: "a4", orientation: "portrait" },
+  })),
+];
+
+for (const { name, theme, paper } of cases) {
+  const variant = paper ? `${name}-portrait` : name;
+  test(`PDF ${variant} ${theme}`, async () => {
     const testInfo = test.info();
     const w = workspace();
     try {
       const fixture = fixtures(w.directory).find(
         (fixture) => fixture.name === name,
       );
-      const entry = w.save(fixture.document, width, theme);
+      const document = paper
+        ? { ...fixture.document, pdf: paper }
+        : fixture.document;
+      const entry = w.save(document, 1280, theme);
       const pages = pdfPages(entry.pdf, testInfo.outputPath("page"));
       expect(pages.length).toBeGreaterThan(0);
-      const stem = `${name}-${theme}-${width}-pdf`;
+      const stem = `${variant}-${theme}-pdf`;
       for (const [index, page] of pages.entries()) {
         await testInfo.attach(`PDF page ${index + 1}`, {
           path: page,

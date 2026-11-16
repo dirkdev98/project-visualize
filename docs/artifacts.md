@@ -74,9 +74,9 @@ names the `dataset` and the fields for `title`, `label`, `meta`, `content` and `
 in the [checkpoint example](../examples/widgets/timeline-source.json). A `progress` block
 uses a value from zero to one and shows a rounded percentage with its label, using
 the same tone colors. The [component example](../examples/components.json) combines
-them with nested cards and supporting evidence. Use the [briefing example](../examples/briefing.json) for a
-compact landscape report at `--width 1280`; choose portrait paper when stacking it
-into a narrow export.
+them with nested cards and supporting evidence. Use the
+[briefing example](../examples/briefing.json) for a compact landscape report at
+`--width 1280`; choose portrait paper for a report that reads as a stacked document.
 
 An optional block `id` keeps its interaction key stable when neighboring blocks move.
 Use a lowercase letter followed by letters, digits, hyphens or underscores. IDs must be
@@ -667,6 +667,7 @@ plot labels stay rasterized. The text layer does not provide tagged-PDF accessib
 PDF pagination keeps Markdown headings with the first following body line when
 that group fits on a page. Parallel columns may require a break between complete
 text lines when their preferred section boundaries conflict.
-Reduce the layout `--width` when a report needs larger text on paper.
-For narrow canvases, use portrait paper or shorter explicit chart heights to keep
-figures with their surrounding titles and captions.
+PDFs lay out at their paper's width rather than the render `--width`, so body text
+prints at about 10 pt on any paper: 1280 units across A4 landscape and about 880
+across A4 portrait. The layout reflows like any other width. Use portrait paper or
+shorter explicit chart heights to keep tall figures with their titles and captions.

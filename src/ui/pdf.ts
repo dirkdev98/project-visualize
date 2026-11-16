@@ -20,16 +20,30 @@ export interface PdfPages {
   contentWidth: number;
   slices: PageSlice[];
 }
+const margin = 24;
+function paper(options: Artifact["pdf"]): [number, number] {
+  const portrait = options?.paper === "letter" ? [612, 792] : [595.276, 841.89];
+  return options?.orientation === "portrait"
+    ? [portrait[0], portrait[1]]
+    : [portrait[1], portrait[0]];
+}
+/**
+ * The canvas width a PDF lays out at, so text keeps one print size on any
+ * paper: the scale that fits 1280 units onto A4 landscape, where 16-unit body
+ * text prints at about 10 pt. Laying out at the render width instead shrank
+ * text below 7 pt on portrait paper and enlarged narrow renders.
+ */
+export function pdfWidth(options: Artifact["pdf"]): number {
+  const reference = (841.89 - 2 * margin) / 1280;
+  return Math.round((paper(options)[0] - 2 * margin) / reference);
+}
 export function pdfPages(
   width: number,
   height: number,
   layout: LayoutCapture,
   options: Artifact["pdf"],
 ): PdfPages {
-  const portrait = options?.paper === "letter" ? [612, 792] : [595.276, 841.89];
-  const [pageWidth, pageHeight] =
-    options?.orientation === "portrait" ? portrait : [portrait[1], portrait[0]];
-  const margin = 24;
+  const [pageWidth, pageHeight] = paper(options);
   const factor = (pageWidth - 2 * margin) / width;
   const capacity = (pageHeight - 2 * margin - 12) / factor;
   const regions = [

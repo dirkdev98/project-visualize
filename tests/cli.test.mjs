@@ -2868,20 +2868,11 @@ test("flowing cards use the preceding PDF page while retaining headings and comp
   const { ok } = workspace(t);
   const note = (marker) => ({
     type: "text",
-    content: `${marker} ${"A fictional station records the instrument reading before the next observation. ".repeat(2)}`,
+    content: `${marker} ${"A fictional station records the instrument reading before the next observation. ".repeat(6)}`,
   });
+  const notes = 10;
   const entry = ok(
-    [
-      "render",
-      "--project",
-      "orbital",
-      "--artifact",
-      "review",
-      "--file",
-      "-",
-      "--width",
-      "640",
-    ],
+    ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
     {
       ...minimal(),
       body: [
@@ -2889,7 +2880,7 @@ test("flowing cards use the preceding PDF page while retaining headings and comp
         {
           type: "card",
           title: "SECOND_CARD",
-          children: Array.from({ length: 5 }, (_, i) =>
+          children: Array.from({ length: notes }, (_, i) =>
             note(`SECOND_MARKER_${i}`),
           ),
         },
@@ -2901,7 +2892,7 @@ test("flowing cards use the preceding PDF page while retaining headings and comp
   const first = pages.find((page) => page.includes("FIRST_MARKER"));
   assert.ok(first.includes("SECOND_CARD"));
   assert.ok(first.includes("SECOND_MARKER_0"));
-  for (let i = 0; i < 5; i++)
+  for (let i = 0; i < notes; i++)
     assert.equal(pages.join(" ").split(`SECOND_MARKER_${i}`).length - 1, 1);
 });
 
