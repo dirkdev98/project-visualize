@@ -278,7 +278,7 @@ export function renderDocument(
         content = `<div style="height:${value.height ?? 12}px" aria-hidden="true"></div>`;
         break;
       case "timeline":
-        content = `<ol class="pv-timeline">${value.events.map((event) => `<li style="--pv-tone:${tone(event.tone ?? "positive")}">${event.label ? `<small>${escapeHtml(event.label)}</small>` : ""}<h3>${escapeHtml(event.title)}</h3>${event.content ? `<div class="pv-rich">${markdown(event.content, document, payload.highlights, width - 32)}</div>` : ""}</li>`).join("")}</ol>`;
+        content = `<ol class="pv-timeline">${(value.events ?? []).map((event) => `<li style="--pv-tone:${tone(event.tone ?? "positive")}">${event.label || event.meta ? `<small>${event.label ? escapeHtml(event.label) : ""}${event.meta ? `<code class="pv-meta">${escapeHtml(event.meta)}</code>` : ""}</small>` : ""}<h3>${escapeHtml(event.title)}</h3>${event.content ? `<div class="pv-rich">${markdown(event.content, document, payload.highlights, width - 32)}</div>` : ""}</li>`).join("")}</ol>`;
         break;
       case "table":
         content = table(value, width, key);
@@ -437,6 +437,16 @@ export function renderDocument(
         const source = document.assets?.[value.asset];
         if (!source) throw new Error(`Unknown image asset: ${value.asset}`);
         content = `<img class="pv-image" src="${escapeHtml(source)}" alt="${escapeHtml(value.title ?? value.caption ?? value.asset)}"${value.height === undefined ? "" : ` style="width:100%;height:${value.height}px;object-fit:${value.fit ?? "contain"}"`}>`;
+        if (value.annotations?.length) {
+          const percent = (fraction: number) => `${fraction * 100}%`;
+          const marks = value.annotations
+            .map(
+              (note, index) =>
+                `${note.width !== undefined && note.height !== undefined ? `<span class="pv-region" style="left:${percent(note.x)};top:${percent(note.y)};width:${percent(note.width)};height:${percent(note.height)}"></span>` : ""}<span class="pv-marker" style="left:${percent(note.x)};top:${percent(note.y)}" aria-hidden="true">${index + 1}</span>`,
+            )
+            .join("");
+          content = `<div class="pv-annotated">${content}${marks}</div><ol class="pv-annotations">${value.annotations.map((note, index) => `<li><span class="pv-marker" aria-hidden="true">${index + 1}</span>${escapeHtml(note.label)}</li>`).join("")}</ol>`;
+        }
         break;
       }
     }

@@ -47,7 +47,7 @@ function highlights(document: Artifact): {
     if (block.type === "markdown" || block.type === "callout")
       parser.parse(block.content);
     if (block.type === "timeline")
-      for (const event of block.events)
+      for (const event of block.events ?? [])
         if (event.content) parser.parse(event.content);
   }
   document.body.forEach(visit);

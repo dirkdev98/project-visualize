@@ -1,6 +1,10 @@
 import type { Diagram } from "../model.ts";
 import {
+  changeTag,
+  changeTones,
+  diagramChanges,
   edgeLabelLayout,
+  fieldLabel,
   ganttDependency,
   ganttTicks,
   graphLayout,
@@ -201,11 +205,8 @@ export function diagram(
         const fields = (node.fields ?? []).reduce(
           (height, field) =>
             height +
-            wrap(
-              `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`,
-              boxWidth - 24,
-              13,
-              (text, size) => measure(text, size, "mono"),
+            wrap(fieldLabel(field), boxWidth - 24, 13, (text, size) =>
+              measure(text, size, "mono"),
             ).length *
               13 +
             7,
@@ -242,12 +243,15 @@ export function diagram(
       const box = layout.nodes[index],
         cx = box.x + box.width / 2,
         cy = box.y + box.height / 2;
+      const tint = node.change ? changeTones[node.change] : node.tone;
       const border =
-        node.tone === "warning"
+        tint === "warning"
           ? "var(--pv-warning)"
-          : node.tone === "negative"
+          : tint === "negative"
             ? "var(--pv-negative)"
-            : "var(--pv-diagramBorder)";
+            : tint === "positive" && node.change
+              ? "var(--pv-positive)"
+              : "var(--pv-diagramBorder)";
       drawing += `<g${node.detail ? ` data-tooltip="${escapeHtml(node.detail)}" tabindex="0" aria-label="${escapeHtml(`${node.label}: ${node.detail}`)}"` : ""}>`;
       drawing +=
         node.shape === "decision"
@@ -264,23 +268,64 @@ export function diagram(
       let y = node.fields?.length
         ? box.y + 24
         : cy - (text.length - 1) * 10 + 5;
-      drawing += lines(cx, y, text, 15, "middle", 600);
+      drawing += lines(
+        cx,
+        y,
+        text,
+        15,
+        "middle",
+        600,
+        node.change === "removed" ? "var(--pv-muted)" : "var(--pv-ink)",
+      );
       y += text.length * 15 + 9;
       if (node.fields?.length) {
         drawing += `<path d="M${box.x + 8},${y - 6}h${box.width - 16}" stroke="var(--pv-border)"/>`;
         for (const field of node.fields) {
           const text = wrap(
-            `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`,
+            fieldLabel(field),
             box.width - 24,
             13,
             (text, size) => measure(text, size, "mono"),
           );
-          drawing += `<g font-family="PVMono,monospace">${lines(box.x + 12, y + 9, text, 13, "start")}</g>`;
+          const change = field.change ? changeTones[field.change] : "neutral";
+          drawing += `<g font-family="PVMono,monospace">${lines(
+            box.x + 12,
+            y + 9,
+            text,
+            13,
+            "start",
+            400,
+            field.change === "removed"
+              ? "var(--pv-muted)"
+              : change === "neutral"
+                ? "var(--pv-ink)"
+                : `var(--pv-${change})`,
+          )}</g>`;
           y += text.length * 13 + 7;
         }
       }
+      const tag = changeTag(node.change);
+      if (tag) {
+        const size = measure(tag, 10, "bold");
+        const x = box.x + box.width - size - 22;
+        drawing += `<rect x="${x}" y="${box.y - 9}" width="${size + 12}" height="18" rx="4" fill="var(--pv-paper)" stroke="${border}"/><text x="${x + 6}" y="${box.y + 4}" font-size="10" font-weight="600" fill="${border}">${escapeHtml(tag)}</text>`;
+      }
       drawing += "</g>";
     });
+    const changes = diagramChanges(value.nodes);
+    if (changes.length) {
+      let x = 0;
+      const y = height + 8;
+      for (const change of changes) {
+        const tint =
+          change.tone === "neutral"
+            ? "var(--pv-diagramBorder)"
+            : `var(--pv-${change.tone})`;
+        drawing += `<rect x="${x + 0.75}" y="${y + 3.75}" width="10.5" height="10.5" rx="3" fill="none" stroke="${tint}" stroke-width="1.5"/>${lines(x + 18, y + 13, [change.label], 13, "start", 400, "var(--pv-muted)")}`;
+        x += measure(change.label, 13) + 40;
+      }
+      height += 32;
+    }
     layout.edges.forEach((path, index) => {
       const edge = value.edges?.[index];
       if (!edge) return;

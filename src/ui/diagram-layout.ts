@@ -1,4 +1,48 @@
-import type { DiagramEdge, DiagramNode } from "../model.ts";
+import type { ChangeState, DiagramEdge, DiagramNode, Tone } from "../model.ts";
+
+export const changeTones: Record<ChangeState, Tone> = {
+  new: "positive",
+  changed: "warning",
+  removed: "negative",
+  kept: "neutral",
+};
+const changeNames: Record<ChangeState, string> = {
+  new: "New",
+  changed: "Changed",
+  removed: "Removed",
+  kept: "Kept",
+};
+const changeMarks: Record<ChangeState, string> = {
+  new: "+ ",
+  changed: "~ ",
+  removed: "- ",
+  kept: "",
+};
+
+/** The tag on a changed node; kept nodes carry none. */
+export function changeTag(change: ChangeState | undefined): string {
+  return change && change !== "kept" ? changeNames[change].toUpperCase() : "";
+}
+
+/** An ER field's text, marked when the field changed. */
+export function fieldLabel(field: NonNullable<DiagramNode["fields"]>[number]) {
+  return `${field.change ? changeMarks[field.change] : ""}${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`;
+}
+
+/** The change states a diagram shows, in legend order. */
+export function diagramChanges(
+  nodes: DiagramNode[],
+): { label: string; tone: Tone }[] {
+  const present = new Set<ChangeState>();
+  for (const node of nodes) {
+    if (node.change) present.add(node.change);
+    for (const field of node.fields ?? [])
+      if (field.change) present.add(field.change);
+  }
+  return (["new", "changed", "removed", "kept"] as const)
+    .filter((state) => present.has(state))
+    .map((state) => ({ label: changeNames[state], tone: changeTones[state] }));
+}
 
 export interface Point {
   x: number;

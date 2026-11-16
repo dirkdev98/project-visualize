@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Timeline from a dataset",
+  "subtitle": "Fictional checkpoints of an overnight run, with their commits and states.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "timeline",
+      "id": "checkpoints",
+      "title": "Checkpoints",
+      "source": {
+        "dataset": "checkpoints",
+        "title": "change",
+        "label": "time",
+        "meta": "commit",
+        "content": "result",
+        "tone": "state"
+      },
+      "tones": {
+        "Accepted": "positive",
+        "Checks pending": "warning",
+        "Reverted": "negative"
+      }
+    }
+  ],
+  "datasets": {
+    "checkpoints": [
+      {
+        "time": "22:40",
+        "commit": "4be19a2c7",
+        "change": "Shorter calibration frames",
+        "state": "Accepted",
+        "result": "Five alternating runs are all faster; frame checksums match."
+      },
+      {
+        "time": "01:15",
+        "commit": "9d03e6f1b",
+        "change": "Streaming catalogue match",
+        "state": "Checks pending",
+        "result": "Peak memory falls from 412 MB to 286 MB. The archive check still runs."
+      },
+      {
+        "time": "03:05",
+        "commit": "c71aa2d40",
+        "change": "Compressed archive upload",
+        "state": "Reverted",
+        "result": "Compression costs more than it saves on this link."
+      }
+    ]
+  }
+}

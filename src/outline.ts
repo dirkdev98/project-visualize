@@ -130,7 +130,7 @@ export class DocumentOutline {
           markdown(block.content, key, owner, ancestors);
         if ("children" in block) visit(block.children, key, owner, ancestors);
         if (block.type === "timeline")
-          block.events.forEach((event, index) => {
+          (block.events ?? []).forEach((event, index) => {
             const eventKey = `${key}.events.${index}`;
             const heading = add(
               `event:${eventKey}`,

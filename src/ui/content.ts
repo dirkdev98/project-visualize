@@ -151,6 +151,7 @@ import type {
   Cell,
   ControlBlock,
   DataRow,
+  ImageAnnotation,
   ImageFit,
   ParameterValue,
   TableColumn,
@@ -525,6 +526,7 @@ export class DocumentRenderer {
     width = available(),
     frameHeight?: number,
     fit?: ImageFit,
+    annotations: ImageAnnotation[] = [],
   ): number {
     const file = this.document.assets?.[asset];
     if (!file) throw new Error(`Unknown image asset: ${asset}`);
@@ -571,9 +573,55 @@ export class DocumentRenderer {
         1,
         0,
       );
+    // Annotations require the natural layout, where the image fills its box.
+    for (const [index, note] of annotations.entries()) {
+      const at = {
+        x: start.x + note.x * layout.width,
+        y: start.y + note.y * layout.height,
+      };
+      if (note.width !== undefined && note.height !== undefined)
+        ImDrawList_AddRect(
+          draw,
+          at,
+          {
+            x: at.x + note.width * layout.width,
+            y: at.y + note.height * layout.height,
+          },
+          packed(palette.accent),
+          4,
+          2.5,
+          0,
+        );
+      this.marker(index + 1, at);
+    }
     keepTogether(cursor.y, end.y + 1);
     igDummy({ x: layout.width, y: layout.height + 2 });
     return layout.height + 2;
+  }
+  /** A numbered badge centred on `center`, matching the annotation list. */
+  private marker(number: number, center: { x: number; y: number }) {
+    const face = fonts.bold;
+    if (!face) throw new Error("Fonts are not initialized");
+    const draw = windowDrawList(),
+      label = String(number);
+    ImDrawList_AddCircleFilled(draw, center, 11, packed(palette.accent), 0);
+    igPushFont(face, 12);
+    const size = igCalcTextSize(label, false, -1);
+    igPopFont();
+    const point = {
+      x: center.x - size.x / 2,
+      y: center.y - size.y / 2,
+    };
+    ImDrawList_AddText_FontPtr(
+      draw,
+      face,
+      12,
+      point,
+      packed(palette.onAccent),
+      label,
+      0,
+    );
+    captureText(label, "bold", 12, point, size.x);
   }
   hasControls(): boolean {
     return controls(this.document).length > 0;
@@ -930,7 +978,23 @@ export class DocumentRenderer {
         this.analytical(value, exporting, key);
         break;
       case "image":
-        this.image(value.asset, available(), value.height, value.fit);
+        this.image(
+          value.asset,
+          available(),
+          value.height,
+          value.fit,
+          value.annotations,
+        );
+        for (const [index, note] of (value.annotations ?? []).entries()) {
+          const top = igGetCursorScreenPos();
+          this.marker(index + 1, { x: top.x + 11, y: top.y + 11 });
+          igSetCursorScreenPos({ x: top.x + 32, y: top.y + 1 });
+          text(note.label, 16, "regular", palette.ink, available() - 32);
+          const bottom = Math.max(igGetCursorScreenPos().y, top.y + 26);
+          igSetCursorScreenPos({ x: top.x, y: bottom });
+          igDummy({ x: 0, y: 0 });
+          keepTogether(top.y, bottom);
+        }
         break;
     }
     if (value.caption) text(value.caption, 15, "regular", palette.muted);
@@ -972,11 +1036,15 @@ export class DocumentRenderer {
       draw = windowDrawList();
     const points: { y: number; tint: Color }[] = [];
     igIndent(32);
-    for (const [index, event] of value.events.entries()) {
+    for (const [index, event] of (value.events ?? []).entries()) {
       igPushID_Int(index);
       const top = igGetCursorScreenPos().y;
       points.push({ y: top + 9, tint: tone(event.tone ?? "positive") });
       if (event.label) text(event.label, 12, "bold", palette.muted);
+      if (event.meta) {
+        if (event.label) igSameLine(0, 8);
+        text(event.meta, 12, "mono", palette.muted, -1);
+      }
       if (!exporting)
         this.markHeading(this.outlineIndex?.block(`${key}.events.${index}`));
       text(event.title, 20, "bold");

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Image annotations",
+  "subtitle": "Fictional survey image with numbered notes and an outlined region.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "assets": {
+    "sample": "../assets/landscape.png"
+  },
+  "body": [
+    {
+      "type": "image",
+      "id": "survey",
+      "title": "Survey site",
+      "asset": "sample",
+      "annotations": [
+        {
+          "x": 0.15,
+          "y": 0.2,
+          "label": "Clear sky for the evening calibration window."
+        },
+        {
+          "x": 0.28,
+          "y": 0.72,
+          "label": "Valley floor where the cable trench runs."
+        },
+        {
+          "x": 0.62,
+          "y": 0.45,
+          "width": 0.33,
+          "height": 0.18,
+          "label": "Ridge that blocks the low western horizon."
+        }
+      ]
+    }
+  ]
+}

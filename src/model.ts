@@ -97,6 +97,8 @@ export interface Series {
   values: number[];
   x?: number[];
 }
+/** How a node or field differs from the design it replaces. */
+export type ChangeState = "new" | "changed" | "removed" | "kept";
 export interface DiagramNode {
   id: string;
   label: string;
@@ -104,8 +106,14 @@ export interface DiagramNode {
   x?: number;
   y?: number;
   tone?: Tone;
+  change?: ChangeState;
   shape?: "box" | "decision" | "start" | "end";
-  fields?: { name: string; type?: string; key?: "primary" | "foreign" }[];
+  fields?: {
+    name: string;
+    type?: string;
+    key?: "primary" | "foreign";
+    change?: ChangeState;
+  }[];
 }
 export interface DiagramEdge {
   from: string;
@@ -161,6 +169,32 @@ export interface ComparisonSource {
   /** The author's verdict for each item, such as Faster or Within noise. */
   verdict?: string;
 }
+export interface TimelineEvent {
+  label?: string;
+  /** A short monospaced reference, such as a commit or a run ID. */
+  meta?: string;
+  title: string;
+  content?: string;
+  tone?: Tone;
+}
+/** Fields of each dataset row that make up an event, in row order. */
+export interface TimelineSource {
+  dataset: string;
+  title: string;
+  label?: string;
+  meta?: string;
+  content?: string;
+  tone?: string;
+}
+/** A numbered note on an image; positions are fractions of the image. */
+export interface ImageAnnotation {
+  x: number;
+  y: number;
+  /** With a size, the note outlines a region from `x` and `y`. */
+  width?: number;
+  height?: number;
+  label: string;
+}
 export interface DistributionSource {
   dataset: string;
   field: string;
@@ -194,15 +228,14 @@ export type Block = BlockStyle &
     | ControlBlock
     | { type: "progress"; label: string; value: number; detail?: string }
     | { type: "badge"; label: string }
-    | {
+    | ({
         type: "timeline";
-        events: {
-          label?: string;
-          title: string;
-          content?: string;
-          tone?: Tone;
-        }[];
-      }
+        /** Maps values of the source's tone field to tones. */
+        tones?: Record<string, Tone>;
+      } & (
+        | { events: TimelineEvent[]; source?: never }
+        | { source: TimelineSource; events?: TimelineEvent[] }
+      ))
     | {
         type: "row" | "column" | "card" | "details";
         children: Block[];
@@ -276,7 +309,12 @@ export type Block = BlockStyle &
         yLabel?: string;
         steps: { label: string; value: number; kind?: "delta" | "total" }[];
       }
-    | { type: "image"; asset: string; fit?: ImageFit }
+    | {
+        type: "image";
+        asset: string;
+        fit?: ImageFit;
+        annotations?: ImageAnnotation[];
+      }
     | { type: "divider" | "spacer" }
   );
 
@@ -347,6 +385,14 @@ function scalar(value: unknown, location: string) {
 }
 
 const tones = ["neutral", "positive", "warning", "negative"];
+
+function changeState(value: unknown, location: string) {
+  if (
+    value !== undefined &&
+    !["new", "changed", "removed", "kept"].includes(String(value))
+  )
+    fail(location, "expected new, changed, removed or kept");
+}
 
 function tableColumn(
   column: ObjectValue,
@@ -650,21 +696,49 @@ export function validate(input: unknown): Artifact {
         string(block.label, field("label"), 120);
         break;
       case "timeline":
-        array(block.events, field("events"), 1, 100).forEach((input, index) => {
-          const event = object(input, `${field("events")}[${index}]`);
-          const at = (name: string) => `${field("events")}[${index}].${name}`;
-          string(event.title, at("title"), 240);
-          if (event.label !== undefined) string(event.label, at("label"), 120);
-          if (event.content !== undefined)
-            string(event.content, at("content"), 20_000);
-          if (
-            event.tone !== undefined &&
-            !["neutral", "positive", "warning", "negative"].includes(
-              String(event.tone),
-            )
-          )
-            fail(at("tone"), "expected neutral, positive, warning or negative");
-        });
+        if ((block.events === undefined) === (block.source === undefined))
+          fail(location, "supply either events or source");
+        if (block.source !== undefined) {
+          const source = object(block.source, field("source"));
+          const rows = dataset(source.dataset, field("source.dataset"));
+          dataField(rows, source.title, field("source.title"));
+          for (const name of ["label", "meta", "content", "tone"])
+            if (source[name] !== undefined)
+              dataField(rows, source[name], field(`source.${name}`));
+        }
+        if (block.tones !== undefined) {
+          const map = object(block.tones, field("tones"));
+          for (const [value, tone] of Object.entries(map)) {
+            string(value, field("tones"), 120);
+            if (!tones.includes(String(tone)))
+              fail(
+                `${field("tones")}.${value}`,
+                "expected neutral, positive, warning or negative",
+              );
+          }
+        }
+        if (block.events !== undefined)
+          array(block.events, field("events"), 1, 100).forEach(
+            (input, index) => {
+              const event = object(input, `${field("events")}[${index}]`);
+              const at = (name: string) =>
+                `${field("events")}[${index}].${name}`;
+              string(event.title, at("title"), 240);
+              if (event.label !== undefined)
+                string(event.label, at("label"), 120);
+              if (event.meta !== undefined) string(event.meta, at("meta"), 120);
+              if (event.content !== undefined)
+                string(event.content, at("content"), 20_000);
+              if (
+                event.tone !== undefined &&
+                !tones.includes(String(event.tone))
+              )
+                fail(
+                  at("tone"),
+                  "expected neutral, positive, warning or negative",
+                );
+            },
+          );
         break;
       case "control": {
         if (block.id === undefined || controlIds.has(String(block.id)))
@@ -1326,7 +1400,11 @@ export function validate(input: unknown): Artifact {
                 !["primary", "foreign"].includes(String(item.key))
               )
                 fail(field("node.field.key"), "expected primary or foreign");
+              changeState(item.change, field("node.field.change"));
             });
+          changeState(node.change, field("node.change"));
+          if (node.change !== undefined && node.tone !== undefined)
+            fail(field("node.change"), "use either tone or change on a node");
           if (
             node.tone !== undefined &&
             !["neutral", "positive", "warning", "negative"].includes(
@@ -1400,6 +1478,28 @@ export function validate(input: unknown): Artifact {
           !Object.hasOwn(assets, block.asset)
         )
           fail(field("asset"), "expected a declared asset name");
+        if (block.annotations !== undefined) {
+          if (block.height !== undefined)
+            fail(
+              field("annotations"),
+              "annotations need the image's natural size, without height",
+            );
+          array(block.annotations, field("annotations"), 1, 20).forEach(
+            (raw, i) => {
+              const at = `${field("annotations")}[${i}]`;
+              const note = object(raw, at);
+              const x = number(note.x, `${at}.x`, 0, 1),
+                y = number(note.y, `${at}.y`, 0, 1);
+              if ((note.width === undefined) !== (note.height === undefined))
+                fail(at, "supply both width and height for a region");
+              if (note.width !== undefined) {
+                number(note.width, `${at}.width`, 0.001, 1 - x);
+                number(note.height, `${at}.height`, 0.001, 1 - y);
+              }
+              string(note.label, `${at}.label`, 1000);
+            },
+          );
+        }
         break;
       case "divider":
       case "spacer":

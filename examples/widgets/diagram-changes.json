@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "type": "diagram",
+  "title": "Diagram changes",
+  "subtitle": "Fictional design. New, changed, removed and kept parts of a proposed redesign.",
+  "pdf": {
+    "paper": "a4",
+    "orientation": "portrait"
+  },
+  "body": [
+    {
+      "type": "diagram",
+      "id": "flow",
+      "title": "Observation intake after the redesign",
+      "kind": "flowchart",
+      "direction": "right",
+      "nodes": [
+        {
+          "id": "receive",
+          "label": "Receive reading",
+          "shape": "start",
+          "change": "kept"
+        },
+        {
+          "id": "validate",
+          "label": "Validate range",
+          "change": "changed",
+          "detail": "Now checks calibration age as well."
+        },
+        {
+          "id": "queue",
+          "label": "Batch queue",
+          "change": "removed"
+        },
+        {
+          "id": "stream",
+          "label": "Stream to archive",
+          "change": "new"
+        }
+      ],
+      "edges": [
+        {
+          "from": "receive",
+          "to": "validate"
+        },
+        {
+          "from": "validate",
+          "to": "stream"
+        },
+        {
+          "from": "validate",
+          "to": "queue",
+          "label": "Before"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "id": "model",
+      "title": "Data model changes",
+      "kind": "er",
+      "nodes": [
+        {
+          "id": "station",
+          "label": "station",
+          "change": "kept",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "key": "primary"
+            },
+            {
+              "name": "name",
+              "type": "text"
+            },
+            {
+              "name": "calibrated_at",
+              "type": "timestamptz",
+              "change": "new"
+            }
+          ]
+        },
+        {
+          "id": "reading",
+          "label": "reading",
+          "change": "changed",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "key": "primary"
+            },
+            {
+              "name": "station_id",
+              "type": "uuid",
+              "key": "foreign"
+            },
+            {
+              "name": "value",
+              "type": "numeric",
+              "change": "changed"
+            },
+            {
+              "name": "batch_id",
+              "type": "uuid",
+              "change": "removed"
+            }
+          ]
+        },
+        {
+          "id": "batch",
+          "label": "batch",
+          "change": "removed",
+          "fields": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "key": "primary"
+            }
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "from": "station",
+          "to": "reading",
+          "fromCardinality": "one",
+          "toCardinality": "many"
+        },
+        {
+          "from": "batch",
+          "to": "reading",
+          "fromCardinality": "one",
+          "toCardinality": "many"
+        }
+      ]
+    }
+  ]
+}

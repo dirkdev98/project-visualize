@@ -1,5 +1,16 @@
 # Decisions
 
+## 2026-11-16 diagram changes, image annotations and sourced timelines
+
+- Mark nodes and ER fields with a `change` of new, changed, removed or kept: a
+  colored border and tag, field marks and a legend. Redesign diagrams had written
+  these states into labels and field types.
+- Annotate images with numbered points and regions listed below the image. Positions
+  are fractions of the natural image, so annotations reject a fixed `height`: HTML
+  cannot map a cropped or letterboxed frame without the image's size.
+- Build timeline events from a dataset `source`, with a monospaced `meta` such as a
+  commit, so a checkpoint log follows linked controls.
+
 ## 2026-11-16 comparison widget
 
 - Add a `comparison` block for a candidate against a baseline across many items: a

@@ -19,7 +19,11 @@ import {
 import type { Block } from "../model.ts";
 import {
   type Box,
+  changeTag,
+  changeTones,
+  diagramChanges,
   edgeLabelLayout,
+  fieldLabel,
   type GraphLayout,
   ganttDependency,
   ganttTicks,
@@ -151,7 +155,7 @@ export class Diagrams {
             "bold",
           ).y;
           const fieldHeight = (node.fields ?? []).reduce((height, field) => {
-            const label = `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`;
+            const label = fieldLabel(field);
             return (
               height + this.measure(label, boxWidth - 24, 13, "mono").y + 7
             );
@@ -188,12 +192,15 @@ export class Diagrams {
       const box = layout.nodes[i],
         a = offset(box),
         b = { x: a.x + box.width, y: a.y + box.height };
+      const tint = node.change ? changeTones[node.change] : node.tone;
       const border =
-        node.tone === "negative"
+        tint === "negative"
           ? palette.negative
-          : node.tone === "warning"
+          : tint === "warning"
             ? palette.warning
-            : palette.diagramBorder;
+            : tint === "positive" && node.change
+              ? palette.positive
+              : palette.diagramBorder;
       if (node.shape === "decision") {
         const top = { x: (a.x + b.x) / 2, y: a.y },
           right = { x: b.x, y: (a.y + b.y) / 2 },
@@ -252,15 +259,58 @@ export class Diagrams {
         labelWidth,
         15,
         "bold",
+        node.change === "removed" ? palette.muted : palette.ink,
       );
       if (node.fields?.length) {
         let y = top + labelSize.y + 12;
         this.line({ x: a.x, y: y - 6 }, { x: b.x, y: y - 6 }, palette.border);
         for (const field of node.fields) {
-          const label = `${field.key === "primary" ? "PK " : field.key === "foreign" ? "FK " : ""}${field.name}${field.type ? `: ${field.type}` : ""}`;
-          this.label(label, { x: a.x + 12, y }, box.width - 24, 13, "mono");
+          const label = fieldLabel(field);
+          const change = field.change ? changeTones[field.change] : "neutral";
+          this.label(
+            label,
+            { x: a.x + 12, y },
+            box.width - 24,
+            13,
+            "mono",
+            field.change === "removed"
+              ? palette.muted
+              : change === "neutral"
+                ? palette.ink
+                : palette[change],
+          );
           y += this.measure(label, box.width - 24, 13, "mono").y + 7;
         }
+      }
+      const tag = changeTag(node.change);
+      if (tag) {
+        const size = this.measure(tag, 200, 10, "bold");
+        const at = { x: b.x - size.x - 22, y: a.y - size.y / 2 - 3 };
+        ImDrawList_AddRectFilled(
+          draw,
+          at,
+          { x: at.x + size.x + 12, y: at.y + size.y + 6 },
+          packed(palette.paper),
+          4,
+          0,
+        );
+        ImDrawList_AddRect(
+          draw,
+          at,
+          { x: at.x + size.x + 12, y: at.y + size.y + 6 },
+          packed(border),
+          4,
+          1,
+          0,
+        );
+        this.label(
+          tag,
+          { x: at.x + 6, y: at.y + 3 },
+          size.x + 1,
+          10,
+          "bold",
+          border,
+        );
       }
       keepTogether(a.y, b.y);
       if (!exporting && node.detail) {
@@ -328,8 +378,38 @@ export class Diagrams {
         );
       }
     }
+    const changes = diagramChanges(value.nodes);
+    if (changes.length) {
+      let x = origin.x;
+      const y = origin.y + layout.height + 8;
+      for (const change of changes) {
+        const tint =
+          change.tone === "neutral"
+            ? palette.diagramBorder
+            : palette[change.tone];
+        ImDrawList_AddRect(
+          draw,
+          { x, y: y + 3 },
+          { x: x + 12, y: y + 15 },
+          packed(tint),
+          3,
+          1.5,
+          0,
+        );
+        const size = this.measure(change.label, 200, 13);
+        this.label(
+          change.label,
+          { x: x + 18, y },
+          size.x + 1,
+          13,
+          "regular",
+          palette.muted,
+        );
+        x += size.x + 40;
+      }
+    }
     igSetCursorScreenPos(origin);
-    igDummy({ x: width, y: layout.height });
+    igDummy({ x: width, y: layout.height + (changes.length ? 32 : 0) });
   }
   private sequence(value: Extract<DiagramBlock, { kind: "sequence" }>) {
     const width = available();

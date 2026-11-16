@@ -9,6 +9,7 @@ import {
   type DataRow,
   type ParameterValue,
   type Series,
+  type Tone,
   validateParameter,
 } from "./model.ts";
 
@@ -381,6 +382,39 @@ export function resolveView(
           rows: block.select
             ? filteredRows(dataset, block.select)
             : rows(dataset),
+        };
+      }
+      if (block.type === "timeline" && block.source) {
+        const { source, ...rest } = block;
+        const field = (row: DataRow, name: string | undefined) => {
+          const value = name === undefined ? null : dataCell(row, name);
+          return value === null || value === ""
+            ? undefined
+            : typeof value === "string"
+              ? value
+              : JSON.stringify(value);
+        };
+        const tones = ["neutral", "positive", "warning", "negative"];
+        return {
+          ...rest,
+          events: rows(source.dataset).map((row) => {
+            const tone = field(row, source.tone);
+            const mapped =
+              tone !== undefined &&
+              rest.tones &&
+              Object.hasOwn(rest.tones, tone)
+                ? rest.tones[tone]
+                : tone !== undefined && tones.includes(tone)
+                  ? (tone as Tone)
+                  : undefined;
+            return {
+              title: field(row, source.title) ?? "",
+              label: field(row, source.label),
+              meta: field(row, source.meta),
+              content: field(row, source.content),
+              tone: mapped,
+            };
+          }),
         };
       }
       if (block.type === "metric" && block.source) {

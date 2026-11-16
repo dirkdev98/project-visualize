@@ -2537,6 +2537,61 @@ test("a comparison rejects missing variants and an unrelated selection", (t) => 
   assert.deepEqual(ok(["list"]).versions, []);
 });
 
+test("a sourced timeline lists the rows its linked controls keep", (t) => {
+  const { render, ok } = workspace(t);
+  const document = studyDocument();
+  document.body.push({
+    type: "timeline",
+    id: "log",
+    source: { dataset: "checkpoints", title: "topic", meta: "commit" },
+  });
+  render(document);
+  const events = inspectView(ok, { study: "Folds" }).body.find(
+    (block) => block.id === "log",
+  ).events;
+  assert.deepEqual(
+    events.map((event) => [event.title, event.meta]),
+    [["Folds", "e4f5a6b"]],
+  );
+});
+
+test("annotations, change states and timelines reject conflicting input", (t) => {
+  const { run, ok } = workspace(t);
+  const assets = { sample: resolve("examples/assets/landscape.png") };
+  for (const block of [
+    {
+      type: "image",
+      asset: "sample",
+      height: 120,
+      annotations: [{ x: 0.5, y: 0.5, label: "Ridge" }],
+    },
+    {
+      type: "image",
+      asset: "sample",
+      annotations: [
+        { x: 0.8, y: 0.5, width: 0.4, height: 0.1, label: "Ridge" },
+      ],
+    },
+    {
+      type: "diagram",
+      nodes: [{ id: "a", label: "Queue", tone: "warning", change: "new" }],
+    },
+    {
+      type: "timeline",
+      events: [{ title: "Start" }],
+      source: { dataset: "studies", title: "study" },
+    },
+  ]) {
+    const document = { ...studyDocument(), assets, body: [block] };
+    const result = run(
+      ["render", "--project", "orbital", "--artifact", "review", "--file", "-"],
+      document,
+    );
+    assert.equal(result.status, 1, JSON.stringify(block));
+  }
+  assert.deepEqual(ok(["list"]).versions, []);
+});
+
 test("an empty linked selection still inspects and exports", (t) => {
   const { root, render, ok } = workspace(t);
   render(linkedDocument());

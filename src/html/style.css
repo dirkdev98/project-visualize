@@ -758,3 +758,55 @@
 .pv .pv-hit:hover {
   fill: color-mix(in srgb, var(--pv-ink) 5%, transparent);
 }
+.pv .pv-annotated {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+.pv .pv-region {
+  position: absolute;
+  border: 2.5px solid var(--pv-accent);
+  border-radius: 4px;
+}
+.pv .pv-marker {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--pv-accent);
+  color: var(--pv-onAccent);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+.pv .pv-annotated .pv-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.pv .pv-annotations {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: 16px;
+}
+.pv .pv-annotations li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.pv .pv-annotations .pv-marker {
+  flex: none;
+}
+.pv .pv-timeline .pv-meta {
+  margin-left: 8px;
+  padding: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 400;
+}
+.pv .pv-timeline small > .pv-meta:first-child {
+  margin-left: 0;
+}

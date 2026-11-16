@@ -67,7 +67,11 @@ columns keep independent heading hierarchies. Bookmarks retain plain Unicode tit
 and navigate to the rendered heading without changing the reader's zoom.
 
 Use a `badge` with a short `label` and `tone` for status. A `timeline` contains `events`
-with a `title`, optional `label`, Markdown `content` and `tone`. A `progress` block
+with a `title`, optional `label`, a short monospaced `meta` such as a commit, Markdown
+`content` and `tone`. To build events from a dataset instead, give a `source` that
+names the `dataset` and the fields for `title`, `label`, `meta`, `content` and `tone`;
+`tones` maps status values to tones. A sourced timeline follows linked controls, as
+in the [checkpoint example](../examples/widgets/timeline-source.json). A `progress` block
 uses a value from zero to one and shows a rounded percentage with its label, using
 the same tone colors. The [component example](../examples/components.json) combines
 them with nested cards and supporting evidence. Use the [briefing example](../examples/briefing.json) for a
@@ -365,6 +369,12 @@ ER nodes can include `fields` with a `name`, optional `type` and `key` of `prima
 or `foreign`. Set an edge's `fromCardinality` and `toCardinality` to `one`,
 `zero-or-one`, `many` or `one-or-many` to show the relationship at each end.
 
+For a proposed redesign, mark what changes instead of writing it into labels. Set a
+node's or ER field's `change` to `new`, `changed`, `removed` or `kept`. Changed nodes
+get a colored border and a tag, fields a `+`, `~` or `-` mark, and a legend lists
+the states the diagram uses. A node takes either `change` or `tone`. The
+[changes example](../examples/widgets/diagram-changes.json) marks both.
+
 Sequence diagrams take `participants` with an `id` and `label`, and ordered
 `messages` with `from`, `to` and `label`. A message `kind` of `call` is the default;
 `return` draws a dashed reply and `event` an open arrow. Self-messages loop back to
@@ -497,6 +507,13 @@ the selected image bytes, so viewing and exporting them work offline.
   ]
 }
 ```
+
+To point at parts of a screenshot or photo, give an image block `annotations`. Each
+has a `label` and an `x` and `y` from 0 to 1 across the image; adding `width` and
+`height` outlines a region. Numbered markers appear on the image with the numbered
+labels below it. Annotations need the image's natural size, so they cannot combine
+with `height`. The [annotation example](../examples/widgets/image-annotations.json)
+marks points and a region.
 
 Markdown images use `asset:NAME` references. For a remote source, declare its URL
 instead of a local path, for example `"station": "https://example.org/station.png"`.
