@@ -280,7 +280,7 @@
 }
 
 .pv .pv-code small {
-  font-size: 11px;
+  font-size: 12px;
   display: block;
   color: var(--pv-muted);
   margin-bottom: 12px;
@@ -346,7 +346,7 @@
   padding: 0 0 12px;
 }
 .pv .pv-records :where(dt) {
-  font-size: 12px;
+  font-size: 13px;
 }
 .pv dt {
   font-weight: 600;
@@ -359,7 +359,7 @@
   display: flex;
   flex-direction: column;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--pv-muted);
   gap: 8px;
 }
@@ -398,7 +398,7 @@
 .pv .pv-range legend {
   padding: 0;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--pv-muted);
   margin-bottom: 8px;
 }
@@ -451,7 +451,7 @@
 }
 .pv .pv-timeline small {
   color: var(--pv-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 .pv .pv-timeline h3 {
@@ -738,7 +738,7 @@
   font-size: 18px;
 }
 .pv .pv-details dt {
-  font-size: 12px;
+  font-size: 13px;
   margin-bottom: 4px;
 }
 .pv .pv-records .pv-details {
@@ -811,7 +811,7 @@
   padding: 0;
   background: none;
   color: var(--pv-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
 }
 .pv .pv-timeline small > span + .pv-meta {

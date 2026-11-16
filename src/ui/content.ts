@@ -1040,10 +1040,10 @@ export class DocumentRenderer {
       igPushID_Int(index);
       const top = igGetCursorScreenPos().y;
       points.push({ y: top + 9, tint: tone(event.tone ?? "positive") });
-      if (event.label) text(event.label, 12, "bold", palette.muted);
+      if (event.label) text(event.label, 13, "bold", palette.muted);
       if (event.meta) {
         if (event.label) igSameLine(0, 8);
-        text(event.meta, 12, "mono", palette.muted, -1);
+        text(event.meta, 13, "mono", palette.muted, -1);
       }
       if (!exporting)
         this.markHeading(this.outlineIndex?.block(`${key}.events.${index}`));
@@ -1124,7 +1124,7 @@ export class DocumentRenderer {
   ) {
     const face = fonts.bold;
     if (!face) throw new Error("Fonts are not initialized");
-    igPushFont(face, 12);
+    igPushFont(face, 13);
     const labelSize = igCalcTextSize(control.label, false, -1);
     igPopFont();
     if (control.kind === "toggle") {
@@ -1141,13 +1141,13 @@ export class DocumentRenderer {
     ImDrawList_AddText_FontPtr(
       windowDrawList(),
       face,
-      12,
+      13,
       at,
       packed(palette.muted),
       control.label,
       0,
     );
-    captureText(control.label, "bold", 12, at, labelSize.x);
+    captureText(control.label, "bold", 13, at, labelSize.x);
     igDummy(labelSize);
     igSetNextItemWidth(-1);
     if (control.kind === "select") {
@@ -1274,7 +1274,7 @@ export class DocumentRenderer {
       const preview = active
         ? `${columns[active.column].label} · ${active.direction === 1 ? "ascending" : "descending"}`
         : "Source order";
-      text("Sort rows", 12, "bold", palette.muted);
+      text("Sort rows", 13, "bold", palette.muted);
       igSetNextItemWidth(Math.min(300, available()));
       if (igBeginCombo("##sort", preview, 0)) {
         if (igSelectable_Bool("Source order", !sort.length, 0, { x: 0, y: 0 }))
@@ -1430,7 +1430,7 @@ export class DocumentRenderer {
       if (narrow) {
         const top = igGetCursorScreenPos().y;
         for (let column = 0; column < columns.length; column++) {
-          text(columns[column].label, 12, "bold", palette.muted);
+          text(columns[column].label, 13, "bold", palette.muted);
           this.cellContent(table.views[index][column], false);
         }
         if (lead) {
@@ -1697,7 +1697,7 @@ export class DocumentRenderer {
       const raw = cell(row, column.key),
         view = tableCell(row, column);
       if (raw === null || raw === "" || !view.text) continue;
-      text(column.label, 12, "bold", palette.muted);
+      text(column.label, 13, "bold", palette.muted);
       if (typeof raw === "string" && !column.kind)
         this.rich.markdown(raw, exporting, heading, `${key}.${column.key}`);
       else this.cellContent(view, false);

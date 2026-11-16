@@ -12,6 +12,9 @@
   right after their capture, so only the PDF pixels outlive a pass.
 - Test each visual fixture's PDF once per theme, plus portrait paper, since the render
   width no longer changes it.
+- Raise the smallest text one step in both renderers: field, control, record and
+  timeline labels from 12 to 13, code language tags from 11 to 12 and diagram change
+  tags from 10 to 11. At the PDF reading width they print at 8 pt rather than 7.4 pt.
 
 ## 2026-11-16 widget choice in the skill
 

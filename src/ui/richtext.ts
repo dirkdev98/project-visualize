@@ -380,7 +380,7 @@ export class RichText {
     }
     panel(() => {
       if (exporting) {
-        if (language) text(language.toUpperCase(), 11, "bold", palette.muted);
+        if (language) text(language.toUpperCase(), 12, "bold", palette.muted);
       } else {
         const regular = fonts.regular;
         if (!regular) throw new Error("Fonts are not initialized");

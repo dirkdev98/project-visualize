@@ -306,9 +306,9 @@ export function diagram(
       }
       const tag = changeTag(node.change);
       if (tag) {
-        const size = measure(tag, 10, "bold");
+        const size = measure(tag, 11, "bold");
         const x = box.x + box.width - size - 22;
-        drawing += `<rect x="${x}" y="${box.y - 9}" width="${size + 12}" height="18" rx="4" fill="var(--pv-paper)" stroke="${border}"/><text x="${x + 6}" y="${box.y + 4}" font-size="10" font-weight="600" fill="${border}">${escapeHtml(tag)}</text>`;
+        drawing += `<rect x="${x}" y="${box.y - 9}" width="${size + 12}" height="18" rx="4" fill="var(--pv-paper)" stroke="${border}"/><text x="${x + 6}" y="${box.y + 4}" font-size="11" font-weight="600" fill="${border}">${escapeHtml(tag)}</text>`;
       }
       drawing += "</g>";
     });

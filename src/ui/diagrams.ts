@@ -284,7 +284,7 @@ export class Diagrams {
       }
       const tag = changeTag(node.change);
       if (tag) {
-        const size = this.measure(tag, 200, 10, "bold");
+        const size = this.measure(tag, 200, 11, "bold");
         const at = { x: b.x - size.x - 22, y: a.y - size.y / 2 - 3 };
         ImDrawList_AddRectFilled(
           draw,
@@ -307,7 +307,7 @@ export class Diagrams {
           tag,
           { x: at.x + 6, y: at.y + 3 },
           size.x + 1,
-          10,
+          11,
           "bold",
           border,
         );

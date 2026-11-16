@@ -410,7 +410,7 @@ export function layoutComparison(
       x: ratioX(tick),
       y: tickTop,
       text: ratioText(tick),
-      size: 12,
+      size: 13,
       fill: "muted",
       anchor: "middle",
     });
