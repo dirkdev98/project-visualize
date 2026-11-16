@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-16 widget choice in the skill
+
+- Add a short widget map to the skill that matches answer shapes to widgets, with
+  rules against lines between independent runs, two-bar charts and numbers written
+  as text. Agents used a narrow part of the catalogue and never picked several
+  widgets that fit their data.
+
 ## 2026-11-16 diagram changes, image annotations and sourced timelines
 
 - Mark nodes and ER fields with a `change` of new, changed, removed or kept: a

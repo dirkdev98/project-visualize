@@ -136,8 +136,8 @@ and slower as bars below and above the line. The
 }
 ```
 
-Use `kind: "area"` for a line with restrained shading to its baseline. Each series overlaps
-independently, and the zero baseline participates in fitting. Supply ordered x
+Use `kind: "area"` for a line with restrained shading to its baseline. Each series
+overlaps independently, and the baseline participates in fitting. Supply ordered x
 coordinates for trends. The [trend example](../examples/trends.json) combines an
 area chart with linked station selection and numeric evidence.
 
@@ -318,17 +318,18 @@ supports selection. Other x values form categories in source order. An absent
 category/series pair stays absent.
 
 Set a dataset-bound bar chart's `select` to the ID of a select control that filters
-the chart's dataset by its x field, directly or through `targets`. Shift-click a visible bar to select that raw category across the linked
-view. Click outside that bar in the plot to clear it; Shift-clicking it again also
-clears it. Dragging, legends and zoom controls preserve selections. Plain dragging pans,
-Cmd+scroll zooms (Ctrl+scroll on other platforms), and a plain
-double-click fits the data. Shift is reserved for category selection. The
-legend remains outside the plot so toggling a series cannot select a bar underneath.
-Selection bars treat numeric values as separate categories and preserve scalar types.
-The control can appear anywhere in the document. The driving chart retains its
-comparison bars and highlights the chosen category while the other linked widgets
-use the selection. Other controls still filter the driving chart, including another
-control on the same field. Changing only its own selection preserves pan and zoom.
+the chart's dataset by its x field, directly or through `targets`. Shift-click a
+visible bar to select that raw category across the linked view. Click outside that
+bar in the plot to clear it; Shift-clicking it again also clears it. Dragging,
+legends and zoom controls preserve selections. Plain dragging pans, Cmd+scroll zooms
+(Ctrl+scroll on other platforms), and a plain double-click fits the data. Shift is
+reserved for category selection. The legend remains outside the plot so toggling a
+series cannot select a bar underneath. Selection bars treat numeric values as
+separate categories and preserve scalar types. The control can appear anywhere in the
+document. The driving chart retains its comparison bars and highlights the chosen
+category while the other linked widgets use the selection. Other controls still
+filter the driving chart, including another control on the same field. Changing only
+its own selection preserves pan and zoom.
 
 Inspect, export or open a reproducible selection with `--params`:
 

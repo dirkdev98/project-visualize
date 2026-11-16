@@ -33,6 +33,31 @@ into a dashboard when the user needs to inspect related views. Read the artifact
 below for the schema. Do not substitute a screenshot for a requested editable website
 or an interactive simulation that the artifact format cannot represent.
 
+## Widget choice
+
+Match each part of the answer to the widget built for its shape. The artifact guide
+has the fields for each.
+
+- One number, or a value against its earlier value or a total: `metric` with
+  `previous`, `of`, or `low` and `high`. Use a row of metrics instead of a two-bar chart.
+- Items measured across builds, versions or runtimes, with repeated runs: `comparison`.
+  Never draw independent runs as a line chart; a line reads as a trend.
+- Rows to scan, sort or filter: `table`. Keep numbers numeric with `change`, `interval`
+  and `status` columns and `unit`; put long evidence in `detail` columns.
+- A value over time or another ordered axis: a line or area `chart`; categories: bars;
+  two measures per item: scatter. Add `references` for targets, and `scale: "log"`
+  with `baseline: 1` for ratios.
+- How values spread: `histogram` or `boxplot`. How parts add up to a total:
+  `waterfall`. Values across two categories: `heatmap`.
+- Progress toward a goal: `progress`. A short status: `badge`. Dated events or a log:
+  `timeline`, built from a dataset with `source`.
+- Structure: a `diagram` as flowchart, state machine, tree, ER model, sequence or
+  Gantt schedule. Mark a redesign with node and field `change`.
+- Screenshots and photos: `image`, with numbered `annotations` to point at parts.
+- Explanation: `markdown`, a `callout` for the takeaway, `code`, and `details` for
+  supporting material. Arrange with `row`, `column` and `card`, and link widgets
+  through shared `datasets` and controls with `targets`.
+
 Use the CLI to save a versioned artifact, then deliver its interactive HTML export or
 screenshot through the conversation host. The native viewer retains the organized
 library and context. Generated HTML is an export, not a separate source artifact.
