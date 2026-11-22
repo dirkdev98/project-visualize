@@ -33,7 +33,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
-    "@maligator/cli": "0.1.0-alpha.35",
+    "@maligator/cli": "file:../maligator/.cache/release-footprint/packs/maligator-cli-0.1.0-alpha.35.tgz",
+    "@maligator/cli-darwin-arm64": "file:../maligator/.cache/release-footprint/packs/maligator-cli-darwin-arm64-0.1.0-alpha.35.tgz",
     "@playwright/test": "1.65.0",
     "@types/node": "25.0.3",
     "esbuild": "0.28.2",

@@ -5,6 +5,7 @@ import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import { Marked } from "marked";
 import type { Parameters } from "../data.ts";
 import type { Artifact, Block, ControlBlock } from "../model.ts";
+import { htmlResources, syntaxResources } from "../resources.ts";
 import { languages } from "../ui/languages.ts";
 import { escapeHtml } from "./markup.ts";
 import {
@@ -58,7 +59,7 @@ function highlights(document: Artifact): {
     langs: [],
     themes: [],
   });
-  const syntax = mal.assets.materialize("syntax"),
+  const syntax = syntaxResources.materialize(),
     theme = `github-${document.theme ?? "light"}`;
   try {
     highlighter.loadThemeSync(
@@ -133,7 +134,7 @@ export function exportHtml(
     highlights: syntax.values,
     supportControls: options.supportControls,
   };
-  const resources = mal.assets.materialize("html");
+  const resources = htmlResources.materialize();
   let style = readFileSync(join(resources, "style.css"), "utf8");
   const fontScales: Record<string, number> = JSON.parse(
     readFileSync(join(resources, "font-scales.json"), "utf8"),

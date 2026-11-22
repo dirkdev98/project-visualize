@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHighlighterCoreSync } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
+import { syntaxResources } from "../resources.ts";
 import { languages } from "./languages.ts";
 import { type Color, color, currentTheme, palette } from "./theme.ts";
 
@@ -38,7 +39,7 @@ export class SyntaxHighlighter {
         .split("\n")
         .map((content) => [{ content, color: palette.ink, fontStyle: 0 }]);
     if (!this.highlighter) {
-      this.resources = mal.assets.materialize("syntax");
+      this.resources = syntaxResources.materialize();
       this.highlighter = createHighlighterCoreSync({
         engine: createJavaScriptRegexEngine(),
         langs: [],

@@ -17,6 +17,7 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
+import { workflowResources } from "./resources.ts";
 
 interface Bundle {
   package: string;
@@ -99,7 +100,7 @@ export function skillResources(root: string, output?: string) {
     if (existsSync(join(destination, "bundle.json")))
       describeBundle(destination);
   }
-  copyDirectory(mal.assets.materialize("workflow"), destination);
+  copyDirectory(workflowResources.materialize(), destination);
   writeFileSync(
     join(destination, "bundle.json"),
     `${JSON.stringify({ package: "project-visualize", executable: executablePath, guide: "docs/artifacts.md", examples: "examples" }, null, 2)}\n`,

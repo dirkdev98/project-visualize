@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { fontResources, iconResources } from "../resources.ts";
 
 export type Font = "regular" | "bold" | "italic" | "mono";
 const files: Record<Font, string> = {
@@ -10,10 +11,10 @@ const files: Record<Font, string> = {
 let directory: string | undefined;
 let iconDirectory: string | undefined;
 export function fontFile(font: Font): string {
-  directory ??= mal.assets.materialize("fonts");
+  directory ??= fontResources.materialize();
   return join(directory, files[font]);
 }
 export function iconFontFile(): string {
-  iconDirectory ??= mal.assets.materialize("icons");
+  iconDirectory ??= iconResources.materialize();
   return join(iconDirectory, "lucide.ttf");
 }

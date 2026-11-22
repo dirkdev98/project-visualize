@@ -14,6 +14,7 @@ import { createParameters, resolveView } from "./data.ts";
 import { blockEntries, exportView } from "./export-view.ts";
 import { exportHtml } from "./html/export.ts";
 import { slug, validate } from "./model.ts";
+import { versionResource } from "./resources.ts";
 import {
   type Appearance,
   creationTheme,
@@ -87,7 +88,7 @@ async function main() {
   }
   if (args.length === 1 && args[0] === "--version") {
     process.stdout.write(
-      `${readFileSync(mal.assets.materialize("version"), "utf8")}\n`,
+      `${readFileSync(versionResource.materialize(), "utf8")}\n`,
     );
     return;
   }

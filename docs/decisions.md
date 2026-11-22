@@ -1,5 +1,12 @@
 # Decisions
 
+## 2026-11-22 local Maligator release trial
+
+- Pin both local Maligator packs on the trial branch so the launcher resolves the
+  candidate macOS arm64 compiler even though both releases report alpha.35.
+- Declare bundled resources with `maligator:assets` to keep production exports
+  self-contained and development runs reading the generated files.
+
 ## 2026-11-22 on-demand exports and report sections
 
 - Save immutable documents and their assets without capturing PNG or PDF. The
