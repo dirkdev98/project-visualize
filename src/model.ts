@@ -241,6 +241,7 @@ export type Block = BlockStyle &
         children: Block[];
         weights?: number[];
       }
+    | { type: "section"; id: string; title: string; children: Block[] }
     | ({
         type: "chart";
         kind: "line" | "area" | "bar" | "scatter";
@@ -796,6 +797,7 @@ export function validate(input: unknown): Artifact {
       case "row":
       case "column":
       case "card":
+      case "section":
       case "details": {
         const children = array(
           block.children,
@@ -804,6 +806,12 @@ export function validate(input: unknown): Artifact {
           block.type === "row" ? 6 : 100,
         );
         if (block.type === "details") string(block.title, field("title"), 240);
+        if (block.type === "section") {
+          if (depth !== 0) fail(location, "sections must be top-level blocks");
+          string(block.id, field("id"), 80);
+          if (!string(block.title, field("title"), 240).trim())
+            fail(field("title"), "give the section a title");
+        }
         if (block.weights !== undefined) {
           const weights = array(
             block.weights,

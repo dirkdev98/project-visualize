@@ -28,11 +28,12 @@ Validate a document before rendering it:
 
 ```sh
 bin/visualize validate --file document.json
-bin/visualize render --project orbital --artifact review --file document.json
+bin/visualize save --project orbital --artifact review --file document.json
 ```
 
-The CLI writes JSON to stdout and errors to stderr with a failing exit code. A failed
-render publishes no version. Project and artifact IDs are lowercase slugs. The
+The CLI writes JSON to stdout and errors to stderr with a failing exit code. `save`
+returns the new revision and saves its document and assets. Export the revision when
+you need a file. Project and artifact IDs are lowercase slugs. The
 [validator](../src/model.ts) defines accepted fields and input limits.
 
 ## Rich content
@@ -54,6 +55,11 @@ the original source.
 Group blocks inside `row`, `column` or `card` children. A row's optional `weights`
 sets relative column widths. Rows stack vertically in a narrow viewport. A `details`
 section is expandable in the viewer and expanded in exports.
+
+Use a top-level `section` with an `id`, `title` and `children` to group the widgets
+for one part of a report. Sections appear in Contents and can be exported together.
+Put the takeaway and its strongest evidence first. Use later sections for supporting
+detail, methodology and raw data. See the [sectioned review](../examples/widgets/section.json).
 
 Set `pageBreakBefore: true` on a top-level block to start it on a fresh PDF page.
 Automatic pagination continues within each section. A break before the first body
@@ -528,18 +534,18 @@ a failed stale refresh retains the cached image. HTTP `max-age` sets freshness,
 defaulting to an hour and capped at a day. `no-store` responses are not retained;
 `no-cache` and stale `must-revalidate` responses wait for validation.
 
-Note that revalidation never changes a saved revision. Use a new `render` invocation
+Note that revalidation never changes a saved revision. Use a new `save` invocation
 to revise an artifact; preserve returned version IDs when referring to evidence.
 Remove `STORE/cache/images` to force fresh downloads. Each image is limited to 20 MiB.
 
 ## Delivery
 
-Inspect a revision's screenshots before selecting it for delivery. Mark that exact
+Inspect the view or export you plan to deliver. Mark that exact
 saved version with `visualize present --project ID --artifact ID --version ID`, then
 return its image. The marker records an agent-selected delivery, without claiming
 that a person opened it.
 
-Later rendering attempts leave the current presentation in place. `list` and
+Later saves leave the current presentation in place. `list` and
 `inspect` expose `presentedAt` and `currentPresentation`; the viewer follows the
 current presentation unless you choose Follow latest or pin a revision. Earlier
 presentations retain their history, and marking never changes saved source or exports.
@@ -580,12 +586,17 @@ Use `--html-mode fragment` when a host requires only fragment markup. The defaul
 `standalone` mode includes the document background and margins for browser viewing.
 Host payload limits still apply to embedded data and images.
 
+Use `--html-layout tabs` to make consecutive top-level sections into tabs. Blocks
+outside those sections keep their position in the report, so an opening takeaway
+and shared filters stay visible. Tabs share the same filter selections and print as
+consecutive sections. The default HTML layout scrolls through the full report.
+
 `inspect` lists selectable block paths in `view.blocks`. Export a whole widget or
-card subtree with its path:
+group with its path:
 
 ```sh
 bin/visualize export --project orbital --artifact review --format png \
-  --block body.summary.chart --out chart.png
+  --block body.evidence --out evidence.png
 ```
 
 Paths start with `body` and use each block's `id`, or its zero-based sibling index
@@ -597,16 +608,16 @@ this export contract.
 
 PNG/PDF rendering and exporting default to 2x screenshot density. Use `--scale 1` for a
 smaller image.
-Add `render --mobile-width 390` to save desktop and phone PNGs together, with paths
-in the returned `screenshots` object. Export an existing revision with `--width 390`
-to inspect its phone layout without changing saved files. Logical widths start at 320.
+Export with `--width 390` for a phone layout. Logical widths start at 320. To save
+and explicitly capture both PNG and PDF in one command, use `render`. Add
+`--mobile-width 390` to that command to capture a second PNG for phones.
 
 Phone layouts use narrower margins and stack columns. Wide data and Markdown tables
 become labeled records in reading order, retaining the complete
 content. Data tables keep local sorting and search when changing between layouts.
 
 New captures inherit the system appearance, or the light/dark preference chosen in
-Settings. A document's `theme` field overrides that default; `render --theme light|dark`
+Settings. A document's `theme` field overrides that default; `save --theme light|dark`
 overrides the field. The saved revision retains its creation palette for reproducible
 exports. `export --theme light|dark` changes an export without changing saved evidence.
 
@@ -619,8 +630,9 @@ Settings. Drag the sidebar's right edge to resize it; project groups collapse
 independently and the footer identifies the library. Projects and their artifacts are
 ordered by latest activity, a new revision or a presentation. Each project lists its
 five most recent artifacts until **Show more…**; a search lists every match. The
-artifact header's PDF action generates and opens an export with the current theme
-and linked controls. Saved revision snapshots stay unchanged.
+artifact header's export menu opens PDF or HTML for the report or a named section.
+Use the PNG button to export the report and copy the file path. Exports use the
+current theme and linked controls.
 
 Drag across document text to select it, then press Cmd+C to copy. Double-click a word
 or triple-click a paragraph or code line; keep dragging to extend by that unit.
@@ -641,15 +653,13 @@ Use the ID returned for the selected revision. IDs survive reflow and inserted p
 renaming a heading or reordering duplicate headings can change them. Explicit block
 IDs keep sections identifiable when their surrounding document changes.
 
-The saved PNG and PDF use the render command's width and scale. `export` renders the
-saved data and copied images with the current layout engine, using the saved width
-and 2x density unless overridden. It leaves creation-time snapshots and revision
-history unchanged. Viewer filters, chart zoom and other temporary interactions do
-not change the saved export; pass `--params` to export a linked selection.
+`export` uses the saved data and copied images with the current layout engine, using
+the saved width and 2x density unless overridden. Existing snapshots and revision history
+stay unchanged. Pass `--params` to export a linked selection from the CLI.
 
-Exports contain the whole document unless `--block` selects a widget. A PNG artifact
-that exceeds the GPU surface limit fails with an error; split a long report into
-separate artifacts or reduce its scale.
+Exports contain the whole document unless `--block` selects a widget or section.
+If a full PNG or PDF exceeds the GPU surface limit, export a smaller section or
+reduce the scale. The saved report remains available in the viewer and as HTML.
 
 PNGs keep a continuous canvas. PDFs use A4 landscape pages by default, with margins
 and page numbers. Set the document's `pdf` options for a different paper or orientation:

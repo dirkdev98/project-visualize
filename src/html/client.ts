@@ -45,6 +45,8 @@ function focusKey(element: Element): string {
       "data-sort",
       "data-series",
       "data-zoom",
+      "data-tabset",
+      "data-tab",
       "data-select",
       "data-value",
       "href",
@@ -103,6 +105,13 @@ function draw() {
 }
 function schedule() {
   if (!frame) frame = requestAnimationFrame(draw);
+}
+function activateTab(tab: HTMLButtonElement) {
+  const { tabset, tab: index } = tab.dataset;
+  if (tabset === undefined || index === undefined) return;
+  state.tabs.set(tabset, Number(index));
+  tab.focus();
+  schedule();
 }
 function control(element: HTMLInputElement | HTMLSelectElement) {
   const id = element.dataset.control;
@@ -185,6 +194,11 @@ function zoom(figure: HTMLElement, action: string) {
 host.addEventListener("click", (event) => {
   const target = event.target instanceof Element ? event.target : undefined;
   if (!target) return;
+  const tab = target.closest<HTMLButtonElement>("button[data-tab]");
+  if (tab) {
+    activateTab(tab);
+    return;
+  }
   const sort = target.closest<HTMLElement>("[data-sort]");
   if (sort?.dataset.table && sort.dataset.sort) {
     const key = sort.dataset.table,
@@ -268,6 +282,28 @@ function toggleChoice(element: SVGElement) {
   schedule();
 }
 host.addEventListener("keydown", (event) => {
+  if (event.target instanceof HTMLButtonElement && event.target.dataset.tab) {
+    const tablist = event.target.closest('[role="tablist"]');
+    const tabs = [
+      ...(tablist?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+    ];
+    const index = tabs.indexOf(event.target);
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % tabs.length
+        : event.key === "ArrowLeft"
+          ? (index + tabs.length - 1) % tabs.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? tabs.length - 1
+              : -1;
+    if (next >= 0 && tabs[next]) {
+      event.preventDefault();
+      activateTab(tabs[next]);
+      return;
+    }
+  }
   if (
     (event.key === "Enter" || event.key === " ") &&
     event.target instanceof SVGElement &&

@@ -10,7 +10,7 @@ for (const { name, theme, width } of renderCases()) {
       const fixture = fixtures(w.directory).find(
         (fixture) => fixture.name === name,
       );
-      const entry = w.save(fixture.document, width, theme);
+      const entry = w.save(fixture.document, width, theme, { snapshots: true });
       const output = w.html(entry);
       await page.setViewportSize({ width, height: 900 });
       const evidence = await openExport(page, output.output);

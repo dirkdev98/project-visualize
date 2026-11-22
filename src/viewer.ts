@@ -34,6 +34,8 @@ import {
   igBeginChild_Str,
   igBeginCombo,
   igBeginGroup,
+  igBeginMenu,
+  igBeginPopup,
   igBeginTable,
   igButton,
   igCalcTextSize,
@@ -42,6 +44,8 @@ import {
   igEndChild,
   igEndCombo,
   igEndGroup,
+  igEndMenu,
+  igEndPopup,
   igEndTable,
   igGetContentRegionAvail,
   igGetCursorScreenPos,
@@ -55,6 +59,8 @@ import {
   igIsMouseDown_Nil,
   igIsMouseHoveringRect,
   igIsWindowHovered,
+  igMenuItem_Bool,
+  igOpenPopup_Str,
   igPopFont,
   igPopID,
   igPopStyleColor,
@@ -445,7 +451,7 @@ export async function openViewer(
   let contentsSearch = inputBuffer("");
   const states = new Map<string, DocumentState>();
   let closing = false;
-  let exportingPdf = false;
+  let exporting: "png" | "pdf" | "html" | undefined;
   let navigation: { request: ViewerRequest; frames: number } | undefined;
   let canvas:
     | {
@@ -800,7 +806,7 @@ export async function openViewer(
     }
     if (!entries.length)
       text(
-        "Render an artifact with the CLI to start your library.",
+        "Save an artifact with the CLI to start your library.",
         16,
         "regular",
         palette.muted,
@@ -860,7 +866,7 @@ export async function openViewer(
       const now = Date.now();
       const copy = (what: string, value: string) => {
         igSetClipboardText(value);
-        copied = { what, until: now + 1500 };
+        copied = { what, until: Date.now() + 1500 };
         animateUntil = Math.max(animateUntil, copied.until);
       };
       const copiedNow = (what: string) =>
@@ -868,6 +874,67 @@ export async function openViewer(
       const view = renderer;
       const controlsLinked = view?.hasControls() ?? false;
       const unavailable = "Unavailable while the artifact cannot load";
+      const exportSection = (
+        format: "png" | "pdf" | "html",
+        block?: string,
+        tabs = false,
+      ) => {
+        if (exporting || !view) return;
+        exporting = format;
+        error = "";
+        const failed = (cause: unknown) => {
+          error = cause instanceof Error ? cause.message : String(cause);
+        };
+        try {
+          execFile(
+            executablePath,
+            [
+              "export",
+              "--store",
+              resolve(root),
+              "--project",
+              current.project,
+              "--artifact",
+              current.artifact,
+              "--version",
+              current.version,
+              "--format",
+              format,
+              "--theme",
+              currentTheme(),
+              "--params",
+              JSON.stringify(Object.fromEntries(view.state.parameters)),
+              ...(format === "html" ? [] : ["--scale", String(current.scale)]),
+              ...(block ? ["--block", block] : []),
+              ...(tabs ? ["--html-layout", "tabs"] : []),
+            ],
+            { encoding: "utf8" },
+            (cause, stdout, stderr) => {
+              exporting = undefined;
+              if (closing) return;
+              try {
+                if (cause) {
+                  let message = cause.message;
+                  try {
+                    message = JSON.parse(stderr).error ?? message;
+                  } catch {}
+                  throw new Error(message);
+                }
+                const file: string = JSON.parse(stdout).output;
+                if (format === "png") copy("png", file);
+                else SDL_OpenURL(pathToFileURL(file).href);
+              } catch (cause) {
+                failed(cause);
+              }
+              pending = 2;
+            },
+          );
+        } catch (cause) {
+          exporting = undefined;
+          failed(cause);
+        }
+        pending = 2;
+      };
       // Every artifact gets the same buttons in the same places; the ones that do
       // not apply are disabled rather than removed.
       const actions: {
@@ -943,65 +1010,29 @@ export async function openViewer(
         {
           id: "png",
           icon: copiedNow("png") ? "check" : "image",
-          hint: copiedNow("png") ? "Copied" : "Copy PNG path",
-          run: () => copy("png", join(current.directory, "snapshot.png")),
+          hint: !view
+            ? unavailable
+            : copiedNow("png")
+              ? "Copied"
+              : exporting === "png"
+                ? "Exporting PNG…"
+                : "Export PNG and copy its path",
+          active: exporting === "png",
+          disabled: !view || exporting !== undefined,
+          run: () => exportSection("png"),
         },
         {
           id: "pdf",
           icon: "pdf",
           hint: !view
             ? unavailable
-            : exportingPdf
-              ? "Exporting PDF…"
-              : "Export PDF with the current appearance and controls",
-          active: exportingPdf,
-          disabled: !view,
+            : exporting
+              ? `Exporting ${exporting.toUpperCase()}…`
+              : "Export artifact or section",
+          active: exporting === "pdf" || exporting === "html",
+          disabled: !view || exporting !== undefined,
           run: () => {
-            if (exportingPdf || !view) return;
-            exportingPdf = true;
-            pending = 2;
-            try {
-              execFile(
-                executablePath,
-                [
-                  "export",
-                  "--store",
-                  resolve(root),
-                  "--project",
-                  current.project,
-                  "--artifact",
-                  current.artifact,
-                  "--version",
-                  current.version,
-                  "--format",
-                  "pdf",
-                  "--theme",
-                  currentTheme(),
-                  "--width",
-                  String(current.width),
-                  "--scale",
-                  String(current.scale),
-                  "--params",
-                  JSON.stringify(Object.fromEntries(view.state.parameters)),
-                ],
-                { encoding: "utf8" },
-                (cause, stdout) => {
-                  exportingPdf = false;
-                  if (closing) return;
-                  try {
-                    if (cause) throw cause;
-                    SDL_OpenURL(pathToFileURL(JSON.parse(stdout).output).href);
-                  } catch (cause) {
-                    error =
-                      cause instanceof Error ? cause.message : String(cause);
-                  }
-                  pending = 2;
-                },
-              );
-            } catch (cause) {
-              exportingPdf = false;
-              error = cause instanceof Error ? cause.message : String(cause);
-            }
+            igOpenPopup_Str("artifact-export", 0);
           },
         },
         {
@@ -1062,6 +1093,36 @@ export async function openViewer(
         )
           action.run();
         actionX += button;
+      }
+      if (view && igBeginPopup("artifact-export", 0)) {
+        if (igMenuItem_Bool("Open PDF", "", false, true)) exportSection("pdf");
+        if (igMenuItem_Bool("Open HTML", "", false, true))
+          exportSection("html");
+        const body = view.document.body;
+        if (
+          body.some(
+            (block, index) =>
+              block.type === "section" && body[index + 1]?.type === "section",
+          ) &&
+          igMenuItem_Bool("Open tabbed HTML", "", false, true)
+        )
+          exportSection("html", undefined, true);
+        const sectionBlocks = body.filter((block) => block.type === "section");
+        if (sectionBlocks.length && igBeginMenu("Export section", true)) {
+          for (const section of sectionBlocks) {
+            if (!igBeginMenu(`${section.title}##${section.id}`, true)) continue;
+            const block = `body.${section.id}`;
+            if (igMenuItem_Bool("Copy PNG path", "", false, true))
+              exportSection("png", block);
+            if (igMenuItem_Bool("Open PDF", "", false, true))
+              exportSection("pdf", block);
+            if (igMenuItem_Bool("Open HTML", "", false, true))
+              exportSection("html", block);
+            igEndMenu();
+          }
+          igEndMenu();
+        }
+        igEndPopup();
       }
       const pillWidth = Math.max(
         1,
@@ -1401,7 +1462,7 @@ export async function openViewer(
             ? 0
             : animating
               ? 16
-              : exportingPdf
+              : exporting
                 ? 50
                 : editing
                   ? 250

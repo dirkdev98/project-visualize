@@ -94,6 +94,62 @@ test("render returns saved documents and actual PNG/PDF files as JSON", async (t
   assert.equal(pdf.getTitle(), minimal().title);
 });
 
+test("save accepts a report taller than a raster export without generating files", (t) => {
+  const { ok, store } = workspace(t);
+  const source = {
+    ...minimal(),
+    body: Array.from({ length: 40 }, () => ({ type: "spacer", height: 2000 })),
+  };
+  const id = ["--project", "orbital", "--artifact", "long-review"];
+  const entry = ok(["save", ...id, "--file", "-"], source);
+  assert.deepEqual(JSON.parse(readFileSync(entry.document, "utf8")), source);
+  assert.ok(
+    ok(["list", ...id]).versions.some(
+      (saved) => saved.version === entry.version,
+    ),
+  );
+  assert.equal(existsSync(join(store, "exports")), false);
+  assert.ok(
+    !readdirSync(entry.directory).some((file) => /\.(png|pdf)$/.test(file)),
+  );
+});
+
+test("exporting a named section captures just its widgets and preserves the saved revision", async (t) => {
+  const { ok } = workspace(t);
+  const id = ["--project", "orbital", "--artifact", "sectioned-review"];
+  const entry = ok(["save", ...id, "--file", "examples/widgets/section.json"]);
+  const digestBefore = digest(entry.document);
+  const selection = [
+    ...id,
+    "--version",
+    entry.version,
+    "--block",
+    "body.evidence",
+    "--params",
+    '{"station":"Cedar"}',
+  ];
+  const { output: pdf } = ok(["export", ...selection, "--format", "pdf"]);
+  assert.equal(
+    (await PDFDocument.load(readFileSync(pdf))).getTitle(),
+    "Evidence",
+  );
+  const text = pdfTextPages(pdf).join(" ");
+  assert.match(text, /Accepted observations/);
+  assert.match(text, /Cedar/);
+  assert.doesNotMatch(text, /Checked observations|Birch/);
+  const { output: png } = ok(["export", ...selection, "--format", "png"]);
+  assert.deepEqual(
+    readFileSync(png).subarray(0, 8),
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+  );
+  const { output: html } = ok(["export", ...selection, "--format", "html"]);
+  assert.match(readFileSync(html, "utf8"), /Accepted observations/);
+  assert.doesNotMatch(readFileSync(html, "utf8"), /Checked observations/);
+  assert.equal(digest(entry.document), digestBefore);
+  assert.equal(existsSync(join(entry.directory, "snapshot.png")), false);
+  assert.equal(existsSync(join(entry.directory, "snapshot.pdf")), false);
+});
+
 test("the artifact type is required and listed with each saved revision", (t) => {
   const { run, ok, render } = workspace(t);
   for (const type of [undefined, "spreadsheet"]) {

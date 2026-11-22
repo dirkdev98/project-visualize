@@ -5,7 +5,7 @@ Start with a complete report such as [Observatory](observatory.json),
 Adapt the structured source and render it through the CLI:
 
 ```sh
-bin/visualize render --project examples --artifact observatory \
+bin/visualize save --project examples --artifact observatory \
   --file examples/observatory.json
 ```
 

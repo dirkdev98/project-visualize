@@ -110,6 +110,7 @@ export function exportHtml(
   options: {
     partial: boolean;
     mode: HtmlPayload["mode"];
+    layout: "scroll" | "tabs";
     provenance: HtmlPayload["provenance"];
     supportControls: ControlBlock[];
   },
@@ -127,6 +128,7 @@ export function exportHtml(
     parameters: Object.fromEntries(parameters),
     partial: options.partial,
     mode: options.mode,
+    ...(options.layout === "tabs" ? { layout: options.layout } : {}),
     provenance: options.provenance,
     highlights: syntax.values,
     supportControls: options.supportControls,

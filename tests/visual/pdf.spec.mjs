@@ -32,7 +32,7 @@ for (const { name, theme, paper } of cases) {
       const document = paper
         ? { ...fixture.document, pdf: paper }
         : fixture.document;
-      const entry = w.save(document, 1280, theme);
+      const entry = w.save(document, 1280, theme, { snapshots: true });
       const pages = pdfPages(entry.pdf, testInfo.outputPath("page"));
       expect(pages.length).toBeGreaterThan(0);
       const stem = `${variant}-${theme}-pdf`;

@@ -91,21 +91,21 @@ Write the artifact as JSON with a `type` of `dashboard`, `document` or `diagram`
 viewer's library shows it as an icon. A one-widget artifact is a document with a
 single block. Choose a project ID that matches the user's workspace and keep the same
 artifact ID when revising it. Preserve the actual data, units, source references,
-assumptions and uncertainty. Put the explanation in rich text and retain
+assumptions and uncertainty. Lead with the finding and its strongest chart or metric.
+For longer reports, use titled `section` blocks to group related widgets. Put raw
+data and methodology after the main evidence. Put the explanation in rich text and retain
 the task's provenance in `context`. Declare local PNG/JPEG paths or HTTP(S) image
 URLs in `assets`, and refer to them by asset ID. Remote images use a shared cache;
 each saved revision retains its chosen bytes for offline viewing and export.
 
 ```sh
 "$visualize_cli" validate --file document.json
-"$visualize_cli" render --project orbital --artifact station-review \
-  --file document.json --mobile-width 390
+"$visualize_cli" save --project orbital --artifact station-review --file document.json
 ```
 
-Parse the JSON result and inspect its desktop and mobile `screenshots` with the
-host's image-viewing capability. New screenshots default to 2x density; use `--scale 1`
-when the full canvas is too tall at that density. Fix clipping, unclear labels and
-poor composition by rendering a revision.
+Read the revision ID from the JSON result. Save the full report and export only the
+format and scope you need to inspect or deliver. Fix clipping, unclear labels and
+poor composition by saving a revision.
 
 Deliver the visual where the user reads the answer. When the host renders HTML in the
 conversation, deliver the interactive HTML export there: it keeps hover details,
@@ -119,7 +119,8 @@ with `--format html --html-mode inline`:
 - Use `--html-mode fragment` only when the host's visualization contract requires a
   fragment.
 
-Otherwise return the PNG screenshot with the host's image mechanism, with the
+Otherwise export `--format png`, inspect the returned `output` with the host's
+image-viewing capability, and return it with the host's image mechanism, with the
 artifact's project, ID and version available when useful. A path alone does not
 display an image on every host. A terminal can offer the standalone HTML path for
 browser viewing. Fall back to PNG when the host cannot display HTML or the export
@@ -132,15 +133,18 @@ This marks the selected delivery, not every rendering attempt or a receipt that 
 person opened it. Later drafts leave that marker in place, and earlier delivered
 versions keep their history.
 
-Use `inspect` to read an existing saved document before revising it. `render` always
+Use `inspect` to read an existing saved document before revising it. `save` always
 creates a new version. Export with an explicit `--version` when the request refers to
 particular evidence. PNG, PDF and HTML exports use the saved data and current layout
 engine, leaving creation-time snapshots unchanged. New captures follow the appearance
 chosen in Settings or the system; pass `--theme light|dark` when a specific palette
 matters.
 Omit `--out` to keep the export organized in the library; use the returned path.
-For a whole widget or card, read its path from `inspect`'s `view.blocks`, then export
+For a whole widget, card or section, read its path from `inspect`'s `view.blocks`, then export
 with `--block PATH`. This selects a complete subtree, not individual diagram nodes.
+Choose a section if the full PNG or PDF exceeds the capture limit. Pass `--width 390`
+for a phone-sized view. Use `--html-layout tabs` when the reader needs to switch
+between distinct sections in a browser.
 Temporary viewer zoom
 and filters do not change them. Use shared datasets and controls for linked widgets.
 A dataset-bound bar chart can `select` its matching select control through Shift-click.

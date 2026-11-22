@@ -125,6 +125,10 @@ controls interactive. PNG and PDF capture the initial view at 1x density.
 | [Rows](../../widgets/row.json) | dark, 1280 | [Open](row/dark-1280.html) | [View](row/dark-1280.browser.png) | [View](row/dark-1280.png) | [Open](row/dark-1280.pdf) |
 | [Rows](../../widgets/row.json) | light, 390 | [Open](row/light-390.html) | [View](row/light-390.browser.png) | [View](row/light-390.png) | [Open](row/light-390.pdf) |
 | [Rows](../../widgets/row.json) | dark, 390 | [Open](row/dark-390.html) | [View](row/dark-390.browser.png) | [View](row/dark-390.png) | [Open](row/dark-390.pdf) |
+| [Station review](../../widgets/section.json) | light, 1280 | [Open](section/light-1280.html) | [View](section/light-1280.browser.png) | [View](section/light-1280.png) | [Open](section/light-1280.pdf) |
+| [Station review](../../widgets/section.json) | dark, 1280 | [Open](section/dark-1280.html) | [View](section/dark-1280.browser.png) | [View](section/dark-1280.png) | [Open](section/dark-1280.pdf) |
+| [Station review](../../widgets/section.json) | light, 390 | [Open](section/light-390.html) | [View](section/light-390.browser.png) | [View](section/light-390.png) | [Open](section/light-390.pdf) |
+| [Station review](../../widgets/section.json) | dark, 390 | [Open](section/dark-390.html) | [View](section/dark-390.browser.png) | [View](section/dark-390.png) | [Open](section/dark-390.pdf) |
 | [Spacing](../../widgets/spacer.json) | light, 1280 | [Open](spacer/light-1280.html) | [View](spacer/light-1280.browser.png) | [View](spacer/light-1280.png) | [Open](spacer/light-1280.pdf) |
 | [Spacing](../../widgets/spacer.json) | dark, 1280 | [Open](spacer/dark-1280.html) | [View](spacer/dark-1280.browser.png) | [View](spacer/dark-1280.png) | [Open](spacer/dark-1280.pdf) |
 | [Spacing](../../widgets/spacer.json) | light, 390 | [Open](spacer/light-390.html) | [View](spacer/light-390.browser.png) | [View](spacer/light-390.png) | [Open](spacer/light-390.pdf) |

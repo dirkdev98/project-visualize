@@ -121,7 +121,7 @@ export async function renderArtifact(
     };
     const tooTall = () =>
       new Error(
-        "Artifact is too tall to export at this scale; split it into smaller artifacts",
+        "Artifact is too tall to export at this scale; export a section or reduce the scale",
       );
     if (pngs.length) {
       const png = capture(width, scale);

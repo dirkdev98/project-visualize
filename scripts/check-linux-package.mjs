@@ -99,23 +99,16 @@ try {
       join(scratch, "document.json"),
     );
     cli("validate", "--file", "document.json");
-    const rendered = cli(
-      "render",
-      "--project",
-      "orbital",
-      "--artifact",
-      "evidence",
-      "--file",
-      "document.json",
-      "--mobile-width",
-      "390",
+    const identity = ["--project", "orbital", "--artifact", "evidence"];
+    const saved = cli("save", ...identity, "--file", "document.json");
+    const revision = [...identity, "--version", saved.version];
+    const png = cli("export", ...revision, "--format", "png", "--width", "390");
+    assert.deepEqual(
+      readFileSync(png.output).subarray(0, 8),
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     );
-    assert.equal(rendered.scale, 2);
-    for (const file of Object.values(rendered.screenshots))
-      assert.deepEqual(
-        readFileSync(file).subarray(0, 8),
-        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-      );
+    const pdf = cli("export", ...revision, "--format", "pdf");
+    assert.equal(readFileSync(pdf.output).subarray(0, 5).toString(), "%PDF-");
     cli(
       "present",
       "--project",
@@ -123,7 +116,7 @@ try {
       "--artifact",
       "evidence",
       "--version",
-      rendered.version,
+      saved.version,
     );
     assert.equal(
       cli("inspect", "--project", "orbital", "--artifact", "evidence")

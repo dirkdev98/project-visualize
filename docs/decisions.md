@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-11-22 on-demand exports and report sections
+
+- Save immutable documents and their assets without capturing PNG or PDF. The
+  agent workflow exports the chosen format after saving, which lets a large report
+  enter the library even when its full canvas cannot be captured.
+- Keep `render` available when a caller explicitly requests a revision with both
+  snapshots, as in the published CLI.
+- Give report sections stable IDs and titles. Keep the native report scrollable
+  and use Contents for jumps. Export a section through the same path as a widget,
+  or opt into tabs for consecutive sections in an HTML export.
+- Put the main finding and strongest evidence first so a reader can understand
+  the report before opening supporting sections.
+
 ## 2026-11-16 PDF reading width
 
 - Lay PDFs out at their paper's width instead of the render width: the scale that

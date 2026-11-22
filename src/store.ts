@@ -24,7 +24,7 @@ export interface Entry {
   title: string;
   createdAt: string;
   width: number;
-  height: number;
+  height?: number;
   scale: number;
   theme?: Theme;
   mobile?: { width: number; height: number };
@@ -222,13 +222,18 @@ export async function save(
   sourceDirectory: string,
   width: number,
   scale: number,
-  render: (
-    document: Artifact,
-    outputs: string[],
-    width: number,
-    scale: number,
-  ) => Promise<number>,
-  options: { mobileWidth?: number; theme?: Theme } = {},
+  options: {
+    theme: Theme;
+    snapshots?: {
+      mobileWidth?: number;
+      render: (
+        document: Artifact,
+        outputs: string[],
+        width: number,
+        scale: number,
+      ) => Promise<number>;
+    };
+  },
 ): Promise<Entry> {
   slug(project, "project");
   slug(artifact, "artifact");
@@ -261,19 +266,7 @@ export async function save(
       join(pending, "document.json"),
       `${JSON.stringify(snapshot, null, 2)}\n`,
     );
-    const hydrated: Artifact = JSON.parse(JSON.stringify(snapshot));
-    const theme = snapshot.theme ?? options.theme ?? "light";
-    hydrated.theme = theme;
-    for (const [name, file] of Object.entries(hydrated.assets ?? {})) {
-      if (hydrated.assets) hydrated.assets[name] = join(pending, file);
-    }
-    const height = await render(
-      hydrated,
-      [join(pending, "snapshot.png"), join(pending, "snapshot.pdf")],
-      width,
-      scale,
-    );
-    const entry = {
+    const entry: Omit<Entry, "directory"> = {
       project,
       artifact,
       version,
@@ -281,23 +274,29 @@ export async function save(
       title: document.title,
       createdAt,
       width,
-      height,
       scale,
-      theme,
-      ...(options.mobileWidth === undefined
-        ? {}
-        : {
-            mobile: {
-              width: options.mobileWidth,
-              height: await render(
-                hydrated,
-                [join(pending, "snapshot-mobile.png")],
-                options.mobileWidth,
-                scale,
-              ),
-            },
-          }),
+      theme: snapshot.theme ?? options.theme,
     };
+    if (options.snapshots) {
+      const { render, mobileWidth } = options.snapshots;
+      const hydrated = load({ ...entry, directory: pending });
+      entry.height = await render(
+        hydrated,
+        [join(pending, "snapshot.png"), join(pending, "snapshot.pdf")],
+        width,
+        scale,
+      );
+      if (mobileWidth !== undefined)
+        entry.mobile = {
+          width: mobileWidth,
+          height: await render(
+            hydrated,
+            [join(pending, "snapshot-mobile.png")],
+            mobileWidth,
+            scale,
+          ),
+        };
+    }
     writeFileSync(
       join(pending, "metadata.json"),
       `${JSON.stringify(entry, null, 2)}\n`,

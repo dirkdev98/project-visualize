@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "type": "document",
+  "title": "Station review",
+  "datasets": {
+    "stations": [
+      { "station": "Birch", "accepted": 24, "checked": 26 },
+      { "station": "Cedar", "accepted": 12, "checked": 14 }
+    ]
+  },
+  "body": [
+    {
+      "type": "markdown",
+      "content": "Birch recorded twice as many accepted observations as Cedar. Both stations had two readings that needed a second check."
+    },
+    {
+      "type": "control",
+      "id": "station",
+      "label": "Station",
+      "kind": "select",
+      "dataset": "stations",
+      "field": "station"
+    },
+    {
+      "type": "section",
+      "id": "evidence",
+      "title": "Evidence",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Accepted observations",
+          "source": {
+            "dataset": "stations",
+            "field": "accepted",
+            "aggregate": "sum"
+          }
+        },
+        {
+          "type": "table",
+          "dataset": "stations",
+          "columns": [
+            { "key": "station", "label": "Station" },
+            { "key": "accepted", "label": "Accepted" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "id": "checks",
+      "title": "Checks",
+      "children": [
+        {
+          "type": "metric",
+          "label": "Checked observations",
+          "source": {
+            "dataset": "stations",
+            "field": "checked",
+            "aggregate": "sum"
+          }
+        },
+        {
+          "type": "markdown",
+          "content": "A reviewer checked each observation against the station log."
+        }
+      ]
+    }
+  ]
+}

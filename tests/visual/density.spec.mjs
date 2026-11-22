@@ -15,7 +15,10 @@ test("Retina density preserves the layout in every renderer", async ({
     const fixture = fixtures(w.directory).find(
       (fixture) => fixture.name === "images-and-layout",
     );
-    const entry = w.save(fixture.document, 768, "light", 2);
+    const entry = w.save(fixture.document, 768, "light", {
+      scale: 2,
+      snapshots: true,
+    });
     await page.setViewportSize({ width: 768, height: 900 });
     await openExport(page, w.html(entry).output);
     expect(readFileSync(entry.png).readUInt32BE(16)).toBe(768 * entry.scale);

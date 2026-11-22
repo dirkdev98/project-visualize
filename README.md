@@ -54,8 +54,8 @@ chat. Open Visualize to explore the artifact and find it again later.
 
 ## Keep your work organized
 
-Artifacts belong to projects. New revisions preserve earlier documents, assets and
-snapshots, so an updated report keeps its history. Search the library by project,
+Artifacts belong to projects. New revisions preserve earlier documents and assets,
+so an updated report keeps its history. Search the library by project,
 artifact ID or title, and choose an earlier revision from the version menu.
 
 Archive an artifact to remove it from ordinary browsing. Its revisions remain saved
@@ -77,7 +77,8 @@ Ctrl+Shift+O on Linux opens the contents search.
 - **HTML** gives you an offline page with interactive controls and charts. Fonts,
   images and data travel with the file.
 
-Export a complete artifact or one whole widget or card. Exports stay organized in the
+Export a complete artifact, a named section or a whole widget or card. HTML can present
+sections as tabs. Exports stay organized in the
 library unless you choose another destination. HTML is generated from Visualize's
 structured artifacts; the library does not import arbitrary HTML pages.
 
@@ -86,15 +87,15 @@ structured artifacts; the library does not import arbitrary HTML pages.
 From a source checkout, create and open an example with:
 
 ```sh
-bin/visualize render --project observatory --artifact weekly-review \
+bin/visualize save --project observatory --artifact weekly-review \
   --file examples/observatory.json
 bin/visualize open --project observatory --artifact weekly-review
 bin/visualize export --project observatory --artifact weekly-review \
   --format html --out weekly-review.html
 ```
 
-`render` returns the saved revision and image/PDF paths as JSON. Repeat it with the
-same project and artifact IDs to create a revision. Add `--version` to open or export
+`save` returns the new revision as JSON. Repeat it with the same project and artifact
+IDs to revise the report. Use `export` to generate files on demand. Add `--version` to open or export
 an earlier one. Use `--width 390` for a phone layout or `--theme dark` for dark output.
 Run `visualize --help` for commands, or read the [artifact guide](docs/artifacts.md)
 for authoring, linked controls and partial exports.

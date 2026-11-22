@@ -20,10 +20,15 @@ export function workspace() {
       ),
     );
   }
-  function save(document, width = 1280, theme = "light", scale = 1) {
+  function save(
+    document,
+    width = 1280,
+    theme = "light",
+    { scale = 1, snapshots = false } = {},
+  ) {
     return cli(
       [
-        "render",
+        snapshots ? "render" : "save",
         "--project",
         "renderers",
         "--artifact",

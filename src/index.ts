@@ -46,6 +46,7 @@ import {
 
 const help = `Project Visualize
 
+visualize save --project ID --artifact ID --file document.json
 visualize render --project ID --artifact ID --file document.json
 visualize list [--project ID] [--artifact ID] [--search QUERY] [--status active|archived|all]
 visualize archive --project ID --artifact ID
@@ -61,15 +62,17 @@ visualize install --cli PATH | --skill PATH
 visualize settings [--appearance system|light|dark] [--scroll-speed 5..100]
 
 Use --file - to read JSON from stdin. Every command accepts --store DIRECTORY.
-render and export accept --width 320..2560; PDFs lay out at their paper's width.
+save, render and export accept --width 320..2560; PDFs lay out at their paper's width.
 PNG/PDF captures accept --scale 1|2, defaulting to 2x; PDFs keep 2x when it fits.
 render accepts --mobile-width 320..600 to save a second responsive PNG.
-render, export and open accept --theme light|dark.
-render always saves a new immutable version with PNG and PDF snapshots.
+save, render, export and open accept --theme light|dark.
+save creates an immutable revision. Use export to generate individual files or
+render to explicitly save a revision with both PNG and PDF snapshots.
 Commands return JSON. open (the default) navigates the viewer, starting it if needed.
 inspect, export and open accept --params JSON to override declared controls.
-export accepts --block PATH to export one whole widget or card; inspect lists paths.
+export accepts --block PATH to export one whole widget, card or section; inspect lists paths.
 HTML exports accept --html-mode standalone|inline|fragment (default standalone).
+Use --html-layout tabs to group consecutive sections into tabs (default scroll).
 Without --out, exports are organized under the library's exports directory.
 open accepts --search QUERY and --focus true|false.
 viewer capture accepts --content-width 280..2560, --height 320..2000, --scroll PIXELS|all and --scale 1|2.
@@ -91,6 +94,7 @@ async function main() {
   const command =
     args.length && !args[0].startsWith("--") ? args.shift() : "open";
   const permitted: Record<string, string[]> = {
+    save: ["project", "artifact", "file", "width", "scale", "store", "theme"],
     render: [
       "project",
       "artifact",
@@ -118,6 +122,7 @@ async function main() {
       "theme",
       "block",
       "html-mode",
+      "html-layout",
     ],
     open: [
       "project",
@@ -190,7 +195,10 @@ async function main() {
   if (
     process.platform === "linux" &&
     !process.env.XDG_RUNTIME_DIR &&
-    ["render", "export", "viewer-host"].includes(command)
+    (command === "render" ||
+      command === "viewer-host" ||
+      (command === "export" &&
+        (options.format === "png" || options.format === "pdf")))
   ) {
     runtimeDirectory = mkdtempSync(join(tmpdir(), "visualize-runtime-"));
     // Set this before native graphics workers start reading the process environment.
@@ -236,7 +244,11 @@ async function main() {
       controller.close();
     }
     return;
-  } else if (command === "render" || command === "validate") {
+  } else if (
+    command === "save" ||
+    command === "render" ||
+    command === "validate"
+  ) {
     const file = required("file");
     const raw = readFileSync(file === "-" ? 0 : file, "utf8");
     if (Buffer.byteLength(raw) > 5 * 1024 * 1024)
@@ -255,26 +267,36 @@ async function main() {
         file === "-" ? process.cwd() : dirname(resolve(file)),
         width,
         scale,
-        render,
         {
-          mobileWidth:
-            options["mobile-width"] === undefined
-              ? undefined
-              : dimension("mobile-width", 390, 320, 600),
           theme: document.theme ?? creationTheme(root),
+          ...(command === "render"
+            ? {
+                snapshots: {
+                  render,
+                  mobileWidth:
+                    options["mobile-width"] === undefined
+                      ? undefined
+                      : dimension("mobile-width", 390, 320, 600),
+                },
+              }
+            : {}),
         },
       );
       result = {
         ...entry,
         document: join(entry.directory, "document.json"),
-        png: join(entry.directory, "snapshot.png"),
-        pdf: join(entry.directory, "snapshot.pdf"),
-        screenshots: {
-          desktop: join(entry.directory, "snapshot.png"),
-          ...(entry.mobile
-            ? { mobile: join(entry.directory, "snapshot-mobile.png") }
-            : {}),
-        },
+        ...(command === "render"
+          ? {
+              png: join(entry.directory, "snapshot.png"),
+              pdf: join(entry.directory, "snapshot.pdf"),
+              screenshots: {
+                desktop: join(entry.directory, "snapshot.png"),
+                ...(entry.mobile
+                  ? { mobile: join(entry.directory, "snapshot-mobile.png") }
+                  : {}),
+              },
+            }
+          : {}),
       };
     }
   } else if (command === "settings") {
@@ -389,10 +411,15 @@ async function main() {
     if (format !== "png" && format !== "pdf" && format !== "html")
       throw new Error("--format must be png, pdf or html");
     const mode = options["html-mode"] ?? "standalone";
+    const layout = options["html-layout"] ?? "scroll";
     if (!["standalone", "inline", "fragment"].includes(mode))
       throw new Error("--html-mode must be standalone, inline or fragment");
     if (options["html-mode"] && format !== "html")
       throw new Error("--html-mode requires --format html");
+    if (layout !== "scroll" && layout !== "tabs")
+      throw new Error("--html-layout must be scroll or tabs");
+    if (options["html-layout"] && format !== "html")
+      throw new Error("--html-layout requires --format html");
     if (format === "html" && options.scale !== undefined)
       throw new Error("--scale applies only to PNG and PDF exports");
     const selected = exportView(load(entry), parameters, options.block);
@@ -439,6 +466,7 @@ async function main() {
           {
             partial: selected.partial,
             mode: mode as "standalone" | "inline" | "fragment",
+            layout,
             provenance,
             supportControls: selected.supportControls,
           },

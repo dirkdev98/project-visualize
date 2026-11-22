@@ -38,6 +38,7 @@ export interface HtmlPayload {
   parameters: Record<string, ParameterValue>;
   partial: boolean;
   mode: "standalone" | "inline" | "fragment";
+  layout?: "tabs";
   provenance: {
     project: string;
     artifact: string;
@@ -61,6 +62,7 @@ export interface HtmlState {
   >;
   plots: Record<string, PlotState>;
   closed: Set<string>;
+  tabs: Map<string, number>;
 }
 export function htmlState(payload: HtmlPayload): HtmlState {
   return {
@@ -68,6 +70,7 @@ export function htmlState(payload: HtmlPayload): HtmlState {
     tables: {},
     plots: {},
     closed: new Set(),
+    tabs: new Map(),
   };
 }
 const tone = (value?: string) =>
@@ -265,6 +268,9 @@ export function renderDocument(
           : blocks(value.children, width, key);
         break;
       }
+      case "section":
+        content = blocks(value.children, width, key);
+        break;
       case "card":
         content = `<div class="pv-panel">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${blocks(value.children, Math.max(1, width - 40), key)}</div>`;
         break;
@@ -466,7 +472,38 @@ export function renderDocument(
   const heading = payload.partial
     ? ""
     : `<header><p class="pv-eyebrow">PROJECT VISUALIZE / ${escapeHtml((document.category ?? document.type ?? "artifact").toUpperCase())}</p><h1 style="font-size:${available < 480 ? 30 : 38}px">${escapeHtml(document.title)}</h1>${document.subtitle ? `<p class="pv-subtitle">${escapeHtml(document.subtitle)}</p>` : ""}<hr></header>`;
-  return `${heading}${blocks(view.body, available, "body")}`;
+  if (payload.layout !== "tabs")
+    return `${heading}${blocks(view.body, available, "body")}`;
+  const content: string[] = [];
+  for (let i = 0; i < view.body.length; ) {
+    const start = i;
+    const first = view.body[i++];
+    if (first.type !== "section" || view.body[i]?.type !== "section") {
+      content.push(block(first, available, `body.${first.id ?? start}`));
+      continue;
+    }
+    const sections = [first];
+    for (
+      let next = view.body[i];
+      next?.type === "section";
+      next = view.body[++i]
+    )
+      sections.push(next);
+    const active = state.tabs.get(first.id) ?? 0;
+    const tabs = sections.map((section, index) => {
+      const id = `pv-tab-${section.id}`;
+      const selected = index === active;
+      return `<button type="button" role="tab" id="${id}" aria-controls="pv-panel-${section.id}" aria-selected="${selected}" tabindex="${selected ? 0 : -1}" data-tabset="${first.id}" data-tab="${index}">${escapeHtml(section.title)}</button>`;
+    });
+    const panels = sections.map((section, index) => {
+      const id = `pv-tab-${section.id}`;
+      return `<div class="pv-tab-panel" role="tabpanel" id="pv-panel-${section.id}" aria-labelledby="${id}" tabindex="0"${index === active ? "" : " hidden"}>${block(section, available, `body.${section.id}`)}</div>`;
+    });
+    content.push(
+      `<div class="pv-section-tabs"><div class="pv-tab-list" role="tablist" aria-label="Report sections">${tabs.join("")}</div>${panels.join("")}</div>`,
+    );
+  }
+  return `${heading}<div class="pv-column">${content.join("")}</div>`;
 }
 
 export function themeStyle(theme: Theme): string {

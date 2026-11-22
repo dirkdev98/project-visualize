@@ -712,9 +712,14 @@ export class DocumentRenderer {
   ) {
     const top = igGetCursorScreenPos().y;
     const flow =
-      ["column", "details", "card", "timeline", "comparison"].includes(
-        value.type,
-      ) ||
+      [
+        "column",
+        "details",
+        "card",
+        "timeline",
+        "comparison",
+        "section",
+      ].includes(value.type) ||
       (value.type === "row" && available() < 620);
     let heading = parentHeading;
     const capture = currentCapture();
@@ -825,6 +830,9 @@ export class DocumentRenderer {
       }
       case "timeline":
         this.timeline(value, exporting, key, heading);
+        break;
+      case "section":
+        this.blocks(value.children, exporting, key, heading);
         break;
       case "row":
       case "column":

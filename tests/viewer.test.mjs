@@ -57,9 +57,9 @@ async function workspace(t) {
   const file = join(directory, "artifact.json");
   const { writeFileSync } = await import("node:fs");
   writeFileSync(file, JSON.stringify(document));
-  const render = (artifact, project = "orbital") =>
+  const save = (artifact, project = "orbital") =>
     cli([
-      "render",
+      "save",
       "--project",
       project,
       "--artifact",
@@ -82,7 +82,7 @@ async function workspace(t) {
       "false",
       ...extra,
     ]);
-  return { cli, raw, render, open, directory, file };
+  return { cli, raw, save, open, directory, file };
 }
 
 test("report sections can be listed and revisited from either scroll direction", async (t) => {
@@ -102,14 +102,19 @@ test("report sections can be listed and revisited from either scroll direction",
         },
         { type: "spacer", height: 900 },
         {
-          type: "details",
+          type: "section",
           id: "evidence",
           title: "Evidence",
           children: [
             {
-              type: "markdown",
-              id: "checks",
-              content: "## Calibration\n\nFictional equipment checks.",
+              type: "details",
+              title: "Checks",
+              children: [
+                {
+                  type: "markdown",
+                  content: "## Calibration\n\nFictional equipment checks.",
+                },
+              ],
             },
           ],
         },
@@ -117,7 +122,7 @@ test("report sections can be listed and revisited from either scroll direction",
       ],
     }),
   );
-  const entry = await w.render("report");
+  const entry = await w.save("report");
   await w.open(entry, ["--contents", "true", "--theme", "dark"]);
   const outline = await w.cli([
     "viewer",
@@ -189,7 +194,7 @@ test("a selected final heading stays active when the report fits the viewport", 
       ],
     }),
   );
-  const entry = await w.render("short-report");
+  const entry = await w.save("short-report");
   await w.open(entry);
   const outline = await w.cli([
     "viewer",
@@ -233,7 +238,7 @@ test("opening and closing contents keeps the reader's section", async (t) => {
       body,
     }),
   );
-  const entry = await w.render("long-report");
+  const entry = await w.save("long-report");
   await w.open(entry, ["--contents", "true"]);
   const outline = await w.cli([
     "viewer",
@@ -292,7 +297,7 @@ test("chart captures retain their fitted layout after the first capture", async 
       ],
     }),
   );
-  const entry = await w.render("charts");
+  const entry = await w.save("charts");
   const capture = async (name) => {
     const result = await w.cli([
       "viewer",
@@ -323,7 +328,7 @@ test("chart captures retain their fitted layout after the first capture", async 
 
 test("CLI navigation reuses the viewer and reapplies parameters to the same revision", async (t) => {
   const w = await workspace(t),
-    entry = await w.render("review");
+    entry = await w.save("review");
   const initial = await w.open(entry),
     changed = await w.open(entry, ["--params", '{"station":"Cedar"}']);
   assert.equal(changed.pid, initial.pid);
@@ -352,8 +357,8 @@ test("CLI navigation reuses the viewer and reapplies parameters to the same revi
 
 test("presenting another artifact navigates the already running viewer to that exact revision", async (t) => {
   const w = await workspace(t),
-    first = await w.render("review"),
-    second = await w.render("notes");
+    first = await w.save("review"),
+    second = await w.save("notes");
   const running = await w.open(first);
   const presented = await w.cli([
     "present",
@@ -371,10 +376,10 @@ test("presenting another artifact navigates the already running viewer to that e
 
 test("archiving the viewed artifact continues with its project's adjacent active item", async (t) => {
   const w = await workspace(t);
-  await w.render("older");
-  const current = await w.render("review");
-  const neighbor = await w.render("newer");
-  await w.render("elsewhere", "field");
+  await w.save("older");
+  const current = await w.save("review");
+  const neighbor = await w.save("newer");
+  await w.save("elsewhere", "field");
   const running = await w.open(current);
   await w.cli([
     "archive",
@@ -414,7 +419,7 @@ test("a failed viewer launch retains its diagnostic error", async (t) => {
 
 test("simultaneous opens create one viewer and a crashed owner can be replaced", async (t) => {
   const w = await workspace(t),
-    entry = await w.render("review");
+    entry = await w.save("review");
   const openings = await Promise.all([
     w.open(entry),
     w.open(entry),
@@ -429,7 +434,7 @@ test("simultaneous opens create one viewer and a crashed owner can be replaced",
 
 test("an unresponsive owner reports an error instead of creating another viewer", async (t) => {
   const w = await workspace(t),
-    entry = await w.render("review"),
+    entry = await w.save("review"),
     running = await w.open(entry);
   process.kill(running.pid, "SIGSTOP");
   try {
