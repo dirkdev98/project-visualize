@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-11-23 Maligator registry pin
+
+- Replace the 2026-11-22 local Maligator packs with exact version
+  `0.1.0-alpha.36` from npm so the launcher selects the matching package on each
+  supported platform.
+
 ## 2026-11-22 local Maligator release trial
 
 - Pin both local Maligator packs on the trial branch so the launcher resolves the
